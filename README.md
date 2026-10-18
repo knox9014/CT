@@ -10,6 +10,10 @@ CT aims to develop a general-purpose translation and compatibility layer for run
 
 현재는 프로젝트 목표를 정리하는 초기 단계입니다. 실행 가능한 변환기, 런타임, 검증된 GPU 지원은 아직 없습니다.
 
+## Development plan / 개발 계획
+
+[CT 개발 전략 및 단계별 계획](docs/CT-ROADMAP.md)은 검토용 설계 초안입니다. 기존 엔진 평가, Intel·AMD GPU 실행 검증, PTX 기반 최소 호환 계층, 라이브러리 및 AI 워크로드 확장 순서를 다룹니다. 제안된 기능은 아직 구현되지 않았습니다.
+
 ## Goals / 목표
 
 - Reduce the work needed to adapt CUDA-based software for Intel and AMD GPUs.
