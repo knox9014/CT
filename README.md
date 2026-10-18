@@ -12,7 +12,7 @@ CT aims to develop a general-purpose translation and compatibility layer for run
 
 ## Development plan / 개발 계획
 
-[CT 개발 전략 및 단계별 계획](docs/CT-ROADMAP.md)은 검토용 설계 초안입니다. 기존 엔진 평가, Intel·AMD GPU 실행 검증, PTX 기반 최소 호환 계층, 라이브러리 및 AI 워크로드 확장 순서를 다룹니다. 제안된 기능은 아직 구현되지 않았습니다.
+[CT CUDA 호환 드라이버 설계 및 개발 계획](docs/CT-DRIVER-DESIGN.md)은 검토용 초안입니다. CT 자체의 CUDA API/ABI, PTX 변환, 런타임과 백엔드를 개발하며 Arc B390에서 시작해 AMD와 실제 AI 프로그램으로 확장합니다. 제조사 드라이버 위에서 동작하는 사용자 공간 호환 계층이며, 제안된 기능은 아직 구현되지 않았습니다.
 
 ## Goals / 목표
 
