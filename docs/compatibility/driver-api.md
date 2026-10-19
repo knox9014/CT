@@ -39,3 +39,7 @@ The M1 table above contains 20 exports. M2 adds four, bringing the experimental 
 Stale or foreign module/function tokens return INVALID_HANDLE=400. Context destruction unloads owned modules before native context destruction. Uncertain native work or cleanup retains resources and poisons the context. Host pointer validity and dynamic kernel access bounds remain caller obligations.
 
 Primary contexts, streams/events, cudart, cuBLAS and AMD remain unsupported. See [M2 results and limitations](../M2-RESULTS.md).
+
+## M3b versioned entry-point extension
+
+M3b adds `cuGetProcAddress` and `cuGetProcAddress_v2`, bringing the total to 26 exports. They select existing CT functions through explicitly supported version intervals, without implying broader support or advertising a CUDA driver version. See [lookup contracts and limits](driver-entrypoints.md) and [official-header consumer results](../M3b-RESULTS.md).

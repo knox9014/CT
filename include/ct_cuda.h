@@ -38,7 +38,9 @@ typedef struct CTstream *CUstream;
  X(cuModuleLoadData, (CUmodule *module, const void *image)) \
  X(cuModuleGetFunction, (CUfunction *function, CUmodule module, const char *name)) \
  X(cuModuleUnload, (CUmodule module)) \
- X(cuLaunchKernel, (CUfunction function, unsigned int gx, unsigned int gy, unsigned int gz, unsigned int bx, unsigned int by, unsigned int bz, unsigned int shared, CUstream stream, void **arguments, void **extra))
+ X(cuLaunchKernel, (CUfunction function, unsigned int gx, unsigned int gy, unsigned int gz, unsigned int bx, unsigned int by, unsigned int bz, unsigned int shared, CUstream stream, void **arguments, void **extra)) \
+ X(cuGetProcAddress, (const char *symbol, void **function, int version, unsigned long long flags)) \
+ X(cuGetProcAddress_v2, (const char *symbol, void **function, int version, unsigned long long flags, int *status))
 #ifdef __cplusplus
 extern "C" {
 #endif

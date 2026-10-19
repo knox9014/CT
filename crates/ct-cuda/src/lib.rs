@@ -28,7 +28,9 @@ struct OwnedModule {
     entry: String,
     params: Vec<Param>,
 }
+mod entrypoints;
 mod modules;
+pub use entrypoints::{cuGetProcAddress, cuGetProcAddress_v2};
 #[derive(Default)]
 struct Runtime {
     backend: Option<Backend>,

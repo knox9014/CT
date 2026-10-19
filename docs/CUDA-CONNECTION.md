@@ -17,3 +17,9 @@ Verification uses two synthetic independent C consumers, built once with ordinar
 This is an initial loader connection result, not full M3/v0.1 clearance. NVIDIA original execution and coexistence require NVIDIA hardware/software and remain unverified here.
 
 References: [Microsoft DLL search order](https://learn.microsoft.com/en-us/windows/win32/dlls/dynamic-link-library-search-order), [NVIDIA Driver entry-point access](https://docs.nvidia.com/cuda/cuda-driver-api/cuda_driver_api/group__CUDA__DRIVER__ENTRY__POINT.html).
+
+## Versioned Driver connection increment (M3b)
+
+The four- and five-argument CUDA function resolvers now connect canonical base-name/version requests to implemented CT functions. A consumer compiled solely with official NVIDIA headers obtains its function pointers through both resolvers and executes restricted PTX on Arc B390. The lookup ceiling, unsupported newer signatures, flags and error rules are explicit in [Driver entry-point support](compatibility/driver-entrypoints.md); exact checks are in [M3b results](M3b-RESULTS.md).
+
+This extends M3a's supported loading paths. It does not complete external-app, NVIDIA original/coexistence, Runtime API or AMD verification. Further work remains anchored to an unchanged external CUDA program's actual requirements.
