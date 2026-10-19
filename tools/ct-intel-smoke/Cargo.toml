@@ -1,0 +1,12 @@
+[package]
+name = "ct-intel-smoke"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+name = "ct_intel_smoke"
+
+[[bin]]
+name = "ct-intel-smoke"
+path = "src/main.rs"

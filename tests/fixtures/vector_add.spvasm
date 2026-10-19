@@ -1,0 +1,44 @@
+; CT M0 native fixture, NOT a PTX/CUDA translation result.
+; SPIR-V 1.0, OpenCL Kernel profile, Physical64 addressing.
+; Arguments: global f32* A, global f32* B, global f32* C, u32 length.
+; Launch group size is selected at runtime. The tail must not write guard values.
+OpCapability Addresses
+OpCapability Kernel
+OpCapability Int64
+OpMemoryModel Physical64 OpenCL
+OpEntryPoint Kernel %vector_add "vector_add" %global_id
+OpDecorate %global_id BuiltIn GlobalInvocationId
+%void = OpTypeVoid
+%bool = OpTypeBool
+%u32 = OpTypeInt 32 0
+%u64 = OpTypeInt 64 0
+%f32 = OpTypeFloat 32
+%v3u64 = OpTypeVector %u64 3
+%input_ptr = OpTypePointer Input %v3u64
+%global_ptr = OpTypePointer CrossWorkgroup %f32
+%signature = OpTypeFunction %void %global_ptr %global_ptr %global_ptr %u32
+%global_id = OpVariable %input_ptr Input
+%vector_add = OpFunction %void None %signature
+%a = OpFunctionParameter %global_ptr
+%b = OpFunctionParameter %global_ptr
+%c = OpFunctionParameter %global_ptr
+%n = OpFunctionParameter %u32
+%entry = OpLabel
+%global = OpLoad %v3u64 %global_id
+%i = OpCompositeExtract %u64 %global 0
+%n64 = OpUConvert %u64 %n
+%inside = OpULessThan %bool %i %n64
+OpSelectionMerge %end None
+OpBranchConditional %inside %body %end
+%body = OpLabel
+%ap = OpInBoundsPtrAccessChain %global_ptr %a %i
+%bp = OpInBoundsPtrAccessChain %global_ptr %b %i
+%cp = OpInBoundsPtrAccessChain %global_ptr %c %i
+%av = OpLoad %f32 %ap
+%bv = OpLoad %f32 %bp
+%sum = OpFAdd %f32 %av %bv
+OpStore %cp %sum
+OpBranch %end
+%end = OpLabel
+OpReturn
+OpFunctionEnd

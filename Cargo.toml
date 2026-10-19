@@ -1,0 +1,3 @@
+[workspace]
+members = ["tools/ct-intel-smoke"]
+resolver = "2"
