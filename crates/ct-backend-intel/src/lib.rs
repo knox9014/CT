@@ -44,7 +44,7 @@ pub struct Context {
 }
 pub struct Module {
     native: usize,
-    kernel: usize,
+    kernels: Vec<usize>,
 }
 
 impl Backend {

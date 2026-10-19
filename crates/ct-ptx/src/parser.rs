@@ -359,10 +359,7 @@ pub fn parse(source: &str) -> Result<Kernel, Error> {
     if module.kernels.len() != 1 {
         return Err(unsupported(1));
     }
-    Ok(module
-        .kernels
-        .pop()
-        .ok_or_else(|| fail(1, "missing entry"))?)
+    module.kernels.pop().ok_or_else(|| fail(1, "missing entry"))
 }
 
 pub fn parse_module(source: &str) -> Result<Module, Error> {
