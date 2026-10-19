@@ -6,7 +6,7 @@ CT aims to develop a general-purpose translation and compatibility layer for run
 
 ## Project status / 현재 상태
 
-**M2: restricted PTX translation and GPU execution verified on Intel Arc B390.**
+**M3a: ordinary CUDA DLL loading connected to CT on Intel Arc B390. Restricted PTX only.**
 
 현재는 초기 개발 단계입니다. Windows의 Intel Arc B390에서 제한된 PTX를 SPIR-V로 번역해 실제 GPU에서 실행합니다. 벡터 덧셈·SAXPY·ReLU·행렬 곱셈 4개 커널의 53개 조합에서 출력 606,660개와 가드 값 4,992개를 검증했습니다. API는 24개 심볼이며, M1 메모리·컨텍스트 검사 210개도 통과했습니다. 일반 CUDA 프로그램 로딩, CUDA 라이브러리 및 AMD 지원은 아직 구현되지 않았습니다.
 
@@ -15,6 +15,8 @@ CT aims to develop a general-purpose translation and compatibility layer for run
 [M1 실행 결과와 재현 방법](docs/M1-RESULTS.md) · [Driver API 지원 범위](docs/compatibility/driver-api.md) · [공개 자료 보호 규칙](docs/PUBLICATION.md)
 
 [M2 실행 결과와 재현 방법](docs/M2-RESULTS.md) · [지원하는 PTX 문법과 제한](docs/compatibility/ptx-profile.md)
+
+M3a에서는 일반 `nvcuda.dll` import 및 동적 로딩을 쓰는 독립 합성 프로그램 두 개를, 실행 파일 수정 없이 CT에 연결해 GPU 계산을 검증했습니다. 아직 외부 앱·NVIDIA 원본 실행 비교를 통과한 것은 아닙니다. [M3a 실행 결과](docs/M3a-RESULTS.md) · [CUDA 프로그램 연결 목표](docs/CUDA-CONNECTION.md)
 
 ## Development plan / 개발 계획
 
@@ -26,13 +28,12 @@ CT aims to develop a general-purpose translation and compatibility layer for run
 - Serve multiple CUDA applications, including AI workloads, rather than a single model.
 - Publish supported operations, hardware, correctness results, and performance measurements as implementation progresses.
 
-## Open design questions / 설계할 사항
+## Next priorities / 다음 과제
 
-- Source translation, runtime compatibility, or a combination of both.
-- Initial CUDA API and kernel subset.
-- Target backends, operating systems, and GPU models.
-- Compatibility with libraries used by AI frameworks.
-- Reproducible correctness tests and performance comparisons.
+- Expand process-local CUDA application loading and versioned Driver entry points.
+- Validate an external unchanged application and compare against NVIDIA execution.
+- Extend PTX, CUDA Runtime and library coverage with reproducible checks.
+- Implement and verify an AMD backend on physical hardware.
 
 Full CUDA compatibility and performance parity are long-term research questions, not current capabilities or guarantees.
 
