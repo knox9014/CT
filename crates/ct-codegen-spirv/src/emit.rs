@@ -122,6 +122,14 @@ impl Writer {
                 let b = self.result(113, 4, &[ids[1]]);
                 self.result(132, 4, &[a, b])
             }
+            Op::SignedMulWide => {
+                let a = self.result(124, 13, &[ids[0]]);
+                let b = self.result(124, 13, &[ids[1]]);
+                let a = self.result(114, 14, &[a]);
+                let b = self.result(114, 14, &[b]);
+                let product = self.result(132, 14, &[a, b]);
+                self.result(124, 4, &[product])
+            }
             Op::Mad => {
                 let product = self.result(132, 3, &ids[..2]);
                 self.result(128, 3, &[product, ids[2]])
@@ -129,6 +137,11 @@ impl Writer {
             Op::Div => self.result(134, tid, &ids),
             Op::Rem => self.result(137, tid, &ids),
             Op::Ge => self.result(if is_float { 190 } else { 174 }, 2, &ids),
+            Op::SignedGe | Op::SignedLt => {
+                let a = self.result(124, 13, &[ids[0]]);
+                let b = self.result(124, 13, &[ids[1]]);
+                self.result(if op == Op::SignedGe { 175 } else { 177 }, 2, &[a, b])
+            }
             Op::Lt => self.result(if is_float { 184 } else { 176 }, 2, &ids),
             Op::Eq => self.result(170, 2, &ids),
             Op::Select => self.result(169, tid, &[ids[2], ids[0], ids[1]]),
@@ -141,7 +154,7 @@ impl Writer {
 }
 pub(super) fn generate(k: &Kernel) -> Vec<u8> {
     let mut w = Writer {
-        next: 13,
+        next: 15,
         types: vec![],
         globals: vec![],
         annotations: vec![],
@@ -154,6 +167,8 @@ pub(super) fn generate(k: &Kernel) -> Vec<u8> {
     inst(&mut w.types, 20, &[2]);
     inst(&mut w.types, 21, &[3, 32, 0]);
     inst(&mut w.types, 21, &[4, 64, 0]);
+    inst(&mut w.types, 21, &[13, 32, 1]);
+    inst(&mut w.types, 21, &[14, 64, 1]);
     inst(&mut w.types, 22, &[5, 32]);
     inst(&mut w.types, 23, &[6, 4, 3]);
     inst(&mut w.types, 32, &[7, 1, 6]);

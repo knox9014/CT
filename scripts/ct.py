@@ -152,12 +152,15 @@ def prepare_bundle(application, ct_dll, assets, root):
         raise LoaderError("bundle filename collision")
     for asset in assets:
         asset = Path(asset)
-        if asset.suffix.lower() != ".ptx" or asset.name.casefold() in names:
-            raise LoaderError("assets must be distinct PTX files")
+        if asset.suffix.lower() not in (".ptx", ".fatbin") or asset.name.casefold() in names:
+            raise LoaderError("assets must be distinct PTX text files")
         names.add(asset.name.casefold())
         data = read_image(asset)
         if len(data) > 262144 or b"\0" in data:
             raise LoaderError("unsupported PTX asset size or encoding")
+        if asset.suffix.lower() == ".fatbin":
+            if not data.isascii() or not re.search(rb"(?m)^\s*\.version\s+[0-9]+\.[0-9]+", data):
+                raise LoaderError("only PTX text is accepted under a fatbin filename")
         payloads[asset.name] = data
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)

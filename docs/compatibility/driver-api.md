@@ -9,7 +9,7 @@ Export calling convention: Windows CUDA `__stdcall` / Rust `extern "system"` (un
 | cuInit | flags=0, idempotent initialization of the Intel backend |
 | cuDeviceGetCount, cuDeviceGet | native Intel GPU list and ordinal validation |
 | cuDeviceGetName | bounded NUL-terminated name; positive buffer size required |
-| cuDeviceGetAttribute | attributes 1..4 (max threads/group and X/Y/Z dimensions); other values return NOT_SUPPORTED and output 0 |
+| cuDeviceGetAttribute | attributes 1..4 (max threads/group and X/Y/Z dimensions); M3c also supports 20/compute mode as DEFAULT=0 for CT's shared contexts; other values return NOT_SUPPORTED and output 0 |
 | cuCtxCreate_v2, cuCtxDestroy_v2 | flags=0; monotonic non-dereferenced handles; destroy releases owned native allocations on normal path |
 | cuCtxGetCurrent, cuCtxSetCurrent | per-thread current-context stack; null set detaches the top entry |
 | cuCtxPushCurrent_v2, cuCtxPopCurrent_v2 | attach/detach an existing live context; foreign host threads start with no current context |
