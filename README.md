@@ -6,15 +6,17 @@ CT aims to develop a general-purpose translation and compatibility layer for run
 
 ## Project status / 현재 상태
 
-**M0 native Intel execution verified. CUDA compatibility is not implemented yet.**
+**M1 experimental CUDA Driver memory API verified on Arc B390. PTX execution is not implemented yet.**
 
-현재는 초기 개발 단계입니다. Windows의 Intel Arc B390에서 자체 Rust 실험 도구로 SPIR-V 벡터 덧셈 16개 조합을 검증했습니다. CUDA API/ABI, PTX 변환기, 기존 CUDA 프로그램 실행 및 AMD 지원은 아직 구현되지 않았습니다.
+현재는 초기 개발 단계입니다. Windows의 Intel Arc B390에서 CUDA Driver API의 제한된 20개 심볼을 CT DLL로 구현했고, 독립 C 프로그램의 메모리·컨텍스트 검사 210개를 통과했습니다. M0의 네이티브 SPIR-V 벡터 덧셈 16개 조합도 유지합니다. PTX 변환, CUDA 커널 실행, 일반 CUDA 프로그램 로딩 및 AMD 지원은 아직 구현되지 않았습니다.
 
 [M0 실행 결과와 재현 방법](docs/M0-RESULTS.md) · [검증 환경](docs/environment-matrix.md) · [실행 경로 결정](docs/decisions/0001-intel-execution-path.md)
 
+[M1 실행 결과와 재현 방법](docs/M1-RESULTS.md) · [Driver API 지원 범위](docs/compatibility/driver-api.md) · [공개 자료 보호 규칙](docs/PUBLICATION.md)
+
 ## Development plan / 개발 계획
 
-[CT CUDA 호환 드라이버 설계 및 개발 계획](docs/CT-DRIVER-DESIGN.md)에 따라 CT 자체의 CUDA API/ABI, PTX 변환, 런타임과 백엔드를 개발하며 Arc B390에서 시작해 AMD와 실제 AI 프로그램으로 확장합니다. 제조사 드라이버 위에서 동작하는 사용자 공간 호환 계층을 목표로 합니다. 현재 완료한 검증은 M0의 제한된 네이티브 실행입니다.
+[CT CUDA 호환 드라이버 설계 및 개발 계획](docs/CT-DRIVER-DESIGN.md)에 따라 CT 자체의 CUDA API/ABI, PTX 변환, 런타임과 백엔드를 개발하며 Arc B390에서 시작해 AMD와 실제 AI 프로그램으로 확장합니다. 제조사 드라이버 위에서 동작하는 사용자 공간 호환 계층을 목표로 합니다. 현재 완료한 검증은 M0 네이티브 실행과 M1의 제한된 메모리·컨텍스트 ABI입니다.
 
 ## Goals / 목표
 

@@ -1,0 +1,8 @@
+[package]
+name = "ct-backend-intel"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+ct-level-zero = { path = "../ct-level-zero" }

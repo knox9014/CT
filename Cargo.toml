@@ -1,3 +1,3 @@
 [workspace]
-members = ["tools/ct-intel-smoke"]
+members = ["tools/ct-intel-smoke", "crates/ct-core", "crates/ct-level-zero", "crates/ct-backend-intel", "crates/ct-cuda"]
 resolver = "2"

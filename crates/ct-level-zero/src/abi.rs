@@ -119,6 +119,10 @@ pub struct GroupCount {
 
 /// All types in this module have only integer, byte-array, or pointer fields.
 /// Callers set the documented structure type before passing them to the driver.
+///
+/// # Safety
+/// T must admit an all-zero representation. Only the C ABI structs in this module
+/// with integer, pointer and byte-array fields are used by CT callers.
 pub unsafe fn blank<T>() -> T {
     std::mem::zeroed()
 }

@@ -3,5 +3,31 @@
 version = 4
 
 [[package]]
+name = "ct-backend-intel"
+version = "0.1.0"
+dependencies = [
+ "ct-level-zero",
+]
+
+[[package]]
+name = "ct-core"
+version = "0.1.0"
+
+[[package]]
+name = "ct-cuda"
+version = "0.1.0"
+dependencies = [
+ "ct-backend-intel",
+ "ct-core",
+]
+
+[[package]]
 name = "ct-intel-smoke"
+version = "0.1.0"
+dependencies = [
+ "ct-level-zero",
+]
+
+[[package]]
+name = "ct-level-zero"
 version = "0.1.0"
