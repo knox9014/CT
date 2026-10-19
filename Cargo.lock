@@ -10,6 +10,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "ct-codegen-spirv"
+version = "0.1.0"
+dependencies = [
+ "ct-ptx",
+]
+
+[[package]]
 name = "ct-core"
 version = "0.1.0"
 
@@ -18,7 +25,9 @@ name = "ct-cuda"
 version = "0.1.0"
 dependencies = [
  "ct-backend-intel",
+ "ct-codegen-spirv",
  "ct-core",
+ "ct-ptx",
 ]
 
 [[package]]
@@ -30,4 +39,8 @@ dependencies = [
 
 [[package]]
 name = "ct-level-zero"
+version = "0.1.0"
+
+[[package]]
+name = "ct-ptx"
 version = "0.1.0"

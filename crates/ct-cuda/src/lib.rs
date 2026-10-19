@@ -2,8 +2,9 @@
 //! specified access. Arbitrary invalid non-null host pointers cannot be validated.
 #![cfg(all(windows, target_pointer_width = "64"))]
 #![allow(non_snake_case)]
-use ct_backend_intel::{Backend, Context};
+use ct_backend_intel::{Backend, Context, Module};
 use ct_core::AllocationRanges;
+use ct_ptx::{Param, ParamKind};
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::ffi::{c_char, c_void};
@@ -19,7 +20,15 @@ const UNKNOWN: i32 = 999;
 struct OwnedContext {
     native: Context,
     allocations: AllocationRanges,
+    modules: BTreeMap<usize, OwnedModule>,
+    functions: BTreeMap<usize, usize>,
 }
+struct OwnedModule {
+    native: Module,
+    entry: String,
+    params: Vec<Param>,
+}
+mod modules;
 #[derive(Default)]
 struct Runtime {
     backend: Option<Backend>,
@@ -36,6 +45,7 @@ fn native_error(code: u32) -> i32 {
     match code {
         0x70000002 | 0x70000003 => 2,
         0x78000003 => UNSUPPORTED,
+        0x70000004 => 218,
         _ => UNKNOWN,
     }
 }
@@ -193,6 +203,8 @@ pub unsafe extern "system" fn cuCtxCreate_v2(
             OwnedContext {
                 native,
                 allocations: AllocationRanges::default(),
+                modules: BTreeMap::new(),
+                functions: BTreeMap::new(),
             },
         );
         CURRENT.with(|s| s.borrow_mut().push(next));
@@ -207,9 +219,15 @@ pub extern "system" fn cuCtxDestroy_v2(context: *mut c_void) -> i32 {
         let id = context as usize;
         let mut c = r.contexts.remove(&id).ok_or(INVALID_CONTEXT)?;
         CURRENT.with(|s| s.borrow_mut().retain(|&v| v != id));
-        let result = backend(r)?
-            .destroy_context(&mut c.native, &c.allocations.bases())
-            .map_err(native_error);
+        let result = (|| {
+            let b = backend(r)?;
+            for module in c.modules.values_mut() {
+                b.unload_module(&mut c.native, &mut module.native)
+                    .map_err(native_error)?;
+            }
+            b.destroy_context(&mut c.native, &c.allocations.bases())
+                .map_err(native_error)
+        })();
         if result.is_err() {
             r.retired.push(c);
         }
@@ -398,6 +416,15 @@ fn error_text(code: i32) -> Option<(&'static std::ffi::CStr, &'static std::ffi::
             c"CUDA_ERROR_INVALID_CONTEXT",
             c"no valid current context or stale context",
         ),
+        218 => (
+            c"CUDA_ERROR_INVALID_PTX",
+            c"invalid PTX in the implemented profile",
+        ),
+        400 => (
+            c"CUDA_ERROR_INVALID_HANDLE",
+            c"invalid, stale or foreign module/function handle",
+        ),
+        500 => (c"CUDA_ERROR_NOT_FOUND", c"entry point not found in module"),
         801 => (
             c"CUDA_ERROR_NOT_SUPPORTED",
             c"not implemented by this experimental CT subset",

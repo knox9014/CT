@@ -1,0 +1,53 @@
+// Synthetic scalar-loop FP32 matrix multiply, one output per thread.
+.version 7.0
+.target sm_50
+.address_size 64
+.visible .entry matmul(
+    .param .u64 .ptr .global .align 4 a,
+    .param .u64 .ptr .global .align 4 b,
+    .param .u64 .ptr .global .align 4 c,
+    .param .u32 n
+) {
+    .reg .pred %p<2>;
+    .reg .b32 %r<12>;
+    .reg .b64 %rd<8>;
+    .reg .f32 %f<4>;
+    ld.param.u32 %r0, [n];
+    mov.u32 %r1, %ctaid.x;
+    mov.u32 %r2, %ntid.x;
+    mov.u32 %r3, %tid.x;
+    mad.lo.u32 %r4, %r1, %r2, %r3;
+    mul.lo.u32 %r5, %r0, %r0;
+    setp.ge.u32 %p0, %r4, %r5;
+    @%p0 bra DONE;
+    ld.param.u64 %rd1, [a];
+    ld.param.u64 %rd2, [b];
+    ld.param.u64 %rd3, [c];
+    div.u32 %r6, %r4, %r0;
+    rem.u32 %r7, %r4, %r0;
+    mul.lo.u32 %r9, %r6, %r0;
+    mov.u32 %r8, 0;
+    mov.f32 %f0, 0f00000000;
+LOOP:
+    setp.ge.u32 %p1, %r8, %r0;
+    @%p1 bra STORE;
+    add.u32 %r10, %r9, %r8;
+    mul.lo.u32 %r11, %r8, %r0;
+    add.u32 %r11, %r11, %r7;
+    mul.wide.u32 %rd0, %r10, 4;
+    mul.wide.u32 %rd7, %r11, 4;
+    add.u64 %rd4, %rd1, %rd0;
+    add.u64 %rd5, %rd2, %rd7;
+    ld.global.f32 %f1, [%rd4];
+    ld.global.f32 %f2, [%rd5];
+    mul.rn.f32 %f3, %f1, %f2;
+    add.rn.f32 %f0, %f0, %f3;
+    add.u32 %r8, %r8, 1;
+    bra LOOP;
+STORE:
+    mul.wide.u32 %rd0, %r4, 4;
+    add.u64 %rd6, %rd3, %rd0;
+    st.global.f32 [%rd6], %f0;
+DONE:
+    ret;
+}

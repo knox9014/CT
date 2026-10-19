@@ -11,6 +11,9 @@ typedef int CUresult;
 typedef int CUdevice;
 typedef struct CTcontext *CUcontext;
 typedef unsigned long long CUdeviceptr;
+typedef struct CTmodule *CUmodule;
+typedef struct CTfunction *CUfunction;
+typedef struct CTstream *CUstream;
 #define CT_DRIVER_FUNCTIONS(X) \
  X(cuInit, (unsigned int flags)) \
  X(cuDriverGetVersion, (int *version)) \
@@ -31,7 +34,11 @@ typedef unsigned long long CUdeviceptr;
  X(cuMemcpyHtoD_v2, (CUdeviceptr destination, const void *source, size_t bytes)) \
  X(cuMemcpyDtoH_v2, (void *destination, CUdeviceptr source, size_t bytes)) \
  X(cuGetErrorName, (CUresult code, const char **name)) \
- X(cuGetErrorString, (CUresult code, const char **message))
+ X(cuGetErrorString, (CUresult code, const char **message)) \
+ X(cuModuleLoadData, (CUmodule *module, const void *image)) \
+ X(cuModuleGetFunction, (CUfunction *function, CUmodule module, const char *name)) \
+ X(cuModuleUnload, (CUmodule module)) \
+ X(cuLaunchKernel, (CUfunction function, unsigned int gx, unsigned int gy, unsigned int gz, unsigned int bx, unsigned int by, unsigned int bz, unsigned int shared, CUstream stream, void **arguments, void **extra))
 #ifdef __cplusplus
 extern "C" {
 #endif
