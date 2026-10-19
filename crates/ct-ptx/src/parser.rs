@@ -595,6 +595,19 @@ pub fn parse(source: &str) -> Result<Kernel, Error> {
         });
     }
     let kernel = Kernel {
+        profile: if version == "7.0" {
+            Profile {
+                major: 7,
+                minor: 0,
+                target: 50,
+            }
+        } else {
+            Profile {
+                major: 8,
+                minor: 0,
+                target: 52,
+            }
+        },
         name,
         params,
         registers: regs,

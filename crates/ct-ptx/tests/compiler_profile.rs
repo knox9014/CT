@@ -1,6 +1,29 @@
 use ct_ptx::{parse, ParamKind};
 const BASE: &str = include_str!("../../../tests/fixtures/vector_add.ptx");
 
+#[test]
+fn preserves_supported_source_profile() {
+    for (text, major, target) in [
+        (BASE.to_owned(), 7, 50),
+        (BASE.replace("7.0", "8.0").replace("sm_50", "sm_52"), 8, 52),
+    ] {
+        let kernel = parse(&text).unwrap();
+        assert_eq!(
+            (
+                kernel.profile.major,
+                kernel.profile.minor,
+                kernel.profile.target
+            ),
+            (major, 0, target)
+        );
+    }
+    assert!(
+        parse(&BASE.replace("sm_50", "sm_52"))
+            .unwrap_err()
+            .unsupported
+    );
+}
+
 fn compiler_shape() -> String {
     BASE.replace(".version 7.0", ".version 8.0")
         .replace("sm_50", "sm_52")

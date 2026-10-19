@@ -90,10 +90,17 @@ pub struct Block {
 }
 #[derive(Clone, Debug)]
 pub struct Kernel {
+    pub profile: Profile,
     pub name: String,
     pub params: Vec<Param>,
     pub registers: BTreeMap<String, Ty>,
     pub blocks: Vec<Block>,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Profile {
+    pub major: u16,
+    pub minor: u16,
+    pub target: u32,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Error {
