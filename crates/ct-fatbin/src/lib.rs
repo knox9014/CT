@@ -1,5 +1,6 @@
 //! Bounded, deliberately narrow decoder for raw CUDA fatbin PTX images.
-//! No native libraries, decompression, NVIDIA code execution or pointer chasing.
+//! No native libraries, NVIDIA code execution or pointer chasing.
+use std::borrow::Cow;
 pub const MAGIC: [u8; 4] = 0xba55ed50u32.to_le_bytes();
 pub const MAX_IMAGE_SIZE: usize = 16 * 1024 * 1024;
 pub const MAX_PTX_SIZE: usize = 262144;
@@ -55,11 +56,66 @@ pub fn image_size(header: &[u8]) -> Result<usize, Error> {
     Ok(size)
 }
 
-fn ptx_record<'a>(header: &[u8], payload: &'a [u8]) -> Result<&'a [u8], Error> {
-    if u32_at(header, 16)? != 0
-        || u32_at(header, 40)? != 0x45
-        || header[44..64].iter().any(|b| *b != 0)
-    {
+// Raw LZ4 block sequences: literal length, literals, LE offset, match length.
+// Length extensions and overlapping matches follow the LZ4 block format.
+// No unchecked input indexing or output growth beyond the declared/capped size.
+fn decompress(block: &[u8], size: usize) -> Result<Vec<u8>, Error> {
+    if size == 0 || size > MAX_PTX_SIZE + 8 {
+        return Err(Error::Unsupported);
+    }
+    fn length(block: &[u8], pos: &mut usize, mut n: usize) -> Result<usize, Error> {
+        if n == 15 {
+            loop {
+                let byte = *block.get(*pos).ok_or(Error::Invalid)? as usize;
+                *pos += 1;
+                n = n.checked_add(byte).ok_or(Error::Invalid)?;
+                if byte != 255 {
+                    break;
+                }
+            }
+        }
+        Ok(n)
+    }
+    let mut out = Vec::with_capacity(size);
+    let mut pos = 0;
+    loop {
+        let token = *block.get(pos).ok_or(Error::Invalid)?;
+        pos += 1;
+        let literals = length(block, &mut pos, (token >> 4) as usize)?;
+        let end = pos.checked_add(literals).ok_or(Error::Invalid)?;
+        if literals > size - out.len() {
+            return Err(Error::Invalid);
+        }
+        out.extend_from_slice(block.get(pos..end).ok_or(Error::Invalid)?);
+        pos = end;
+        if pos == block.len() {
+            break;
+        }
+        let offset = u16_at(block, pos)? as usize;
+        pos += 2;
+        if offset == 0 || offset > out.len() {
+            return Err(Error::Invalid);
+        }
+        let count = length(block, &mut pos, (token & 15) as usize)?
+            .checked_add(4)
+            .ok_or(Error::Invalid)?;
+        if count > size - out.len() {
+            return Err(Error::Invalid);
+        }
+        for _ in 0..count {
+            let byte = out[out.len() - offset];
+            out.push(byte);
+        }
+    }
+    if out.len() != size {
+        return Err(Error::Invalid);
+    }
+    Ok(out)
+}
+
+fn ptx_record<'a>(header: &[u8], payload: &'a [u8]) -> Result<Cow<'a, [u8]>, Error> {
+    let flags = u32_at(header, 40)?;
+    if !matches!(flags, 0x45 | 0x2045) || header[44..56].iter().any(|b| *b != 0) {
         return Err(Error::Unsupported);
     }
     if !matches!(
@@ -114,19 +170,42 @@ fn ptx_record<'a>(header: &[u8], payload: &'a [u8]) -> Result<&'a [u8], Error> {
     {
         return Err(Error::Invalid);
     }
-    let end = payload.iter().position(|b| *b == 0).ok_or(Error::Invalid)?;
+    let compressed_size = u32_at(header, 16)? as usize;
+    let decoded_size = usize::try_from(u64_at(header, 56)?).map_err(|_| Error::Invalid)?;
+    let mut decoded = if flags == 0x2045 {
+        if compressed_size == 0
+            || compressed_size > payload.len()
+            || payload.len() - compressed_size >= 8
+            || payload[compressed_size..].iter().any(|b| *b != 0)
+        {
+            return Err(Error::Invalid);
+        }
+        Cow::Owned(decompress(&payload[..compressed_size], decoded_size)?)
+    } else {
+        if compressed_size != 0 || decoded_size != 0 {
+            return Err(Error::Invalid);
+        }
+        Cow::Borrowed(payload)
+    };
+    let end = decoded.iter().position(|b| *b == 0).ok_or(Error::Invalid)?;
     if end == 0 || end > MAX_PTX_SIZE {
         return Err(Error::Unsupported);
     }
-    if !payload[..end].is_ascii() || payload[end..].iter().any(|b| *b != 0) {
+    if !decoded[..end].is_ascii() || decoded[end..].iter().any(|b| *b != 0) {
         return Err(Error::Invalid);
     }
-    Ok(&payload[..end])
+    match &mut decoded {
+        Cow::Borrowed(bytes) => Ok(Cow::Borrowed(&bytes[..end])),
+        Cow::Owned(bytes) => {
+            bytes.truncate(end);
+            Ok(decoded)
+        }
+    }
 }
 
-/// Extract exactly one uncompressed PTX module. Opaque CUBIN records are skipped
-/// only after checking their byte ranges; compressed/multiple PTX is unsupported.
-pub fn extract_ptx(image: &[u8]) -> Result<&[u8], Error> {
+/// Extract exactly one plain or bounded LZ4-compressed PTX module. Opaque CUBIN
+/// records are skipped after checking byte ranges; multiple PTX is unsupported.
+pub fn extract_ptx(image: &[u8]) -> Result<Cow<'_, [u8]>, Error> {
     if image_size(image)? != image.len() {
         return Err(Error::Invalid);
     }

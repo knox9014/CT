@@ -6,7 +6,7 @@ CT aims to develop a general-purpose translation and compatibility layer for run
 
 ## Project status / 현재 상태
 
-**M3d: official CUDA vectorAddDrv passed on Intel Arc B390 with a genuine PTX-bearing fatbin. One uncompressed PTX module only.**
+**M3e: official CUDA vectorAddDrv passed on Intel Arc B390 with genuine compressed and uncompressed PTX-bearing fatbins. One PTX module only.**
 
 현재는 초기 개발 단계입니다. Windows의 Intel Arc B390에서 제한된 PTX를 SPIR-V로 번역해 실제 GPU에서 실행합니다. 벡터 덧셈·SAXPY·ReLU·행렬 곱셈 4개 커널의 53개 조합에서 출력 606,660개와 가드 값 4,992개를 검증했습니다. API는 26개 심볼이며, M1 메모리·컨텍스트 검사 210개도 통과했습니다. 외부 CUDA 앱의 일반적인 호환성, CUDA 라이브러리 및 AMD 지원은 아직 확보하지 못했습니다.
 
@@ -22,7 +22,9 @@ M3b에서는 NVIDIA 공식 헤더로 컴파일한 독립 프로그램이 구형�
 
 M3c에서는 NVIDIA 공식 `vectorAddDrv`의 호스트·커널 소스를 수정하지 않고 빌드해 50,000개 원소 검사를 통과했습니다. 원본 커널을 NVRTC로 컴파일한 PTX를 예상 `.fatbin` 파일명에 제공한 조정 시험이며, 실제 바이너리 fatbin 지원은 아닙니다. 독립 GPU 검사 14개 조합에서 출력 50,970개·가드 896개도 검증했습니다. [공식 샘플 시험·조정 내역](docs/M3c-RESULTS.md)
 
-M3d에서는 같은 공식 호스트에 NVIDIA `nvFatbin`이 만든 실제 바이너리 fatbin을 제공해 50,000개 검사를 통과했습니다. fatbin을 통한 독립 검사 6개 크기에서 결과 50,450개·가드 384개도 검증했습니다. 현재는 압축하지 않은 PTX 모듈 하나를 지원하며, 압축·복수 PTX·추가 JIT 옵션은 거부합니다. [실제 fatbin 검증 결과](docs/M3d-RESULTS.md) · [지원 형식](docs/compatibility/fatbin-profile.md)
+M3d에서는 같은 공식 호스트에 NVIDIA `nvFatbin`이 만든 실제 바이너리 fatbin을 제공해 50,000개 검사를 통과했습니다. fatbin을 통한 독립 검사 6개 크기에서 결과 50,450개·가드 384개도 검증했습니다. 당시에는 압축하지 않은 PTX 모듈 하나를 지원하고 압축·복수 PTX·추가 JIT 옵션은 거부했습니다. [실제 fatbin 검증 결과](docs/M3d-RESULTS.md) · [지원 형식](docs/compatibility/fatbin-profile.md)
+
+M3e에서는 CT 내부의 크기 제한을 둔 압축 해제기로 실제 압축 PTX fatbin도 처리합니다. 공식 샘플 50,000개 검사, 압축 입력의 독립 출력 50,450개·가드 384개와 이름·연산을 바꾼 커널 검사를 통과했습니다. M3d의 압축 거부 제한은 해제됐으며, 복수 PTX·JIT 옵션·CUDA Runtime·AMD 지원은 아직 확보하지 못했습니다. [압축 fatbin 검증 결과](docs/M3e-RESULTS.md)
 
 ## Development plan / 개발 계획
 
