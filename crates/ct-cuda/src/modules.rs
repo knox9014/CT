@@ -5,46 +5,6 @@ fn token(r: &mut Runtime) -> Result<usize, i32> {
     r.next = r.next.checked_add(1).ok_or(UNKNOWN)?;
     Ok(r.next)
 }
-unsafe fn source(image: *const c_void) -> Result<String, i32> {
-    if image.is_null() {
-        return Err(INVALID);
-    }
-    let mut data = Vec::new();
-    // Inspect incrementally: a one-byte empty PTX C string is a valid input.
-    for i in 0..4 {
-        let b = image.cast::<u8>().add(i).read();
-        if b == 0 {
-            return String::from_utf8(data).map_err(|_| 218);
-        }
-        data.push(b);
-    }
-    if data == ct_fatbin::MAGIC {
-        let error = |e| match e {
-            ct_fatbin::Error::Invalid => 218,
-            ct_fatbin::Error::Unsupported => UNSUPPORTED,
-        };
-        // As with CUDA's pointer-only API, the caller must supply the full
-        // readable image. The declared cap is checked before forming its slice.
-        let header = std::slice::from_raw_parts(image.cast::<u8>(), 16);
-        let size = ct_fatbin::image_size(header).map_err(error)?;
-        let bytes = std::slice::from_raw_parts(image.cast::<u8>(), size);
-        let ptx = ct_fatbin::extract_ptx(bytes).map_err(error)?;
-        return std::str::from_utf8(ptx.as_ref())
-            .map(str::to_owned)
-            .map_err(|_| 218);
-    }
-    if data == [0xb1, 0x43, 0x62, 0x46] || data == b"\x7fELF" {
-        return Err(UNSUPPORTED);
-    }
-    for i in 4..=262144 {
-        let b = image.cast::<u8>().add(i).read();
-        if b == 0 {
-            return String::from_utf8(data).map_err(|_| 218);
-        }
-        data.push(b);
-    }
-    Err(UNSUPPORTED)
-}
 /// # Safety
 /// output must be writable for one handle; image must be a valid NUL-terminated
 /// readable PTX string or an entire readable fatbin with its declared byte size.
@@ -60,14 +20,7 @@ pub unsafe extern "system" fn cuModuleLoadData(
             return Err(INVALID);
         }
         output.write(std::ptr::null_mut());
-        let text = source(image)?;
-        let compiled = ct_codegen_spirv::translate(&text).map_err(|e| {
-            if e.unsupported {
-                UNSUPPORTED
-            } else {
-                218
-            }
-        })?;
+        let compiled = crate::images::compile_candidates(crate::images::read_candidates(image)?)?;
         let module_id = token(r)?;
         let b = r.backend.as_ref().ok_or(NOT_INITIALIZED)?;
         let c = r.contexts.get_mut(&id).ok_or(INVALID_CONTEXT)?;
@@ -205,32 +158,4 @@ pub unsafe extern "system" fn cuLaunchKernel(
         b.launch(&mut c.native, &m.native, &arguments, gx, bx)
             .map_err(native_error)
     })
-}
-
-#[cfg(test)]
-mod image_tests {
-    use super::source;
-    use std::ffi::c_void;
-
-    #[test]
-    fn short_text_and_unsupported_binary_headers_have_explicit_results() {
-        unsafe {
-            for bytes in [b"\0".as_slice(), b"P\0", b"PT\0", b"PTX\0"] {
-                assert_eq!(
-                    source(bytes.as_ptr().cast::<c_void>()).unwrap().as_bytes(),
-                    &bytes[..bytes.len() - 1]
-                );
-            }
-            assert_eq!(
-                source([0xb1u8, 0x43, 0x62, 0x46, 0].as_ptr().cast()),
-                Err(801)
-            );
-            let mut oversized = [0u8; 16];
-            oversized[..8].copy_from_slice(&[0x50, 0xed, 0x55, 0xba, 1, 0, 16, 0]);
-            oversized[8..].copy_from_slice(&(16u64 * 1024 * 1024).to_le_bytes());
-            assert_eq!(source(oversized.as_ptr().cast()), Err(801));
-            oversized[8..].copy_from_slice(&u64::MAX.to_le_bytes());
-            assert_eq!(source(oversized.as_ptr().cast()), Err(218));
-        }
-    }
 }

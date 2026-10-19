@@ -6,7 +6,7 @@ CT aims to develop a general-purpose translation and compatibility layer for run
 
 ## Project status / 현재 상태
 
-**M3e: official CUDA vectorAddDrv passed on Intel Arc B390 with genuine compressed and uncompressed PTX-bearing fatbins. One PTX module only.**
+**M3f: bounded alternative PTX selection passed on Intel Arc B390. Two known profiles, one matching kernel entry; no module linking.**
 
 현재는 초기 개발 단계입니다. Windows의 Intel Arc B390에서 제한된 PTX를 SPIR-V로 번역해 실제 GPU에서 실행합니다. 벡터 덧셈·SAXPY·ReLU·행렬 곱셈 4개 커널의 53개 조합에서 출력 606,660개와 가드 값 4,992개를 검증했습니다. API는 26개 심볼이며, M1 메모리·컨텍스트 검사 210개도 통과했습니다. 외부 CUDA 앱의 일반적인 호환성, CUDA 라이브러리 및 AMD 지원은 아직 확보하지 못했습니다.
 
@@ -26,7 +26,13 @@ M3d에서는 같은 공식 호스트에 NVIDIA `nvFatbin`이 만든 실제 바�
 
 M3e에서는 CT 내부의 크기 제한을 둔 압축 해제기로 실제 압축 PTX fatbin도 처리합니다. 공식 샘플 50,000개 검사, 압축 입력의 독립 출력 50,450개·가드 384개와 이름·연산을 바꾼 커널 검사를 통과했습니다. M3d의 압축 거부 제한은 해제됐으며, 복수 PTX·JIT 옵션·CUDA Runtime·AMD 지원은 아직 확보하지 못했습니다. [압축 fatbin 검증 결과](docs/M3e-RESULTS.md)
 
+M3f에서는 알려진 두 프로파일의 대체 PTX를 검증하고 순서에 관계없이 선택합니다. 실제 Arc의48개 조합에서 출력403,600개·가드3,072개, 오류6종 거부·복구와 모듈 생성/해제1,000회를 통과했습니다. 같은 entry와 인자 종류를 가진 서로 다른 프로파일만 허용하며, 알 수 없는 프로파일·복수 entry·링킹은 아직 지원하지 않습니다. 기능 추적표 검증과 실제 실행 결과도 분리했습니다. [M3f 결과](docs/M3f-RESULTS.md)
+
 ## Development plan / 개발 계획
+
+[범용 CUDA 번역기의 전체 구현 목표와 완료 기준](docs/CT-COMPLETION-GOALS.md)에 현재 위치, 남은 기능, 개발 순서와 출시 조건을 정리했습니다.
+
+[작업별 의존성과 검증 문턱](docs/CT-EXECUTION-ROADMAP.md) · [첫 구현 상세 계획](docs/superpowers/plans/2026-10-19-m3f-selection.md) · [계획 검토](docs/CT-PLAN-REVIEW.md)
 
 [CT CUDA 호환 드라이버 설계 및 개발 계획](docs/CT-DRIVER-DESIGN.md)에 따라 CT 자체의 CUDA API/ABI, PTX 변환, 런타임과 백엔드를 개발하며 Arc B390에서 시작해 AMD와 실제 AI 프로그램으로 확장합니다. 제조사 드라이버 위에서 동작하는 사용자 공간 호환 계층을 목표로 합니다. 현재 M0 네이티브 실행, M1 메모리·컨텍스트 ABI와 M2의 제한된 PTX 번역·커널 실행을 검증했습니다.
 

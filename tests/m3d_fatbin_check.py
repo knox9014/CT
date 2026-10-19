@@ -53,6 +53,19 @@ class Producer:
             return output.raw
         finally: self.call("nvFatbinDestroy",c.byref(handle))
 
+    def make_many(self, entries: list[tuple[bytes, bytes]], compressed: bool) -> bytes:
+        options=(c.c_char_p*4)(b"-64",b"-cuda",b"-host=windows",b"-compress-all" if compressed else b"-compress=false")
+        handle=P();self.call("nvFatbinCreate",c.byref(handle),options,4)
+        try:
+            for index,(text,arch) in enumerate(entries):
+                source=text+b"\0"
+                self.call("nvFatbinAddPTX",handle,source,len(source),arch,("alternative_"+str(index)).encode(),None)
+            size=c.c_size_t();self.call("nvFatbinSize",handle,c.byref(size))
+            if not 16 <= size.value <= 16*1024*1024: raise RuntimeError("unexpected produced image size")
+            output=c.create_string_buffer(size.value);self.call("nvFatbinGet",handle,output)
+            return output.raw
+        finally: self.call("nvFatbinDestroy",c.byref(handle))
+
 
 def main(build, variant="plain"):
     verify_source()
@@ -62,11 +75,14 @@ def main(build, variant="plain"):
     producer=Producer()
     text=ASSET.read_bytes()
     images={v:producer.make(text,v) for v in ("plain","compressed","duplicate","options")}
-    milestone="m3e" if variant=="compressed" else "m3d"
+    milestone="m3f" if variant=="alternatives" else ("m3e" if variant=="compressed" else "m3d")
     # Real producer parity fixtures remain local and are consumed by Rust tests.
     parity=REFERENCE/"m3e";parity.mkdir(parents=True,exist_ok=True)
     for name in ("plain","compressed"): (parity/(name+".fatbin")).write_bytes(images[name])
-    chosen=images[variant]
+    if variant=="alternatives":
+        lower=(REPO/"tests/fixtures/vector_add.ptx").read_bytes().replace(b"vector_add",b"VecAdd_kernel")
+        chosen=producer.make_many([(lower,b"50"),(text,b"52")],True)
+    else: chosen=images[variant]
     asset=REFERENCE/milestone/variant/"vectorAdd_kernel64.fatbin"
     asset.parent.mkdir(parents=True,exist_ok=True);asset.write_bytes(chosen)
     original=digest(app.read_bytes())
@@ -115,7 +131,7 @@ def main(build, variant="plain"):
     if cli_report["application_sha256"]!=original or cli_report["assets_sha256"]!=[digest(chosen)]:
         raise RuntimeError("public CLI staged hashes changed")
     print(json.dumps({"status":"pass","sample":"NVIDIA vectorAddDrv","elements":50000,
-        "real_binary_fatbin":True,"compressed":variant=="compressed","producer":"NVIDIA nvFatbin12.4.99","fatbin_bytes":len(chosen),
+        "real_binary_fatbin":True,"compressed":variant in ("compressed","alternatives"),"ptx_alternatives":2 if variant=="alternatives" else 1,"producer":"NVIDIA nvFatbin12.4.99","fatbin_bytes":len(chosen),
         "fatbin_sha256":digest(chosen),"compiler_input_ptx_sha256":digest(text),
         "application_sha256":original,"unchanged_application_and_fatbin":True,
         "independent_gpu_checks":independent,"unsupported_producer_variants_rejected":2,
@@ -124,7 +140,7 @@ def main(build, variant="plain"):
 
 
 if __name__=="__main__":
-    try: main(sys.argv[1],"compressed" if "--compressed" in sys.argv[2:] else "plain")
+    try: main(sys.argv[1],"alternatives" if "--alternatives" in sys.argv[2:] else ("compressed" if "--compressed" in sys.argv[2:] else "plain"))
     except (RuntimeError,OSError,subprocess.SubprocessError) as error:
         print(json.dumps({"status":"error","reason":str(error) if isinstance(error,RuntimeError) else "local fatbin test operation failed"}))
         raise SystemExit(1)

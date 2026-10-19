@@ -41,3 +41,12 @@ malformed-input recovery were separately checked. See [M3e evidence](M3e-RESULTS
 Multiple PTX selection/linking remains the next container-level task; the goal
 continues through general instruction semantics, Runtime/library coverage and
 hardware-verified AMD execution. Kernel names/hashes never choose replacements.
+
+## Bounded alternative selection (M3f)
+
+CT now enumerates bounded known-profile alternatives, validates their entry/ABI
+and metadata/body agreement, and chooses8.0/sm_52 over7.0/sm_50 independent of order.
+Real nvFatbin inputs passed48 native combinations with changed arithmetic and
+entry names, plus rejection/recovery and repeated resource-cycle checks.
+This completes the first narrow selection policy, not general linking, multiple
+entries, unknown-profile fallback or CUDA Runtime registration. See [M3f results](M3f-RESULTS.md).
