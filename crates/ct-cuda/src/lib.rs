@@ -165,6 +165,11 @@ pub unsafe extern "system" fn cuDeviceGetAttribute(
         }
         value.write(0);
         let d = b.devices.get(device as usize).ok_or(INVALID_DEVICE)?;
+        // CT has no exclusive/prohibited compute-mode mechanism. Its contexts
+        // use ordinary shared device access (CUDA CU_COMPUTEMODE_DEFAULT).
+        if attribute == 20 {
+            return Ok(());
+        }
         if !(1..=4).contains(&attribute) {
             return Err(UNSUPPORTED);
         }

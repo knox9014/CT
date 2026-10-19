@@ -103,6 +103,19 @@ class InspectTests(unittest.TestCase):
             code = "import sys; assert sys.argv[1:] == ['with space', 'quote\"', '한글']; sys.exit(7)"
             self.assertEqual(run_child(Path(sys.executable), ["-c", code, "with space", 'quote"', "한글"], Path(root)), 7)
 
+    def test_ptx_text_can_use_upstream_fatbin_filename_but_binary_cannot(self):
+        with tempfile.TemporaryDirectory(dir=self.temp_root) as root:
+            root = Path(root)
+            app, dll, asset = root / "app.exe", root / "ct.dll", root / "kernel.fatbin"
+            app.write_bytes(image()); dll.write_bytes(image(dll=True))
+            asset.write_bytes(b"// compiler output\n.version 8.0\n.target sm_52\n")
+            bundle, _ = prepare_bundle(app, dll, [asset], root / "runs")
+            self.assertEqual((bundle / asset.name).read_bytes(), asset.read_bytes())
+            for invalid in (b"binary\0fatbin", b"arbitrary ASCII text", b"\xff.version 8.0"):
+                asset.write_bytes(invalid)
+                with self.assertRaises(LoaderError):
+                    prepare_bundle(app, dll, [asset], root / "runs")
+
 
 if __name__ == "__main__":
     unittest.main()

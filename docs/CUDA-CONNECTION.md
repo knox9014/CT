@@ -23,3 +23,7 @@ References: [Microsoft DLL search order](https://learn.microsoft.com/en-us/windo
 The four- and five-argument CUDA function resolvers now connect canonical base-name/version requests to implemented CT functions. A consumer compiled solely with official NVIDIA headers obtains its function pointers through both resolvers and executes restricted PTX on Arc B390. The lookup ceiling, unsupported newer signatures, flags and error rules are explicit in [Driver entry-point support](compatibility/driver-entrypoints.md); exact checks are in [M3b results](M3b-RESULTS.md).
 
 This extends M3a's supported loading paths. It does not complete external-app, NVIDIA original/coexistence, Runtime API or AMD verification. Further work remains anchored to an unchanged external CUDA program's actual requirements.
+
+## Official sample adjustment (M3c)
+
+NVIDIA's pinned vectorAddDrv host and kernel sources now run through CT with an adjusted module packaging path: actual NVRTC-generated PTX under the host's expected fatbin filename. Host source remains unchanged and the same executable that initially failed now passes after CT-side changes. Signed operations, proven unannotated pointer parameters, unused global declarations and compute-mode lookup cover observed compiler/application needs. See [M3c evidence and exact adjustments](M3c-RESULTS.md). Original binary fatbins and NVIDIA execution comparison remain outstanding.

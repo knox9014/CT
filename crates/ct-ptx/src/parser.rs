@@ -56,7 +56,7 @@ fn lex(source: &str) -> Result<Vec<Token>, Error> {
             continue;
         }
         let start = i;
-        if b";:,{}[]()<>@!+-".contains(&b[i]) {
+        if b";:,{}[]()<>@!+-=".contains(&b[i]) {
             i += 1;
         } else {
             while i < b.len() && (b[i].is_ascii_alphanumeric() || b"._%$".contains(&b[i])) {
@@ -275,19 +275,23 @@ fn instruction(
             "mov.f32" => (Op::Mov, Ty::F32, 1),
             "cvta.to.global.u64" => (Op::Cvta, Ty::U64, 1),
             "add.u32" => (Op::Add, Ty::U32, 2),
-            "add.u64" => (Op::Add, Ty::U64, 2),
+            "add.u64" | "add.s64" => (Op::Add, Ty::U64, 2),
             "sub.u32" => (Op::Sub, Ty::U32, 2),
             "mul.lo.u32" => (Op::Mul, Ty::U32, 2),
             "mul.wide.u32" => (Op::MulWide, Ty::U32, 2),
-            "mad.lo.u32" => (Op::Mad, Ty::U32, 3),
+            "mul.wide.s32" => (Op::SignedMulWide, Ty::U32, 2),
+            "mad.lo.u32" | "mad.lo.s32" => (Op::Mad, Ty::U32, 3),
             "div.u32" => (Op::Div, Ty::U32, 2),
             "rem.u32" => (Op::Rem, Ty::U32, 2),
             "add.f32" | "add.rn.f32" => (Op::Add, Ty::F32, 2),
             "mul.f32" | "mul.rn.f32" => (Op::Mul, Ty::F32, 2),
             "sub.f32" | "sub.rn.f32" => (Op::Sub, Ty::F32, 2),
             "setp.ge.u32" => (Op::Ge, Ty::U32, 2),
+            "setp.ge.s32" => (Op::SignedGe, Ty::U32, 2),
+            "setp.lt.s32" => (Op::SignedLt, Ty::U32, 2),
             "setp.lt.u32" => (Op::Lt, Ty::U32, 2),
             "setp.eq.u32" => (Op::Eq, Ty::U32, 2),
+            "setp.eq.u64" => (Op::Eq, Ty::U64, 2),
             "setp.lt.f32" => (Op::Lt, Ty::F32, 2),
             "setp.ge.f32" => (Op::Ge, Ty::F32, 2),
             "selp.f32" => (Op::Select, Ty::F32, 3),
@@ -296,9 +300,12 @@ fn instruction(
         if args.len() != n + 1 {
             return Err(err());
         }
-        let dt = if matches!(operation, Op::Ge | Op::Lt | Op::Eq) {
+        let dt = if matches!(
+            operation,
+            Op::Ge | Op::Lt | Op::Eq | Op::SignedGe | Op::SignedLt
+        ) {
             Ty::Pred
-        } else if operation == Op::MulWide {
+        } else if matches!(operation, Op::MulWide | Op::SignedMulWide) {
             Ty::U64
         } else {
             t
@@ -350,25 +357,70 @@ pub fn parse(source: &str) -> Result<Kernel, Error> {
         pos: 0,
     };
     p.expect(".version")?;
-    if p.take()? != "7.0" {
+    let version = p.take()?;
+    if !matches!(version.as_str(), "7.0" | "8.0") {
         return Err(unsupported(p.line()));
     }
     p.expect(".target")?;
-    if p.take()? != "sm_50" {
+    let target = p.take()?;
+    if !matches!(
+        (version.as_str(), target.as_str()),
+        ("7.0", "sm_50") | ("8.0", "sm_52")
+    ) {
         return Err(unsupported(p.line()));
     }
     p.expect(".address_size")?;
     if p.take()? != "64" {
         return Err(unsupported(p.line()));
     }
+    let mut globals = BTreeSet::new();
+    while p.eat(".global") {
+        p.expect(".align")?;
+        p.expect("8")?;
+        let ty = p.take()?;
+        let global = p.take()?;
+        if !identifier(&global) || !globals.insert(global) || globals.len() > 256 {
+            return Err(fail(p.line(), "invalid/duplicate global"));
+        }
+        match ty.as_str() {
+            ".u64" => {
+                if p.eat("=") {
+                    number(&p.take()?)
+                        .ok_or_else(|| fail(p.line(), "invalid global initializer"))?;
+                }
+            }
+            ".b8" => {
+                p.expect("[")?;
+                let size = number(&p.take()?)
+                    .filter(|n| (1..=4096).contains(n))
+                    .ok_or_else(|| unsupported(p.line()))?;
+                p.expect("]")?;
+                if p.eat("=") {
+                    p.expect("{")?;
+                    for i in 0..size {
+                        if i > 0 {
+                            p.expect(",")?;
+                        }
+                        number(&p.take()?)
+                            .filter(|n| *n <= 255)
+                            .ok_or_else(|| fail(p.line(), "invalid global initializer"))?;
+                    }
+                    p.expect("}")?;
+                }
+            }
+            _ => return Err(unsupported(p.line())),
+        }
+        p.expect(";")?;
+    }
     p.expect(".visible")?;
     p.expect(".entry")?;
     let name = p.take()?;
-    if !identifier(&name) {
+    if !identifier(&name) || globals.contains(&name) {
         return Err(fail(p.line(), "invalid entry name"));
     }
     p.expect("(")?;
     let mut params: Vec<Param> = Vec::new();
+    let mut inferred = Vec::new();
     if p.peek() != ")" {
         loop {
             p.expect(".param")?;
@@ -377,16 +429,19 @@ pub fn parse(source: &str) -> Result<Kernel, Error> {
                 ".u32" => ParamKind::U32,
                 ".f32" => ParamKind::F32,
                 ".u64" => {
-                    p.expect(".ptr")?;
-                    p.expect(".global")?;
-                    p.expect(".align")?;
-                    p.expect("4")?;
+                    if p.eat(".ptr") {
+                        p.expect(".global")?;
+                        p.expect(".align")?;
+                        p.expect("4")?;
+                    } else {
+                        inferred.push(params.len());
+                    }
                     ParamKind::Pointer
                 }
                 _ => return Err(unsupported(p.line())),
             };
             let n = p.take()?;
-            if !identifier(&n) || params.iter().any(|v| v.name == n) {
+            if !identifier(&n) || globals.contains(&n) || params.iter().any(|v| v.name == n) {
                 return Err(fail(p.line(), "invalid/duplicate parameter"));
             }
             params.push(Param { name: n, kind });
@@ -546,7 +601,46 @@ pub fn parse(source: &str) -> Result<Kernel, Error> {
         blocks: final_blocks,
     };
     validate_flow(&kernel)?;
+    validate_inferred_pointers(&kernel, &inferred)?;
     Ok(kernel)
+}
+
+fn validate_inferred_pointers(k: &Kernel, inferred: &[usize]) -> Result<(), Error> {
+    let instructions: Vec<_> = k.blocks.iter().flat_map(|b| &b.instructions).collect();
+    for index in inferred {
+        let loads: Vec<_> = instructions
+            .iter()
+            .filter_map(|i| match &i.kind {
+                InstructionKind::Param { dst, index: p } if p == index => Some(dst.as_str()),
+                _ => None,
+            })
+            .collect();
+        if loads.is_empty() {
+            return Err(unsupported(1));
+        }
+        for register in loads {
+            if instructions
+                .iter()
+                .filter(|i| definition(&i.kind) == Some(register))
+                .count()
+                != 1
+            {
+                return Err(unsupported(1));
+            }
+            let consumers: Vec<_> = instructions
+                .iter()
+                .filter(|i| reads(&i.kind).contains(&register))
+                .collect();
+            if consumers.is_empty()
+                || consumers
+                    .iter()
+                    .any(|i| !matches!(i.kind, InstructionKind::Compute { op: Op::Cvta, .. }))
+            {
+                return Err(unsupported(1));
+            }
+        }
+    }
+    Ok(())
 }
 
 fn reads(i: &InstructionKind) -> Vec<&str> {
