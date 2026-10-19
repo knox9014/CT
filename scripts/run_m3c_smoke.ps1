@@ -1,4 +1,4 @@
-param([switch]$SkipCtBuild)
+param([switch]$SkipCtBuild,[switch]$BinaryFatbin)
 $ErrorActionPreference = 'Stop'
 $taskRepo = Split-Path -Parent $PSScriptRoot
 Push-Location -LiteralPath $taskRepo
@@ -25,6 +25,7 @@ try {
     ) | Set-Content -Encoding utf8NoBOM (Join-Path $taskBuild 'build.cmd')
     & cmd.exe /d /c ($taskWin + '\build.cmd')
     if ($LASTEXITCODE -ne 0) { throw 'Unchanged official CUDA host build failed.' }
-    & python tests/m3c_external_check.py run $taskBuild
+    if ($BinaryFatbin) { & python tests/m3d_fatbin_check.py $taskBuild }
+    else { & python tests/m3c_external_check.py run $taskBuild }
     if ($LASTEXITCODE -ne 0) { throw 'Official sample connection verification failed.' }
 } finally { Pop-Location }

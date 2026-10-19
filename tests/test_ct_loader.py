@@ -116,6 +116,21 @@ class InspectTests(unittest.TestCase):
                 with self.assertRaises(LoaderError):
                     prepare_bundle(app, dll, [asset], root / "runs")
 
+    def test_binary_fatbin_staging_checks_outer_length_and_cap(self):
+        with tempfile.TemporaryDirectory(dir=self.temp_root) as root:
+            root = Path(root)
+            app, dll, asset = root / "app.exe", root / "ct.dll", root / "kernel.fatbin"
+            app.write_bytes(image()); dll.write_bytes(image(dll=True))
+            fatbin = struct.pack("<IHHQ",0xba55ed50,1,16,8)+b"synthetic"
+            # Outer-only staging triage; CT performs full record validation before loading.
+            fatbin = fatbin[:-1]
+            asset.write_bytes(fatbin)
+            bundle, _ = prepare_bundle(app,dll,[asset],root / "runs")
+            self.assertEqual((bundle/asset.name).read_bytes(),fatbin)
+            for bad in (fatbin[:-1],fatbin+b"extra",struct.pack("<IHHQ",0xba55ed50,1,16,1<<30)):
+                asset.write_bytes(bad)
+                with self.assertRaises(LoaderError): prepare_bundle(app,dll,[asset],root/"runs")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -40,6 +40,6 @@ Pointer arguments require 4-byte alignment and at least 4 bytes in a current-con
 
 Module/function handles belong to their creating context. Unload invalidates its functions; context destruction invalidates all owned handles. Uncertain native completion or cleanup poisons the context and retains possibly live resources until process exit.
 
-PTX source is not retained as module metadata or written to logs. No translated binary cache is published. Cubins, binary fatbins, general nvcc output, cudart, CUDA libraries, atomics, shared memory and warp semantics are unsupported. The launcher can stage ASCII PTX under a `.fatbin` filename for the adjusted official sample; that is not binary-container support. See [M3c results](../M3c-RESULTS.md).
+PTX source is not retained as module metadata or written to logs. No translated binary cache is published. Cubins, general nvcc output, cudart, CUDA libraries, atomics, shared memory and warp semantics are unsupported. M3d adds a bounded [raw fatbin profile](fatbin-profile.md) containing one uncompressed PTX module, while historical ASCII PTX under a `.fatbin` filename remains supported. See [M3c results](../M3c-RESULTS.md) and [M3d results](../M3d-RESULTS.md).
 
 References: [PTX 7.0](https://docs.nvidia.com/cuda/archive/11.0/parallel-thread-execution/index.html), [SPIR-V registry](https://registry.khronos.org/SPIR-V/), [Level Zero specification](https://oneapi-src.github.io/level-zero-spec/level-zero/latest/).

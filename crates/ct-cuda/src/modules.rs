@@ -10,7 +10,31 @@ unsafe fn source(image: *const c_void) -> Result<String, i32> {
         return Err(INVALID);
     }
     let mut data = Vec::new();
-    for i in 0..=262144 {
+    // Inspect incrementally: a one-byte empty PTX C string is a valid input.
+    for i in 0..4 {
+        let b = image.cast::<u8>().add(i).read();
+        if b == 0 {
+            return String::from_utf8(data).map_err(|_| 218);
+        }
+        data.push(b);
+    }
+    if data == ct_fatbin::MAGIC {
+        let error = |e| match e {
+            ct_fatbin::Error::Invalid => 218,
+            ct_fatbin::Error::Unsupported => UNSUPPORTED,
+        };
+        // As with CUDA's pointer-only API, the caller must supply the full
+        // readable image. The declared cap is checked before forming its slice.
+        let header = std::slice::from_raw_parts(image.cast::<u8>(), 16);
+        let size = ct_fatbin::image_size(header).map_err(error)?;
+        let bytes = std::slice::from_raw_parts(image.cast::<u8>(), size);
+        let ptx = ct_fatbin::extract_ptx(bytes).map_err(error)?;
+        return std::str::from_utf8(ptx).map(str::to_owned).map_err(|_| 218);
+    }
+    if data == [0xb1, 0x43, 0x62, 0x46] || data == b"\x7fELF" {
+        return Err(UNSUPPORTED);
+    }
+    for i in 4..=262144 {
         let b = image.cast::<u8>().add(i).read();
         if b == 0 {
             return String::from_utf8(data).map_err(|_| 218);
@@ -21,7 +45,8 @@ unsafe fn source(image: *const c_void) -> Result<String, i32> {
 }
 /// # Safety
 /// output must be writable for one handle; image must be a valid NUL-terminated
-/// readable PTX string. This interface accepts trusted code, not arbitrary cubins.
+/// readable PTX string or an entire readable fatbin with its declared byte size.
+/// This interface accepts trusted code; arbitrary host pointers cannot be checked.
 #[no_mangle]
 pub unsafe extern "system" fn cuModuleLoadData(
     output: *mut *mut c_void,
@@ -178,4 +203,32 @@ pub unsafe extern "system" fn cuLaunchKernel(
         b.launch(&mut c.native, &m.native, &arguments, gx, bx)
             .map_err(native_error)
     })
+}
+
+#[cfg(test)]
+mod image_tests {
+    use super::source;
+    use std::ffi::c_void;
+
+    #[test]
+    fn short_text_and_unsupported_binary_headers_have_explicit_results() {
+        unsafe {
+            for bytes in [b"\0".as_slice(), b"P\0", b"PT\0", b"PTX\0"] {
+                assert_eq!(
+                    source(bytes.as_ptr().cast::<c_void>()).unwrap().as_bytes(),
+                    &bytes[..bytes.len() - 1]
+                );
+            }
+            assert_eq!(
+                source([0xb1u8, 0x43, 0x62, 0x46, 0].as_ptr().cast()),
+                Err(801)
+            );
+            let mut oversized = [0u8; 16];
+            oversized[..8].copy_from_slice(&[0x50, 0xed, 0x55, 0xba, 1, 0, 16, 0]);
+            oversized[8..].copy_from_slice(&(16u64 * 1024 * 1024).to_le_bytes());
+            assert_eq!(source(oversized.as_ptr().cast()), Err(801));
+            oversized[8..].copy_from_slice(&u64::MAX.to_le_bytes());
+            assert_eq!(source(oversized.as_ptr().cast()), Err(218));
+        }
+    }
 }
