@@ -19,11 +19,14 @@ macro_rules! ze {
     })()};
 }
 
+mod modules;
+
 pub struct Device {
     driver: usize,
     native: usize,
     pub name: String,
     pub max_group: [u32; 4],
+    pub max_groups_x: u32,
 }
 pub struct Backend {
     api: Api,
@@ -37,6 +40,11 @@ pub struct Context {
     pub device: usize,
     pub poisoned: bool,
     staging: Vec<usize>,
+    retained_modules: Vec<Module>,
+}
+pub struct Module {
+    native: usize,
+    kernel: usize,
 }
 
 impl Backend {
@@ -114,6 +122,7 @@ impl Backend {
                             compute.max_y,
                             compute.max_z,
                         ],
+                        max_groups_x: compute.count_x,
                     });
                 }
             }
@@ -198,6 +207,7 @@ impl Backend {
                 device: index,
                 poisoned: false,
                 staging: Vec::new(),
+                retained_modules: Vec::new(),
             })
         }
     }

@@ -11,3 +11,5 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 ct-core = { path = "../ct-core" }
 ct-backend-intel = { path = "../ct-backend-intel" }
+ct-ptx = { path = "../ct-ptx" }
+ct-codegen-spirv = { path = "../ct-codegen-spirv" }

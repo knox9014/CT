@@ -1,4 +1,4 @@
-# Experimental M1 Driver API subset
+# Experimental M1/M2 Driver API subset
 
 Windows x64, Arc B390 tested. Library: `ct_cuda.dll`, loaded by explicit absolute path in the independent C test. This is not nvcuda.dll replacement installation, complete CUDA ABI/version conformance or existing application compatibility. No other CUDA symbols are currently promised.
 
@@ -25,4 +25,17 @@ Error subset: SUCCESS=0, INVALID_VALUE=1, OUT_OF_MEMORY=2, NOT_INITIALIZED=3, NO
 
 Native transfers use pinned staging and a synchronous immediate list. Uncertain completion or staging cleanup failure poisons the context and retains potentially live resources until process exit. Subsequent operations fail rather than pretending recovery. Device-loss/timeouts and all allocation/cleanup failures have not been fault-injected. No production fault-recovery claim is made.
 
-PTX/module loading, kernels, primary contexts, streams/events, cudart, cuBLAS and AMD are not part of M1.
+## M2 module and kernel extension
+
+The M1 table above contains 20 exports. M2 adds four, bringing the experimental total to 24. Module, function and stream types are pointer-sized opaque handles. Module/function tokens are monotonic, owned by a context and never dereferenced as host pointers.
+
+| Exports | Supported contract |
+| --- | --- |
+| cuModuleLoadData | bounded NUL-terminated text in the [M2 PTX profile](ptx-profile.md); current context required; malformed input returns INVALID_PTX=218, unsupported features return NOT_SUPPORTED=801 |
+| cuModuleGetFunction | exact entry name in a current-context module; missing entry returns NOT_FOUND=500 |
+| cuModuleUnload | synchronous destruction; invalidates the module's function handles |
+| cuLaunchKernel | one-dimensional synchronous dispatch with kernelParams; checks device limits, pointer argument starts and context ownership; streams/shared memory/extra unsupported |
+
+Stale or foreign module/function tokens return INVALID_HANDLE=400. Context destruction unloads owned modules before native context destruction. Uncertain native work or cleanup retains resources and poisons the context. Host pointer validity and dynamic kernel access bounds remain caller obligations.
+
+Primary contexts, streams/events, cudart, cuBLAS and AMD remain unsupported. See [M2 results and limitations](../M2-RESULTS.md).
