@@ -153,12 +153,18 @@ def prepare_bundle(application, ct_dll, assets, root):
     for asset in assets:
         asset = Path(asset)
         if asset.suffix.lower() not in (".ptx", ".fatbin") or asset.name.casefold() in names:
-            raise LoaderError("assets must be distinct PTX text files")
+            raise LoaderError("assets must be distinct PTX or fatbin files")
         names.add(asset.name.casefold())
         data = read_image(asset)
-        if len(data) > 262144 or b"\0" in data:
+        if asset.suffix.lower() == ".fatbin" and data[:4] == b"\x50\xed\x55\xba":
+            if not 16 <= len(data) <= 16*1024*1024:
+                raise LoaderError("unsupported fatbin asset size")
+            _, version, header_size, payload_size = struct.unpack_from("<IHHQ",data)
+            if version != 1 or header_size != 16 or payload_size != len(data)-16 or not payload_size or payload_size%8:
+                raise LoaderError("invalid or unsupported fatbin outer header")
+        elif len(data) > 262144 or b"\0" in data:
             raise LoaderError("unsupported PTX asset size or encoding")
-        if asset.suffix.lower() == ".fatbin":
+        elif asset.suffix.lower() == ".fatbin":
             if not data.isascii() or not re.search(rb"(?m)^\s*\.version\s+[0-9]+\.[0-9]+", data):
                 raise LoaderError("only PTX text is accepted under a fatbin filename")
         payloads[asset.name] = data

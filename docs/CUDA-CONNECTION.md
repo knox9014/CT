@@ -27,3 +27,7 @@ This extends M3a's supported loading paths. It does not complete external-app, N
 ## Official sample adjustment (M3c)
 
 NVIDIA's pinned vectorAddDrv host and kernel sources now run through CT with an adjusted module packaging path: actual NVRTC-generated PTX under the host's expected fatbin filename. Host source remains unchanged and the same executable that initially failed now passes after CT-side changes. Signed operations, proven unannotated pointer parameters, unused global declarations and compute-mode lookup cover observed compiler/application needs. See [M3c evidence and exact adjustments](M3c-RESULTS.md). Original binary fatbins and NVIDIA execution comparison remain outstanding.
+
+## Genuine fatbin connection (M3d)
+
+The same official host now also runs with a real NVIDIA nvFatbin-created binary container holding one uncompressed PTX module. CT decodes the container itself and passes selected PTX through its existing translator; no vendor decoding library is used at runtime. Compressed/multiple PTX, nonempty JIT options and runtime wrappers are explicitly rejected. See [M3d evidence](M3d-RESULTS.md) and the [supported format](compatibility/fatbin-profile.md). Original nvcc build parity, broader application formats and NVIDIA comparison remain outstanding.

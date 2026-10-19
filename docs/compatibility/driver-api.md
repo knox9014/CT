@@ -31,7 +31,7 @@ The M1 table above contains 20 exports. M2 adds four, bringing the experimental 
 
 | Exports | Supported contract |
 | --- | --- |
-| cuModuleLoadData | bounded NUL-terminated text in the [M2 PTX profile](ptx-profile.md); current context required; malformed input returns INVALID_PTX=218, unsupported features return NOT_SUPPORTED=801 |
+| cuModuleLoadData | bounded NUL-terminated text in the [PTX profile](ptx-profile.md), or M3d's [raw fatbin profile](fatbin-profile.md); current context required; malformed input returns INVALID_PTX=218, unsupported features return NOT_SUPPORTED=801 |
 | cuModuleGetFunction | exact entry name in a current-context module; missing entry returns NOT_FOUND=500 |
 | cuModuleUnload | synchronous destruction; invalidates the module's function handles |
 | cuLaunchKernel | one-dimensional synchronous dispatch with kernelParams; checks device limits, pointer argument starts and context ownership; streams/shared memory/extra unsupported |

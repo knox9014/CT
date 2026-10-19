@@ -27,8 +27,13 @@ dependencies = [
  "ct-backend-intel",
  "ct-codegen-spirv",
  "ct-core",
+ "ct-fatbin",
  "ct-ptx",
 ]
+
+[[package]]
+name = "ct-fatbin"
+version = "0.1.0"
 
 [[package]]
 name = "ct-intel-smoke"
