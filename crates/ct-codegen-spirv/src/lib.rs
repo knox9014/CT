@@ -6,7 +6,32 @@ pub struct Compiled {
     pub params: Vec<Param>,
     pub spirv: Vec<u8>,
 }
+pub struct CompiledEntry {
+    pub entry: String,
+    pub params: Vec<Param>,
+}
+pub struct CompiledModule {
+    pub profile: ct_ptx::Profile,
+    pub entries: Vec<CompiledEntry>,
+    pub spirv: Vec<u8>,
+}
 mod emit;
+pub fn translate_module(source: &str) -> Result<CompiledModule, Error> {
+    let module = ct_ptx::parse_module(source)?;
+    let spirv = emit::generate_module(&module.kernels);
+    Ok(CompiledModule {
+        profile: module.profile,
+        entries: module
+            .kernels
+            .into_iter()
+            .map(|kernel| CompiledEntry {
+                entry: kernel.name,
+                params: kernel.params,
+            })
+            .collect(),
+        spirv,
+    })
+}
 pub fn translate(source: &str) -> Result<Compiled, Error> {
     let k = ct_ptx::parse(source)?;
     let spirv = emit::generate(&k);

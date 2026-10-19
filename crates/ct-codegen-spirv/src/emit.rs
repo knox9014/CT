@@ -1,6 +1,7 @@
 //! SPIR-V 1.0 Kernel/OpenCL/Physical64. Opcode/enumerant definitions checked
 //! against Khronos SPIRV-Headers vulkan-sdk-1.4.328.1, not inferred from PTX names.
 use super::*;
+use std::collections::BTreeSet;
 fn inst(target: &mut Vec<u32>, opcode: u32, operands: &[u32]) {
     target.push(((operands.len() as u32 + 1) << 16) | opcode);
     target.extend(operands);
@@ -40,6 +41,8 @@ struct Writer {
     constants: BTreeMap<(Ty, u64), u32>,
     builtins: BTreeMap<u32, u32>,
     registers: BTreeMap<String, u32>,
+    signatures: BTreeMap<Vec<u32>, u32>,
+    current_builtins: BTreeSet<u32>,
 }
 impl Writer {
     fn id(&mut self) -> u32 {
@@ -81,6 +84,7 @@ impl Writer {
                     self.builtins.insert(*kind, id);
                     id
                 };
+                self.current_builtins.insert(variable);
                 let vec = self.result(61, 6, &[variable]);
                 let x = self.result(81, 4, &[vec, 0]);
                 self.result(113, 3, &[x])
@@ -153,6 +157,9 @@ impl Writer {
     }
 }
 pub(super) fn generate(k: &Kernel) -> Vec<u8> {
+    generate_module(std::slice::from_ref(k))
+}
+pub(super) fn generate_module(kernels: &[Kernel]) -> Vec<u8> {
     let mut w = Writer {
         next: 15,
         types: vec![],
@@ -162,6 +169,8 @@ pub(super) fn generate(k: &Kernel) -> Vec<u8> {
         constants: BTreeMap::new(),
         builtins: BTreeMap::new(),
         registers: BTreeMap::new(),
+        signatures: BTreeMap::new(),
+        current_builtins: BTreeSet::new(),
     };
     inst(&mut w.types, 19, &[1]);
     inst(&mut w.types, 20, &[2]);
@@ -176,7 +185,32 @@ pub(super) fn generate(k: &Kernel) -> Vec<u8> {
     for t in [Ty::Pred, Ty::U32, Ty::U64, Ty::F32] {
         inst(&mut w.types, 32, &[register_pointer(t), 7, type_id(t)]);
     }
-    let signature = w.id();
+    let mut entries = Vec::new();
+    for kernel in kernels {
+        let function = generate_kernel(&mut w, kernel);
+        let mut entry = vec![6, function];
+        entry.extend(string_words(&kernel.name));
+        entry.extend(&w.current_builtins);
+        entries.push(entry);
+    }
+    let mut out = vec![0x07230203, 0x00010000, 0, w.next, 0];
+    for cap in [4, 6, 11] {
+        inst(&mut out, 17, &[cap]);
+    }
+    inst(&mut out, 14, &[2, 2]);
+    for entry in entries {
+        inst(&mut out, 15, &entry);
+    }
+    out.extend(w.annotations);
+    out.extend(w.types);
+    out.extend(w.globals);
+    out.extend(w.body);
+    out.into_iter().flat_map(u32::to_le_bytes).collect()
+}
+
+fn generate_kernel(w: &mut Writer, k: &Kernel) -> u32 {
+    w.registers.clear();
+    w.current_builtins.clear();
     let types: Vec<u32> = k
         .params
         .iter()
@@ -186,9 +220,16 @@ pub(super) fn generate(k: &Kernel) -> Vec<u8> {
             ParamKind::F32 => 5,
         })
         .collect();
-    let mut sig = vec![signature, 1];
-    sig.extend(&types);
-    inst(&mut w.types, 33, &sig);
+    let signature = if let Some(&id) = w.signatures.get(&types) {
+        id
+    } else {
+        let id = w.id();
+        let mut sig = vec![id, 1];
+        sig.extend(&types);
+        inst(&mut w.types, 33, &sig);
+        w.signatures.insert(types.clone(), id);
+        id
+    };
     let function = w.id();
     inst(&mut w.body, 54, &[1, function, 0, signature]);
     let mut parameters = Vec::new();
@@ -261,18 +302,5 @@ pub(super) fn generate(k: &Kernel) -> Vec<u8> {
         }
     }
     inst(&mut w.body, 56, &[]);
-    let mut out = vec![0x07230203, 0x00010000, 0, w.next, 0];
-    for cap in [4, 6, 11] {
-        inst(&mut out, 17, &[cap]);
-    }
-    inst(&mut out, 14, &[2, 2]);
-    let mut entry = vec![6, function];
-    entry.extend(string_words(&k.name));
-    entry.extend(w.builtins.values());
-    inst(&mut out, 15, &entry);
-    out.extend(w.annotations);
-    out.extend(w.types);
-    out.extend(w.globals);
-    out.extend(w.body);
-    out.into_iter().flat_map(u32::to_le_bytes).collect()
+    function
 }
