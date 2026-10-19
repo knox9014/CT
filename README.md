@@ -6,13 +6,15 @@ CT aims to develop a general-purpose translation and compatibility layer for run
 
 ## Project status / 현재 상태
 
-**Concept stage. No translator or compatibility runtime has been implemented.**
+**M0 native Intel execution verified. CUDA compatibility is not implemented yet.**
 
-현재는 프로젝트 목표를 정리하는 초기 단계입니다. 실행 가능한 변환기, 런타임, 검증된 GPU 지원은 아직 없습니다.
+현재는 초기 개발 단계입니다. Windows의 Intel Arc B390에서 자체 Rust 실험 도구로 SPIR-V 벡터 덧셈 16개 조합을 검증했습니다. CUDA API/ABI, PTX 변환기, 기존 CUDA 프로그램 실행 및 AMD 지원은 아직 구현되지 않았습니다.
+
+[M0 실행 결과와 재현 방법](docs/M0-RESULTS.md) · [검증 환경](docs/environment-matrix.md) · [실행 경로 결정](docs/decisions/0001-intel-execution-path.md)
 
 ## Development plan / 개발 계획
 
-[CT CUDA 호환 드라이버 설계 및 개발 계획](docs/CT-DRIVER-DESIGN.md)은 검토용 초안입니다. CT 자체의 CUDA API/ABI, PTX 변환, 런타임과 백엔드를 개발하며 Arc B390에서 시작해 AMD와 실제 AI 프로그램으로 확장합니다. 제조사 드라이버 위에서 동작하는 사용자 공간 호환 계층이며, 제안된 기능은 아직 구현되지 않았습니다.
+[CT CUDA 호환 드라이버 설계 및 개발 계획](docs/CT-DRIVER-DESIGN.md)에 따라 CT 자체의 CUDA API/ABI, PTX 변환, 런타임과 백엔드를 개발하며 Arc B390에서 시작해 AMD와 실제 AI 프로그램으로 확장합니다. 제조사 드라이버 위에서 동작하는 사용자 공간 호환 계층을 목표로 합니다. 현재 완료한 검증은 M0의 제한된 네이티브 실행입니다.
 
 ## Goals / 목표
 
