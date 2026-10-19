@@ -6,9 +6,9 @@ CT aims to develop a general-purpose translation and compatibility layer for run
 
 ## Project status / 현재 상태
 
-**M3a: ordinary CUDA DLL loading connected to CT on Intel Arc B390. Restricted PTX only.**
+**M3b: versioned CUDA Driver function lookup connected to CT on Intel Arc B390. Restricted PTX only.**
 
-현재는 초기 개발 단계입니다. Windows의 Intel Arc B390에서 제한된 PTX를 SPIR-V로 번역해 실제 GPU에서 실행합니다. 벡터 덧셈·SAXPY·ReLU·행렬 곱셈 4개 커널의 53개 조합에서 출력 606,660개와 가드 값 4,992개를 검증했습니다. API는 24개 심볼이며, M1 메모리·컨텍스트 검사 210개도 통과했습니다. 일반 CUDA 프로그램 로딩, CUDA 라이브러리 및 AMD 지원은 아직 구현되지 않았습니다.
+현재는 초기 개발 단계입니다. Windows의 Intel Arc B390에서 제한된 PTX를 SPIR-V로 번역해 실제 GPU에서 실행합니다. 벡터 덧셈·SAXPY·ReLU·행렬 곱셈 4개 커널의 53개 조합에서 출력 606,660개와 가드 값 4,992개를 검증했습니다. API는 26개 심볼이며, M1 메모리·컨텍스트 검사 210개도 통과했습니다. 외부 CUDA 앱의 일반적인 호환성, CUDA 라이브러리 및 AMD 지원은 아직 확보하지 못했습니다.
 
 [M0 실행 결과와 재현 방법](docs/M0-RESULTS.md) · [검증 환경](docs/environment-matrix.md) · [실행 경로 결정](docs/decisions/0001-intel-execution-path.md)
 
@@ -17,6 +17,8 @@ CT aims to develop a general-purpose translation and compatibility layer for run
 [M2 실행 결과와 재현 방법](docs/M2-RESULTS.md) · [지원하는 PTX 문법과 제한](docs/compatibility/ptx-profile.md)
 
 M3a에서는 일반 `nvcuda.dll` import 및 동적 로딩을 쓰는 독립 합성 프로그램 두 개를, 실행 파일 수정 없이 CT에 연결해 GPU 계산을 검증했습니다. 아직 외부 앱·NVIDIA 원본 실행 비교를 통과한 것은 아닙니다. [M3a 실행 결과](docs/M3a-RESULTS.md) · [CUDA 프로그램 연결 목표](docs/CUDA-CONNECTION.md)
+
+M3b에서는 NVIDIA 공식 헤더로 컴파일한 독립 프로그램이 구형·신형 `cuGetProcAddress`를 통해 함수 주소를 얻어 GPU 계산을 수행했습니다. 조회 80회, 출력 514개·가드 128개 검증을 통과했습니다. [M3b 실행 결과](docs/M3b-RESULTS.md) · [버전별 조회 지원 범위](docs/compatibility/driver-entrypoints.md)
 
 ## Development plan / 개발 계획
 
