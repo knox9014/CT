@@ -216,10 +216,7 @@ mod tests {
                 read_candidates([0xb1u8, 0x43, 0x62, 0x46, 0].as_ptr().cast()).err(),
                 Some(801)
             );
-            assert_eq!(
-                read_candidates(b"\x7fELF\0".as_ptr().cast()).err(),
-                Some(801)
-            );
+            assert_eq!(read_candidates(c"\x7fELF".as_ptr().cast()).err(), Some(801));
             let mut bytes = [0u8; 16];
             bytes[..8].copy_from_slice(&[0x50, 0xed, 0x55, 0xba, 1, 0, 16, 0]);
             bytes[8..].copy_from_slice(&(16u64 * 1024 * 1024).to_le_bytes());

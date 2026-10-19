@@ -9,8 +9,8 @@ U32 = c.c_uint32
 
 
 class Device:
-    def __init__(self):
-        self.dll = c.WinDLL(str(REPO / "target/debug/ct_cuda.dll"))
+    def __init__(self, dll_path: Path | None = None):
+        self.dll = c.WinDLL(str(dll_path if dll_path is not None else REPO / "target/debug/ct_cuda.dll"))
         signatures = {
             "cuInit": [U32], "cuDeviceGet": [c.POINTER(c.c_int), c.c_int],
             "cuCtxCreate_v2": [c.POINTER(P), U32, c.c_int], "cuCtxDestroy_v2": [P],

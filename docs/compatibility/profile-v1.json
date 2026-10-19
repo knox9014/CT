@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "baseline": "4b0c64f",
+  "baseline": "65e0139",
   "platform": {
     "os": "Windows",
     "host": "x64",
@@ -594,7 +594,6 @@
       "limits": {
         "image_bytes": 16777216,
         "records": 256,
-        "ptx_modules": 1,
         "compression": [
           "plain",
           "raw LZ4"
@@ -603,10 +602,13 @@
         "flags": [
           69,
           8261
-        ]
+        ],
+        "ptx_candidates": 8,
+        "total_decoded_or_padded_bytes": 1048576
       },
       "test_ids": [
-        "crates/ct-fatbin/tests/decoding.rs#compressed_literals_and_overlapping_matches_decode"
+        "crates/ct-fatbin/tests/decoding.rs#compressed_literals_and_overlapping_matches_decode",
+        "crates/ct-fatbin/tests/decoding.rs#rejects_ninth_candidate_and_aggregate_expansion_before_decode"
       ]
     },
     {
@@ -680,6 +682,29 @@
       },
       "test_ids": [],
       "reason": "Outside the current verified profile"
+    },
+    {
+      "id": "fatbin.selection",
+      "state": "experimental",
+      "limits": {
+        "profiles": [
+          "7.0/sm_50",
+          "8.0/sm_52"
+        ],
+        "priority": [
+          "8.0/sm_52",
+          "7.0/sm_50"
+        ],
+        "entry_and_argument_kinds": "must match; argument names ignored",
+        "duplicate_profile": "unsupported",
+        "unknown_profile": "unsupported",
+        "metadata_mismatch": 218,
+        "native_fallback": false
+      },
+      "test_ids": [
+        "crates/ct-cuda/src/images.rs#selects_profile_independent_of_record_order_and_parameter_names",
+        "tests/m3f_selection_check.py#def main"
+      ]
     }
   ]
 }

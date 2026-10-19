@@ -31,7 +31,7 @@ class ProfileTests(unittest.TestCase):
 
     def test_rejects_missing_or_escaping_test_reference(self):
         for reference in ('../outside#marker', '/absolute#marker', 'C:/local#marker', '.cache/private#marker',
-                          'tests/no-such-file#marker', 'tests/test_ct_loader.py#no_such_marker', ''):
+                          'tests/no-such-file#marker', 'tests/test_ct_loader.py#no_such_marker', 'tests/\0#marker', ''):
             data=copy.deepcopy(self.data); data['features'][0]['test_ids']=[reference]
             self.assertTrue(validate_profile(data, ROOT), reference)
         data=copy.deepcopy(self.data);data['features'][0]['test_ids']=[]
