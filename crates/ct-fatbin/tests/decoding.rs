@@ -72,14 +72,7 @@ fn rejects_unsupported_and_ambiguous_modules() {
         extract_ptx(&image(&[record(1, TEXT), record(1, TEXT)])),
         Err(Error::Unsupported)
     );
-    for (offset, value) in [
-        (2, 0x102),
-        (40, 0x2045),
-        (40, 0x41),
-        (24, 9 << 16),
-        (28, 90),
-        (76, 3),
-    ] {
+    for (offset, value) in [(2, 0x102), (40, 0x41), (24, 9 << 16), (28, 90), (76, 3)] {
         let mut r = record(1, TEXT);
         if offset == 2 {
             r[2..4].copy_from_slice(&(value as u16).to_le_bytes());
@@ -92,6 +85,107 @@ fn rejects_unsupported_and_ambiguous_modules() {
             "offset {offset}"
         );
     }
+}
+
+fn compressed_record(block: &[u8], decoded_size: u64) -> Vec<u8> {
+    let mut r = record(1, b"placeholder");
+    r.truncate(88);
+    put32(&mut r, 40, 0x2045);
+    put32(&mut r, 16, block.len() as u32);
+    put64(&mut r, 56, decoded_size);
+    r.extend(block);
+    while !r.len().is_multiple_of(8) {
+        r.push(0);
+    }
+    let payload_size = (r.len() - 88) as u64;
+    put64(&mut r, 8, payload_size);
+    r
+}
+
+#[test]
+fn compressed_literals_and_overlapping_matches_decode() {
+    // Three literals, 12 overlapping copies, then five terminal literals.
+    let block = [
+        0x38, b'a', b'b', b'c', 3, 0, 0x50, b'x', b'y', b'z', b'!', 0,
+    ];
+    assert_eq!(
+        extract_ptx(&image(&[compressed_record(&block, 20)]))
+            .unwrap()
+            .as_ref(),
+        b"abcabcabcabcabcxyz!"
+    );
+    let mut block = vec![0xf0, (TEXT.len() + 1 - 15) as u8];
+    block.extend(TEXT);
+    block.push(0);
+    assert_eq!(
+        extract_ptx(&image(&[compressed_record(
+            &block,
+            (TEXT.len() + 1) as u64
+        )]))
+        .unwrap(),
+        TEXT
+    );
+    // Extended match length, with byte-wise overlap offset one.
+    let block = [0x1f, b'a', 1, 0, 255, 30, 0x50, b'b', b'c', b'd', b'e', 0];
+    let mut expected = vec![b'a'; 305];
+    expected.extend(b"bcde");
+    assert_eq!(
+        extract_ptx(&image(&[compressed_record(&block, 310)])).unwrap(),
+        expected
+    );
+    // Extended literals can contain multiple 255 continuation bytes.
+    let mut block = vec![0xf0, 255, 255, 10];
+    block.extend(vec![b'x'; 534]);
+    block.push(0);
+    assert_eq!(
+        extract_ptx(&image(&[compressed_record(&block, 535)])).unwrap(),
+        vec![b'x'; 534]
+    );
+}
+
+#[test]
+fn compressed_stream_bounds_and_padding_are_checked() {
+    let good = [0x50, b'a', b'b', b'c', b'd', 0];
+    assert!(extract_ptx(&image(&[compressed_record(&good, 5)])).is_ok());
+    for size in 0..good.len() {
+        assert!(extract_ptx(&image(&[compressed_record(&good[..size], 5)])).is_err());
+    }
+    for (block, size) in [
+        (&[0xf0][..], 16),                    // missing extended literal length
+        (&[0x10, b'a', 0, 0, 0][..], 5),      // zero offset
+        (&[0x10, b'a', 2, 0, 0][..], 5),      // before output start
+        (&[0x1f, b'a', 1, 0, 255][..], 1000), // missing match extension
+        (&good[..], 4),
+        (&good[..], 6), // exact decoded size required
+    ] {
+        assert!(extract_ptx(&image(&[compressed_record(block, size)])).is_err());
+    }
+    let r = compressed_record(&good, ct_fatbin::MAX_PTX_SIZE as u64 + 9);
+    assert_eq!(extract_ptx(&image(&[r])), Err(Error::Unsupported));
+    for offset in [16, 56] {
+        let mut r = compressed_record(&good, 5);
+        put32(&mut r, offset, u32::MAX);
+        assert!(extract_ptx(&image(&[r])).is_err());
+    }
+    let mut r = compressed_record(&good, 5);
+    *r.last_mut().unwrap() = 1;
+    assert_eq!(extract_ptx(&image(&[r])), Err(Error::Invalid));
+    // An uncompressed record cannot declare decompressed data.
+    let mut r = record(1, TEXT);
+    put64(&mut r, 56, 5);
+    assert!(extract_ptx(&image(&[r])).is_err());
+}
+
+#[test]
+#[ignore = "requires locally generated NVIDIA nvFatbin reference files"]
+fn genuine_compressed_and_plain_ptx_are_identical() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.cache/reference/m3e");
+    let plain = std::fs::read(root.join("plain.fatbin")).unwrap();
+    let compressed = std::fs::read(root.join("compressed.fatbin")).unwrap();
+    assert_eq!(
+        extract_ptx(&plain).unwrap(),
+        extract_ptx(&compressed).unwrap()
+    );
 }
 
 #[test]
@@ -123,14 +217,24 @@ fn rejects_invalid_sizes_metadata_and_text_padding() {
 
 #[test]
 fn bounded_mutations_do_not_panic_and_record_count_is_limited() {
-    let base = image(&[record(1, TEXT)]);
     let mut seed = 0x5a17u32;
-    for _ in 0..2048 {
-        seed = seed.wrapping_mul(1664525).wrapping_add(1013904223);
-        let mut bytes = base.clone();
-        let index = seed as usize % bytes.len();
-        bytes[index] = (seed >> 24) as u8;
-        let _ = extract_ptx(&bytes);
+    let mut block = vec![0xf0, (TEXT.len() + 1 - 15) as u8];
+    block.extend(TEXT);
+    block.push(0);
+    for base in [
+        image(&[record(1, TEXT)]),
+        image(&[compressed_record(&block, (TEXT.len() + 1) as u64)]),
+    ] {
+        for size in 0..base.len() {
+            assert!(extract_ptx(&base[..size]).is_err());
+        }
+        for _ in 0..2048 {
+            seed = seed.wrapping_mul(1664525).wrapping_add(1013904223);
+            let mut bytes = base.clone();
+            let index = seed as usize % bytes.len();
+            bytes[index] = (seed >> 24) as u8;
+            let _ = extract_ptx(&bytes);
+        }
     }
     let records = vec![record(2, b"opaque"); 257];
     assert_eq!(extract_ptx(&image(&records)), Err(Error::Unsupported));

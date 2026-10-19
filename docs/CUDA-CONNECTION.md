@@ -31,3 +31,13 @@ NVIDIA's pinned vectorAddDrv host and kernel sources now run through CT with an 
 ## Genuine fatbin connection (M3d)
 
 The same official host now also runs with a real NVIDIA nvFatbin-created binary container holding one uncompressed PTX module. CT decodes the container itself and passes selected PTX through its existing translator; no vendor decoding library is used at runtime. Compressed/multiple PTX, nonempty JIT options and runtime wrappers are explicitly rejected. See [M3d evidence](M3d-RESULTS.md) and the [supported format](compatibility/fatbin-profile.md). Original nvcc build parity, broader application formats and NVIDIA comparison remain outstanding.
+
+## Compressed fatbin connection (M3e)
+
+CT now also decodes one LZ4-compressed PTX module, with exact size checks and a
+pre-allocation output cap. The unchanged official host and CLI passed with real
+nvFatbin compressed output on Arc B390. Renamed subtraction semantics and
+malformed-input recovery were separately checked. See [M3e evidence](M3e-RESULTS.md).
+Multiple PTX selection/linking remains the next container-level task; the goal
+continues through general instruction semantics, Runtime/library coverage and
+hardware-verified AMD execution. Kernel names/hashes never choose replacements.

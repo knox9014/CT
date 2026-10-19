@@ -29,7 +29,9 @@ unsafe fn source(image: *const c_void) -> Result<String, i32> {
         let size = ct_fatbin::image_size(header).map_err(error)?;
         let bytes = std::slice::from_raw_parts(image.cast::<u8>(), size);
         let ptx = ct_fatbin::extract_ptx(bytes).map_err(error)?;
-        return std::str::from_utf8(ptx).map(str::to_owned).map_err(|_| 218);
+        return std::str::from_utf8(ptx.as_ref())
+            .map(str::to_owned)
+            .map_err(|_| 218);
     }
     if data == [0xb1, 0x43, 0x62, 0x46] || data == b"\x7fELF" {
         return Err(UNSUPPORTED);

@@ -54,7 +54,7 @@ class Producer:
         finally: self.call("nvFatbinDestroy",c.byref(handle))
 
 
-def main(build):
+def main(build, variant="plain"):
     verify_source()
     artifacts=(REPO/build).resolve()
     if not artifacts.is_relative_to(REPO/".cache/m3c-build"): raise RuntimeError("unexpected sample build directory")
@@ -62,27 +62,49 @@ def main(build):
     producer=Producer()
     text=ASSET.read_bytes()
     images={v:producer.make(text,v) for v in ("plain","compressed","duplicate","options")}
-    asset=REFERENCE/"m3d/plain/vectorAdd_kernel64.fatbin"
-    asset.parent.mkdir(parents=True,exist_ok=True);asset.write_bytes(images["plain"])
+    milestone="m3e" if variant=="compressed" else "m3d"
+    # Real producer parity fixtures remain local and are consumed by Rust tests.
+    parity=REFERENCE/"m3e";parity.mkdir(parents=True,exist_ok=True)
+    for name in ("plain","compressed"): (parity/(name+".fatbin")).write_bytes(images[name])
+    chosen=images[variant]
+    asset=REFERENCE/milestone/variant/"vectorAdd_kernel64.fatbin"
+    asset.parent.mkdir(parents=True,exist_ok=True);asset.write_bytes(chosen)
     original=digest(app.read_bytes())
     bundle,report=prepare_bundle(app,REPO/"target/debug/ct_cuda.dll",[asset],REPO/".cache/runs")
     result=subprocess.run([str(bundle/app.name),"--device=0"],cwd=bundle,capture_output=True,timeout=60)
     logs=REPO/"results/local";logs.mkdir(parents=True,exist_ok=True)
-    (logs/"m3d-upstream-output.log").write_bytes(result.stdout+result.stderr)
+    (logs/(milestone+"-upstream-output.log")).write_bytes(result.stdout+result.stderr)
     if result.returncode or b"Result = PASS" not in result.stdout:
         print(json.dumps({"status":"failure","exit":result.returncode,"cuda_errors":[int(v) for v in re.findall(rb"(?:code|error)\s*=\s*(\d+)",result.stderr)]}))
         raise RuntimeError("official sample fatbin execution failed; raw output remains local")
-    if digest(app.read_bytes())!=original or report["application_sha256"]!=original or (bundle/asset.name).read_bytes()!=images["plain"]:
+    if digest(app.read_bytes())!=original or report["application_sha256"]!=original or (bundle/asset.name).read_bytes()!=chosen:
         raise RuntimeError("sample or fatbin byte preservation failed")
-    independent=validate(images["plain"])
+    independent=validate(chosen)
     independent.update(fatbin_cases=6,fatbin_results=50450,fatbin_guards=384,raw_ptx_regression_cases=8)
     device=Device()
     try:
-        for variant in ("compressed","duplicate","options"):
+        for rejected in ("duplicate","options"):
             output=P(1)
-            code=device.dll.cuModuleLoadData(c.byref(output),c.cast(c.create_string_buffer(images[variant]),P))
+            code=device.dll.cuModuleLoadData(c.byref(output),c.cast(c.create_string_buffer(images[rejected]),P))
             if code!=801 or output.value is not None: raise RuntimeError("unsupported producer variant was not safely rejected")
-        legacy=producer.make((REPO/"tests/fixtures/vector_add.ptx").read_bytes(),"plain",arch=b"50")
+        # Corrupt compressed length, decoded length, offset and padding. All
+        # declarations stay bounded/readable; no arbitrary pointer probes.
+        broken=[]
+        source=images["compressed"]
+        header=int.from_bytes(source[20:24],"little")
+        for start,width,value in ((32,4,0),(72,8,0),(72,8,262153)):
+            raw=bytearray(source);raw[start:start+width]=value.to_bytes(width,"little");broken.append(bytes(raw))
+        raw=bytearray(source);raw[-1]=1;broken.append(bytes(raw))
+        raw=bytearray(source);raw[16+header]=0;raw[17+header:19+header]=b"\0\0";broken.append(bytes(raw))
+        for raw in broken:
+            output=P(1)
+            code=device.dll.cuModuleLoadData(c.byref(output),c.cast(c.create_string_buffer(raw),P))
+            if code not in (218,801) or output.value is not None: raise RuntimeError("malformed compressed fatbin was not safely rejected")
+        # Renamed entries and changed arithmetic prove no name/hash substitution.
+        generic=(REPO/"tests/fixtures/vector_add.ptx").read_bytes().replace(b"vector_add",b"renamed_difference").replace(b"add.rn.f32",b"sub.rn.f32")
+        renamed=producer.make(generic,"compressed",arch=b"50")
+        device.run(renamed,"renamed_difference",257,expected_sub=True)
+        legacy=producer.make((REPO/"tests/fixtures/vector_add.ptx").read_bytes(),"compressed",arch=b"50")
         device.run(legacy,"vector_add",65) # Rejection did not damage context; legacy profile also works.
     finally: device.close()
     cli=subprocess.run([sys.executable,str(REPO/"scripts/ct.py"),"run","--ct-dll",
@@ -90,18 +112,19 @@ def main(build):
         cwd=REPO,capture_output=True,timeout=60)
     if cli.returncode or b"Result = PASS" not in cli.stdout: raise RuntimeError("public CLI fatbin run failed")
     cli_report=json.loads(cli.stdout.splitlines()[0])
-    if cli_report["application_sha256"]!=original or cli_report["assets_sha256"]!=[digest(images["plain"])]:
+    if cli_report["application_sha256"]!=original or cli_report["assets_sha256"]!=[digest(chosen)]:
         raise RuntimeError("public CLI staged hashes changed")
     print(json.dumps({"status":"pass","sample":"NVIDIA vectorAddDrv","elements":50000,
-        "real_binary_fatbin":True,"producer":"NVIDIA nvFatbin12.4.99","fatbin_bytes":len(images["plain"]),
-        "fatbin_sha256":digest(images["plain"]),"compiler_input_ptx_sha256":digest(text),
+        "real_binary_fatbin":True,"compressed":variant=="compressed","producer":"NVIDIA nvFatbin12.4.99","fatbin_bytes":len(chosen),
+        "fatbin_sha256":digest(chosen),"compiler_input_ptx_sha256":digest(text),
         "application_sha256":original,"unchanged_application_and_fatbin":True,
-        "independent_gpu_checks":independent,"unsupported_producer_variants_rejected":3,
+        "independent_gpu_checks":independent,"unsupported_producer_variants_rejected":2,
+        "malformed_compressed_variants_rejected":len(broken),"renamed_subtraction_results":257,"renamed_subtraction_guards":64,
         "post_rejection_recovery_passed":True,"legacy_fatbin_profile_passed":True,"public_cli_passed":True}))
 
 
 if __name__=="__main__":
-    try: main(sys.argv[1])
+    try: main(sys.argv[1],"compressed" if "--compressed" in sys.argv[2:] else "plain")
     except (RuntimeError,OSError,subprocess.SubprocessError) as error:
         print(json.dumps({"status":"error","reason":str(error) if isinstance(error,RuntimeError) else "local fatbin test operation failed"}))
         raise SystemExit(1)

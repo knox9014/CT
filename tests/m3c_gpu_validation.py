@@ -32,7 +32,7 @@ class Device:
         code = getattr(self.dll, name)(*args)
         if code: raise RuntimeError(f"independent GPU API check failed: {name}, code {code}")
 
-    def run(self, source, entry, n, expected_one=False):
+    def run(self, source, entry, n, expected_one=False, expected_sub=False):
         left = (c.c_float * n)(*(i * 0.25 for i in range(n)))
         right = (c.c_float * n)(*(-i * 0.125 for i in range(n)))
         output = (c.c_float * (n + 64))(*([-12345.25] * (n + 64)))
@@ -50,7 +50,8 @@ class Device:
             self.call("cuLaunchKernel", function, (n + 63)//64, 1, 1, 64, 1, 1, 0, None, arguments, None)
             self.call("cuMemcpyDtoH_v2", c.cast(output, P), addresses[2], c.sizeof(output))
             for i in range(n):
-                assert output[i] == (1.0 if expected_one else left[i] + right[i]), "GPU output mismatch or missing write"
+                expected = 1.0 if expected_one else (left[i] - right[i] if expected_sub else left[i] + right[i])
+                assert output[i] == expected, "GPU output mismatch or missing write"
             assert all(output[i] == -12345.25 for i in range(n, n + 64)), "GPU output guard modified"
         finally:
             if module.value: self.call("cuModuleUnload", module)
