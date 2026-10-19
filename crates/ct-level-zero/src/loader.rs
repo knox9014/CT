@@ -9,7 +9,7 @@ extern "system" {
 }
 
 pub struct Api {
-    module: *mut c_void,
+    module: usize,
     pub keep_loaded: Cell<bool>,
 }
 impl Api {
@@ -24,18 +24,22 @@ impl Api {
             ));
         }
         Ok(Self {
-            module,
+            module: module as usize,
             keep_loaded: Cell::new(false),
         })
     }
 
     /// Caller must use the exact C ABI signature from the pinned Level Zero header.
+    ///
+    /// # Safety
+    /// T must be the matching function-pointer type, and name must be one NUL-
+    /// terminated ASCII export name from the official Level Zero header.
     pub unsafe fn symbol<T: Copy>(&self, name: &[u8]) -> Result<T, String> {
         if name.last() != Some(&0) || std::mem::size_of::<T>() != std::mem::size_of::<*mut c_void>()
         {
             return Err("invalid function-pointer request".into());
         }
-        let address = GetProcAddress(self.module, name.as_ptr().cast());
+        let address = GetProcAddress(self.module as *mut c_void, name.as_ptr().cast());
         if address.is_null() {
             return Err(format!(
                 "Level Zero symbol unavailable: {}",
@@ -50,7 +54,7 @@ impl Drop for Api {
         // Pending GPU work retains both buffers and the loader until process exit.
         if !self.keep_loaded.get() {
             unsafe {
-                FreeLibrary(self.module);
+                FreeLibrary(self.module as *mut c_void);
             }
         }
     }

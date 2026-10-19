@@ -1,8 +1,5 @@
 //! Development-only ABI probe, compared with tests/abi_layout.c.
-#[allow(dead_code)]
-#[path = "../abi.rs"]
-mod abi;
-use abi::*;
+use ct_level_zero::abi::*;
 use std::mem::{align_of, offset_of, size_of};
 
 fn main() {

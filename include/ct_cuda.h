@@ -1,0 +1,44 @@
+/* Experimental x64 CUDA Driver ABI subset. No CUDA version conformance claim. */
+#ifndef CT_CUDA_H
+#define CT_CUDA_H
+#include <stddef.h>
+#if defined(_WIN32)
+#define CT_CUDA_API __stdcall
+#else
+#define CT_CUDA_API
+#endif
+typedef int CUresult;
+typedef int CUdevice;
+typedef struct CTcontext *CUcontext;
+typedef unsigned long long CUdeviceptr;
+#define CT_DRIVER_FUNCTIONS(X) \
+ X(cuInit, (unsigned int flags)) \
+ X(cuDriverGetVersion, (int *version)) \
+ X(cuDeviceGetCount, (int *count)) \
+ X(cuDeviceGet, (CUdevice *device, int ordinal)) \
+ X(cuDeviceGetName, (char *name, int length, CUdevice device)) \
+ X(cuDeviceGetAttribute, (int *value, int attribute, CUdevice device)) \
+ X(cuCtxCreate_v2, (CUcontext *context, unsigned int flags, CUdevice device)) \
+ X(cuCtxDestroy_v2, (CUcontext context)) \
+ X(cuCtxGetCurrent, (CUcontext *context)) \
+ X(cuCtxSetCurrent, (CUcontext context)) \
+ X(cuCtxPushCurrent_v2, (CUcontext context)) \
+ X(cuCtxPopCurrent_v2, (CUcontext *context)) \
+ X(cuCtxGetDevice, (CUdevice *device)) \
+ X(cuCtxSynchronize, (void)) \
+ X(cuMemAlloc_v2, (CUdeviceptr *pointer, size_t bytes)) \
+ X(cuMemFree_v2, (CUdeviceptr pointer)) \
+ X(cuMemcpyHtoD_v2, (CUdeviceptr destination, const void *source, size_t bytes)) \
+ X(cuMemcpyDtoH_v2, (void *destination, CUdeviceptr source, size_t bytes)) \
+ X(cuGetErrorName, (CUresult code, const char **name)) \
+ X(cuGetErrorString, (CUresult code, const char **message))
+#ifdef __cplusplus
+extern "C" {
+#endif
+#define CT_DECLARE(name,args) typedef CUresult (CT_CUDA_API *PFN_##name) args; CUresult CT_CUDA_API name args;
+CT_DRIVER_FUNCTIONS(CT_DECLARE)
+#undef CT_DECLARE
+#ifdef __cplusplus
+}
+#endif
+#endif

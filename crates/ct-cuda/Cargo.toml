@@ -1,0 +1,13 @@
+[package]
+name = "ct-cuda"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+name = "ct_cuda"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+ct-core = { path = "../ct-core" }
+ct-backend-intel = { path = "../ct-backend-intel" }

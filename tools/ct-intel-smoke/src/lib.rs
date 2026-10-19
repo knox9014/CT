@@ -1,11 +1,11 @@
 //! Native Intel backend experiment. This is not a CUDA compatibility driver.
 
 #[cfg(all(windows, target_pointer_width = "64"))]
-mod abi;
+use ct_level_zero::abi;
 #[cfg(all(windows, target_pointer_width = "64"))]
 mod level_zero;
 #[cfg(all(windows, target_pointer_width = "64"))]
-mod loader;
+use ct_level_zero::loader;
 
 pub fn verify_sum(a: &[f32], b: &[f32], actual: &[f32]) -> Result<f32, String> {
     if a.is_empty() || a.len() != b.len() || a.len() != actual.len() {

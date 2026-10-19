@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2021"
 publish = false
 
+[dependencies]
+ct-level-zero = { path = "../../crates/ct-level-zero" }
+
 [lib]
 name = "ct_intel_smoke"
 
