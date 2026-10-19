@@ -39,6 +39,66 @@ fn image(records: &[Vec<u8>]) -> Vec<u8> {
 const TEXT: &[u8] = b".version 8.0\n.target sm_52\n.address_size 64\n";
 
 #[test]
+fn extracts_mixed_plain_compressed_candidates_with_profiles() {
+    let mut plain = record(1, TEXT);
+    put32(&mut plain, 24, 7 << 16);
+    put32(&mut plain, 28, 50);
+    let block = [0x50, b'a', b'b', b'c', b'd', 0];
+    let compressed = compressed_record(&block, 5);
+    for records in [
+        vec![plain.clone(), compressed.clone()],
+        vec![compressed.clone(), plain.clone()],
+    ] {
+        let b = image(&records);
+        let candidates = ct_fatbin::extract_candidates(&b).unwrap();
+        assert_eq!(candidates.len(), 2);
+        let old = candidates.iter().find(|c| c.profile.major == 7).unwrap();
+        assert_eq!((old.profile.minor, old.profile.target), (0, 50));
+        assert_eq!(old.text.as_ref(), TEXT);
+        assert_eq!(
+            candidates
+                .iter()
+                .find(|c| c.profile.major == 8)
+                .unwrap()
+                .text
+                .as_ref(),
+            b"abcd"
+        );
+    }
+}
+
+#[test]
+fn rejects_ninth_candidate_and_aggregate_expansion_before_decode() {
+    assert_eq!(
+        ct_fatbin::extract_candidates(&image(&vec![record(1, TEXT); 8]))
+            .unwrap()
+            .len(),
+        8
+    );
+    assert!(matches!(
+        ct_fatbin::extract_candidates(&image(&vec![record(1, TEXT); 9])),
+        Err(Error::Unsupported)
+    ));
+    // Four padded records exactly fill the aggregate cap, each within PTX cap.
+    let full = record(1, &vec![b'x'; 262143]);
+    assert!(ct_fatbin::extract_candidates(&image(&vec![full.clone(); 4])).is_ok());
+    let more = compressed_record(&[0xf0], 262145); // bad stream, but aggregate cap takes precedence
+    let b = image(&[full.clone(), full.clone(), full.clone(), more]);
+    assert!(matches!(
+        ct_fatbin::extract_candidates(&b),
+        Err(Error::Unsupported)
+    ));
+}
+
+#[test]
+fn legacy_extract_still_rejects_multiple_candidates() {
+    assert_eq!(
+        extract_ptx(&image(&[record(1, TEXT), record(1, TEXT)])),
+        Err(Error::Unsupported)
+    );
+}
+
+#[test]
 fn extracts_one_ptx_and_skips_bounded_opaque_cubin() {
     let b = image(&[record(2, b"opaque synthetic cubin"), record(1, TEXT)]);
     assert_eq!(image_size(&b[..16]), Ok(b.len()));

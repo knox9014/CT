@@ -4,6 +4,20 @@ use std::borrow::Cow;
 pub const MAGIC: [u8; 4] = 0xba55ed50u32.to_le_bytes();
 pub const MAX_IMAGE_SIZE: usize = 16 * 1024 * 1024;
 pub const MAX_PTX_SIZE: usize = 262144;
+pub const MAX_CANDIDATES: usize = 8;
+pub const MAX_TOTAL_DECODED_SIZE: usize = 1024 * 1024;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PtxProfile {
+    pub major: u16,
+    pub minor: u16,
+    pub target: u32,
+}
+#[derive(Debug)]
+pub struct PtxCandidate<'a> {
+    pub profile: PtxProfile,
+    pub text: Cow<'a, [u8]>,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Error {
@@ -206,12 +220,23 @@ fn ptx_record<'a>(header: &[u8], payload: &'a [u8]) -> Result<Cow<'a, [u8]>, Err
 /// Extract exactly one plain or bounded LZ4-compressed PTX module. Opaque CUBIN
 /// records are skipped after checking byte ranges; multiple PTX is unsupported.
 pub fn extract_ptx(image: &[u8]) -> Result<Cow<'_, [u8]>, Error> {
+    let mut candidates = extract_candidates(image)?;
+    if candidates.len() != 1 {
+        return Err(Error::Unsupported);
+    }
+    Ok(candidates.pop().ok_or(Error::Unsupported)?.text)
+}
+
+/// Extract bounded alternative images without choosing a program or linking it.
+/// Each candidate's declared decoded/padded size is charged before decompression.
+pub fn extract_candidates(image: &[u8]) -> Result<Vec<PtxCandidate<'_>>, Error> {
     if image_size(image)? != image.len() {
         return Err(Error::Invalid);
     }
     let mut offset = 16usize;
     let mut count = 0;
-    let mut selected = None;
+    let mut candidates = Vec::new();
+    let mut decoded_total = 0usize;
     while offset < image.len() {
         count += 1;
         if count > 256 {
@@ -237,15 +262,35 @@ pub fn extract_ptx(image: &[u8]) -> Result<Cow<'_, [u8]>, Error> {
         let record = remainder.get(..end).ok_or(Error::Invalid)?;
         match kind {
             1 => {
-                if selected.is_some() {
+                if candidates.len() >= MAX_CANDIDATES {
                     return Err(Error::Unsupported);
                 }
-                selected = Some(ptx_record(&record[..header_size], &record[header_size..])?);
+                let declared = if u32_at(record, 40)? == 0x2045 {
+                    usize::try_from(u64_at(record, 56)?).map_err(|_| Error::Invalid)?
+                } else {
+                    payload_size
+                };
+                decoded_total = decoded_total.checked_add(declared).ok_or(Error::Invalid)?;
+                if decoded_total > MAX_TOTAL_DECODED_SIZE {
+                    return Err(Error::Unsupported);
+                }
+                let text = ptx_record(&record[..header_size], &record[header_size..])?;
+                candidates.push(PtxCandidate {
+                    profile: PtxProfile {
+                        major: u16_at(record, 26)?,
+                        minor: u16_at(record, 24)?,
+                        target: u32_at(record, 28)?,
+                    },
+                    text,
+                });
             }
             2 => {} // NVIDIA machine code is never executed.
             _ => return Err(Error::Unsupported),
         }
         offset = offset.checked_add(end).ok_or(Error::Invalid)?;
     }
-    selected.ok_or(Error::Unsupported)
+    if candidates.is_empty() {
+        return Err(Error::Unsupported);
+    }
+    Ok(candidates)
 }
