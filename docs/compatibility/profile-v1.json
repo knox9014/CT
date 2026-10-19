@@ -1,0 +1,685 @@
+{
+  "schema_version": 1,
+  "baseline": "4b0c64f",
+  "platform": {
+    "os": "Windows",
+    "host": "x64",
+    "gpu": "Intel Arc B390"
+  },
+  "exports": [
+    {
+      "symbol": "cuInit",
+      "signature_id": "cuInit:(unsigned int flags)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuInit",
+          "minimum": 2000,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+      ]
+    },
+    {
+      "symbol": "cuDriverGetVersion",
+      "signature_id": "cuDriverGetVersion:(int *version)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuDriverGetVersion",
+          "minimum": 2020,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "NOT_SUPPORTED",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+      ]
+    },
+    {
+      "symbol": "cuDeviceGetCount",
+      "signature_id": "cuDeviceGetCount:(int *count)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuDeviceGetCount",
+          "minimum": 2000,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+      ]
+    },
+    {
+      "symbol": "cuDeviceGet",
+      "signature_id": "cuDeviceGet:(CUdevice *device, int ordinal)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuDeviceGet",
+          "minimum": 2000,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+      ]
+    },
+    {
+      "symbol": "cuDeviceGetName",
+      "signature_id": "cuDeviceGetName:(char *name, int length, CUdevice device)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuDeviceGetName",
+          "minimum": 2000,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+      ]
+    },
+    {
+      "symbol": "cuDeviceGetAttribute",
+      "signature_id": "cuDeviceGetAttribute:(int *value, int attribute, CUdevice device)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuDeviceGetAttribute",
+          "minimum": 2000,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+      ]
+    },
+    {
+      "symbol": "cuCtxCreate_v2",
+      "signature_id": "cuCtxCreate_v2:(CUcontext *context, unsigned int flags, CUdevice device)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuCtxCreate",
+          "minimum": 3020,
+          "maximum": 11039
+        }
+      ],
+      "behavior": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+      ]
+    },
+    {
+      "symbol": "cuCtxDestroy_v2",
+      "signature_id": "cuCtxDestroy_v2:(CUcontext context)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuCtxDestroy",
+          "minimum": 4000,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+      ]
+    },
+    {
+      "symbol": "cuCtxGetCurrent",
+      "signature_id": "cuCtxGetCurrent:(CUcontext *context)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuCtxGetCurrent",
+          "minimum": 4000,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+      ]
+    },
+    {
+      "symbol": "cuCtxSetCurrent",
+      "signature_id": "cuCtxSetCurrent:(CUcontext context)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuCtxSetCurrent",
+          "minimum": 4000,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+      ]
+    },
+    {
+      "symbol": "cuCtxPushCurrent_v2",
+      "signature_id": "cuCtxPushCurrent_v2:(CUcontext context)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuCtxPushCurrent",
+          "minimum": 4000,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+      ]
+    },
+    {
+      "symbol": "cuCtxPopCurrent_v2",
+      "signature_id": "cuCtxPopCurrent_v2:(CUcontext *context)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuCtxPopCurrent",
+          "minimum": 4000,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+      ]
+    },
+    {
+      "symbol": "cuCtxGetDevice",
+      "signature_id": "cuCtxGetDevice:(CUdevice *device)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuCtxGetDevice",
+          "minimum": 2000,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+      ]
+    },
+    {
+      "symbol": "cuCtxSynchronize",
+      "signature_id": "cuCtxSynchronize:(void)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuCtxSynchronize",
+          "minimum": 2000,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+      ]
+    },
+    {
+      "symbol": "cuMemAlloc_v2",
+      "signature_id": "cuMemAlloc_v2:(CUdeviceptr *pointer, size_t bytes)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuMemAlloc",
+          "minimum": 3020,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+      ]
+    },
+    {
+      "symbol": "cuMemFree_v2",
+      "signature_id": "cuMemFree_v2:(CUdeviceptr pointer)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuMemFree",
+          "minimum": 3020,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+      ]
+    },
+    {
+      "symbol": "cuMemcpyHtoD_v2",
+      "signature_id": "cuMemcpyHtoD_v2:(CUdeviceptr destination, const void *source, size_t bytes)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuMemcpyHtoD",
+          "minimum": 3020,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+      ]
+    },
+    {
+      "symbol": "cuMemcpyDtoH_v2",
+      "signature_id": "cuMemcpyDtoH_v2:(void *destination, CUdeviceptr source, size_t bytes)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuMemcpyDtoH",
+          "minimum": 3020,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+      ]
+    },
+    {
+      "symbol": "cuGetErrorName",
+      "signature_id": "cuGetErrorName:(CUresult code, const char **name)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuGetErrorName",
+          "minimum": 6000,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+      ]
+    },
+    {
+      "symbol": "cuGetErrorString",
+      "signature_id": "cuGetErrorString:(CUresult code, const char **message)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuGetErrorString",
+          "minimum": 6000,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+      ]
+    },
+    {
+      "symbol": "cuModuleLoadData",
+      "signature_id": "cuModuleLoadData:(CUmodule *module, const void *image)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuModuleLoadData",
+          "minimum": 2000,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+      ]
+    },
+    {
+      "symbol": "cuModuleGetFunction",
+      "signature_id": "cuModuleGetFunction:(CUfunction *function, CUmodule module, const char *name)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuModuleGetFunction",
+          "minimum": 2000,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+      ]
+    },
+    {
+      "symbol": "cuModuleUnload",
+      "signature_id": "cuModuleUnload:(CUmodule module)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuModuleUnload",
+          "minimum": 2000,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+      ]
+    },
+    {
+      "symbol": "cuLaunchKernel",
+      "signature_id": "cuLaunchKernel:(CUfunction function, unsigned int gx, unsigned int gy, unsigned int gz, unsigned int bx, unsigned int by, unsigned int bz, unsigned int shared, CUstream stream, void **arguments, void **extra)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuLaunchKernel",
+          "minimum": 4000,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+      ]
+    },
+    {
+      "symbol": "cuGetProcAddress",
+      "signature_id": "cuGetProcAddress:(const char *symbol, void **function, int version, unsigned long long flags)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuGetProcAddress",
+          "minimum": 11030,
+          "maximum": 11999
+        }
+      ],
+      "behavior": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+      ]
+    },
+    {
+      "symbol": "cuGetProcAddress_v2",
+      "signature_id": "cuGetProcAddress_v2:(const char *symbol, void **function, int version, unsigned long long flags, int *status)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuGetProcAddress",
+          "minimum": 12000,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+      ]
+    }
+  ],
+  "features": [
+    {
+      "id": "ptx.module",
+      "state": "experimental",
+      "limits": {
+        "profiles": [
+          "7.0/sm_50",
+          "8.0/sm_52"
+        ],
+        "address_bits": 64,
+        "entries": 1,
+        "source_bytes": 262144,
+        "tokens": 65536,
+        "registers": 256,
+        "blocks": 128,
+        "instructions": 4096,
+        "params": 32
+      },
+      "test_ids": [
+        "crates/ct-ptx/tests/parser.rs#parses_semantics_independent_of_kernel_and_register_names"
+      ]
+    },
+    {
+      "id": "ptx.parameters",
+      "state": "experimental",
+      "limits": {
+        "kinds": [
+          "global f32 pointer align4",
+          "u32",
+          "f32"
+        ],
+        "inferred_u64": "single-definition cvta-only proof"
+      },
+      "test_ids": [
+        "crates/ct-ptx/tests/compiler_profile.rs#rejects_ambiguous_u64_and_accepts_proven_pointer_parameters"
+      ]
+    },
+    {
+      "id": "ptx.parameter",
+      "state": "experimental",
+      "limits": {
+        "spellings": [
+          "ld.param.u32",
+          "ld.param.u64",
+          "ld.param.f32"
+        ],
+        "semantics": "docs/compatibility/ptx-profile.md"
+      },
+      "test_ids": [
+        "tests/m2_kernel_host.c#main"
+      ]
+    },
+    {
+      "id": "ptx.memory",
+      "state": "experimental",
+      "limits": {
+        "spellings": [
+          "ld.global.f32",
+          "st.global.f32"
+        ],
+        "semantics": "docs/compatibility/ptx-profile.md"
+      },
+      "test_ids": [
+        "tests/m2_kernel_host.c#main"
+      ]
+    },
+    {
+      "id": "ptx.move",
+      "state": "experimental",
+      "limits": {
+        "spellings": [
+          "mov.u32",
+          "mov.b32",
+          "mov.u64",
+          "mov.b64",
+          "mov.f32",
+          "cvta.to.global.u64"
+        ],
+        "semantics": "docs/compatibility/ptx-profile.md"
+      },
+      "test_ids": [
+        "tests/m2_kernel_host.c#main"
+      ]
+    },
+    {
+      "id": "ptx.integer",
+      "state": "experimental",
+      "limits": {
+        "spellings": [
+          "add.u32",
+          "add.u64",
+          "sub.u32",
+          "mul.lo.u32",
+          "mul.wide.u32",
+          "mad.lo.u32",
+          "div.u32",
+          "rem.u32"
+        ],
+        "semantics": "docs/compatibility/ptx-profile.md"
+      },
+      "test_ids": [
+        "tests/m2_kernel_host.c#main"
+      ]
+    },
+    {
+      "id": "ptx.signed",
+      "state": "experimental",
+      "limits": {
+        "spellings": [
+          "add.s64",
+          "mad.lo.s32",
+          "mul.wide.s32",
+          "setp.ge.s32",
+          "setp.lt.s32",
+          "setp.eq.u64"
+        ],
+        "semantics": "docs/compatibility/ptx-profile.md"
+      },
+      "test_ids": [
+        "tests/m2_kernel_host.c#main"
+      ]
+    },
+    {
+      "id": "ptx.float",
+      "state": "experimental",
+      "limits": {
+        "spellings": [
+          "add.f32",
+          "add.rn.f32",
+          "mul.f32",
+          "mul.rn.f32",
+          "sub.f32",
+          "sub.rn.f32"
+        ],
+        "semantics": "docs/compatibility/ptx-profile.md"
+      },
+      "test_ids": [
+        "tests/m2_kernel_host.c#main"
+      ]
+    },
+    {
+      "id": "ptx.predicate",
+      "state": "experimental",
+      "limits": {
+        "spellings": [
+          "setp.ge.u32",
+          "setp.lt.u32",
+          "setp.eq.u32",
+          "setp.lt.f32",
+          "setp.ge.f32",
+          "selp.f32"
+        ],
+        "semantics": "docs/compatibility/ptx-profile.md"
+      },
+      "test_ids": [
+        "tests/m2_kernel_host.c#main"
+      ]
+    },
+    {
+      "id": "ptx.control",
+      "state": "experimental",
+      "limits": {
+        "spellings": [
+          "bra",
+          "@pred bra",
+          "@!pred bra",
+          "ret"
+        ],
+        "semantics": "docs/compatibility/ptx-profile.md"
+      },
+      "test_ids": [
+        "tests/m2_kernel_host.c#main"
+      ]
+    },
+    {
+      "id": "ptx.unused_globals",
+      "state": "experimental",
+      "limits": {
+        "maximum": 256,
+        "u64_align": 8,
+        "b8_size": [
+          1,
+          4096
+        ],
+        "storage_emitted": false
+      },
+      "test_ids": [
+        "crates/ct-ptx/tests/compiler_profile.rs#validates_unused_globals_but_rejects_references_and_malformed_initializers"
+      ]
+    },
+    {
+      "id": "fatbin",
+      "state": "experimental",
+      "limits": {
+        "image_bytes": 16777216,
+        "records": 256,
+        "ptx_modules": 1,
+        "compression": [
+          "plain",
+          "raw LZ4"
+        ],
+        "decoded_per_record": 262152,
+        "flags": [
+          69,
+          8261
+        ]
+      },
+      "test_ids": [
+        "crates/ct-fatbin/tests/decoding.rs#compressed_literals_and_overlapping_matches_decode"
+      ]
+    },
+    {
+      "id": "launch",
+      "state": "experimental",
+      "limits": {
+        "dimensions": 1,
+        "synchronous": true,
+        "streams": false,
+        "dynamic_shared": false,
+        "extra": false
+      },
+      "test_ids": [
+        "tests/m2_kernel_host.c#main"
+      ]
+    },
+    {
+      "id": "loader",
+      "state": "experimental",
+      "limits": {
+        "os": "Windows x64",
+        "scope": "app-local nvcuda.dll",
+        "static_named_imports": true,
+        "dynamic_requirements": "unproven"
+      },
+      "test_ids": [
+        "tests/test_ct_loader.py#test_classifies_static_and_dynamic_and_unknown_symbols"
+      ]
+    },
+    {
+      "id": "runtime",
+      "state": "unsupported",
+      "limits": {
+        "implemented": false
+      },
+      "test_ids": [],
+      "reason": "Outside the current verified profile"
+    },
+    {
+      "id": "amd",
+      "state": "unsupported",
+      "limits": {
+        "implemented": false
+      },
+      "test_ids": [],
+      "reason": "Outside the current verified profile"
+    },
+    {
+      "id": "streams",
+      "state": "unsupported",
+      "limits": {
+        "implemented": false
+      },
+      "test_ids": [],
+      "reason": "Outside the current verified profile"
+    },
+    {
+      "id": "warp",
+      "state": "unsupported",
+      "limits": {
+        "implemented": false
+      },
+      "test_ids": [],
+      "reason": "Outside the current verified profile"
+    },
+    {
+      "id": "linking",
+      "state": "unsupported",
+      "limits": {
+        "implemented": false
+      },
+      "test_ids": [],
+      "reason": "Outside the current verified profile"
+    }
+  ]
+}
