@@ -29,6 +29,7 @@ struct OwnedModule {
     params: Vec<Param>,
 }
 mod entrypoints;
+mod images;
 mod modules;
 pub use entrypoints::{cuGetProcAddress, cuGetProcAddress_v2};
 #[derive(Default)]
