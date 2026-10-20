@@ -1,7 +1,10 @@
 //! Experimental Windows x64 native memory backend; no CUDA semantics here.
 #![cfg(all(windows, target_pointer_width = "64"))]
 use ct_level_zero::abi::*;
+#[cfg(not(test))]
 use ct_level_zero::loader::Api;
+#[cfg(test)]
+use fault_tests::Api;
 use std::ffi::c_void;
 use std::ptr::{null, null_mut};
 
@@ -19,6 +22,8 @@ macro_rules! ze {
     })()};
 }
 
+#[cfg(test)]
+mod fault_tests;
 mod modules;
 
 pub struct Device {
@@ -41,10 +46,22 @@ pub struct Context {
     pub poisoned: bool,
     staging: Vec<usize>,
     retained_modules: Vec<Module>,
+    retained_build_logs: Vec<usize>,
 }
 pub struct Module {
     native: usize,
     kernels: Vec<usize>,
+}
+
+impl Context {
+    /// A fatal device state invalidates this context even before submission.
+    fn observe<T>(&mut self, api: &Api, result: NativeResult<T>) -> NativeResult<T> {
+        if matches!(result, Err(0x70000001 | 0x70000006)) {
+            self.poisoned = true;
+            api.keep_loaded.set(true);
+        }
+        result
+    }
 }
 
 impl Backend {
@@ -209,11 +226,12 @@ impl Backend {
                 poisoned: false,
                 staging: Vec::new(),
                 retained_modules: Vec::new(),
+                retained_build_logs: Vec::new(),
             })
         }
     }
 
-    pub fn allocate(&self, c: &Context, size: usize) -> NativeResult<u64> {
+    pub fn allocate(&self, c: &mut Context, size: usize) -> NativeResult<u64> {
         if c.poisoned || size == 0 {
             return Err(BAD_ARGUMENT);
         }
@@ -225,7 +243,7 @@ impl Backend {
                 ordinal: 0,
             };
             let mut pointer = null_mut();
-            ze!(
+            let result = ze!(
                 self.api,
                 "zeMemAllocDevice",
                 (
@@ -244,24 +262,30 @@ impl Backend {
                     self.devices[c.device].native as Handle,
                     &mut pointer
                 )
-            )?;
+            );
+            c.observe(&self.api, result)?;
             if pointer.is_null() {
                 return Err(UNKNOWN);
             }
             Ok(pointer as u64)
         }
     }
-    pub fn free(&self, c: &Context, pointer: u64) -> NativeResult<()> {
+    pub fn free(&self, c: &mut Context, pointer: u64) -> NativeResult<()> {
         if c.poisoned {
             return Err(UNKNOWN);
         }
         unsafe {
-            ze!(
+            let result = ze!(
                 self.api,
                 "zeMemFree",
                 (Handle, Handle),
                 (c.native as Handle, pointer as Handle)
-            )
+            );
+            if result.is_err() {
+                c.poisoned = true;
+                self.api.keep_loaded.set(true);
+            }
+            result
         }
     }
 
@@ -288,12 +312,13 @@ impl Backend {
             flags: 0,
         };
         let mut staging = null_mut();
-        ze!(
+        let result = ze!(
             self.api,
             "zeMemAllocHost",
             (Handle, *const HostAllocDesc, usize, usize, *mut Handle),
             (c.native as Handle, &desc, size, 64, &mut staging)
-        )?;
+        );
+        c.observe(&self.api, result)?;
         if staging.is_null() {
             return Err(UNKNOWN);
         }

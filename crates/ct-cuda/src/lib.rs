@@ -351,9 +351,9 @@ pub unsafe extern "system" fn cuMemAlloc_v2(output: *mut u64, size: usize) -> i3
         if c.native.poisoned {
             return Err(UNKNOWN);
         }
-        let p = b.allocate(&c.native, size).map_err(native_error)?;
+        let p = b.allocate(&mut c.native, size).map_err(native_error)?;
         if !c.allocations.insert(p, size) {
-            let _ = b.free(&c.native, p);
+            let _ = b.free(&mut c.native, p);
             return Err(UNKNOWN);
         }
         output.write(p);
@@ -369,7 +369,7 @@ pub extern "system" fn cuMemFree_v2(pointer: u64) -> i32 {
         if !c.allocations.bases().contains(&pointer) {
             return Err(INVALID);
         }
-        b.free(&c.native, pointer).map_err(native_error)?;
+        b.free(&mut c.native, pointer).map_err(native_error)?;
         c.allocations.remove(pointer);
         Ok(())
     })
@@ -473,5 +473,24 @@ pub unsafe extern "system" fn cuGetErrorString(code: i32, output: *mut *const c_
         0
     } else {
         INVALID
+    }
+}
+
+#[cfg(test)]
+mod failure_mapping_tests {
+    use super::*;
+    #[test]
+    fn native_failures_never_map_to_success_and_oom_keeps_its_cuda_category() {
+        for (native, cuda) in [
+            (0x70000002, 2),
+            (0x70000003, 2),
+            (0x70000001, 999),
+            (0x70000006, 999),
+            (1, 999),
+            (0x7ffffffe, 999),
+        ] {
+            assert_eq!(native_error(native), cuda);
+            assert!(error_text(cuda).is_some());
+        }
     }
 }
