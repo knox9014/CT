@@ -72,3 +72,12 @@ cleanup preserves the first error and retains an uncertain log handle. Ordinary
 allocation OOM and nonfatal setup argument errors remain recoverable. Native
 OOM maps to CUDA2; fatal/unknown errors map to999, without full NVIDIA parity.
 The private test-only injection provider is absent from normal builds.
+
+## M3k typed integer memory/argument extension
+
+Explicit b64/s64 scalar parameters consume8 bytes in kernelParams and are not
+classified as device pointers. Pointer parameters carry4/8-byte alignment and
+require that minimum current-context allocation span. Alternative images must
+match both argument kind and alignment. Unannotated u64 scalar inference and
+packed/vector/structure arguments remain unsupported. See the restricted
+[PTX contract](ptx-profile.md) and [M3k native evidence](../M3k-RESULTS.md).

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "baseline": "e594634",
+  "baseline": "4642974",
   "platform": {
     "os": "Windows",
     "host": "x64",
@@ -702,7 +702,7 @@
           "8.0/sm_52",
           "7.0/sm_50"
         ],
-        "entry_and_argument_kinds": "entire entry-name -> ordered argument-kind map must match; entry order and parameter names ignored",
+        "entry_and_argument_kinds": "entire entry-name -> ordered (kind,alignment) map must match; entry order and parameter names ignored",
         "duplicate_profile": "unsupported",
         "unknown_profile": "unsupported",
         "metadata_mismatch": 218,
@@ -721,8 +721,9 @@
         "native_modules_per_cuda_module": 1,
         "per_entry_parameters": 32,
         "abi_kinds": [
-          "Pointer global f32 align4",
-          "U32",
+          "Pointer align4/8 minimum4/8",
+          "U32 (u/b/s32)",
+          "U64 scalar (b64/s64)",
           "F32"
         ],
         "used_globals": false,
@@ -812,6 +813,40 @@
         "crates/ct-codegen-spirv/tests/translation.rs#every_shift_uses_a_bounded_u32_count_and_oversized_logical_result_select",
         "tests/m3j_integer_check.py#def oracle",
         "tests/m3j_cuda_app.c#main"
+      ]
+    },
+    {
+      "id": "ptx.integer_memory",
+      "state": "experimental",
+      "limits": {
+        "global_types": [
+          "b32",
+          "u32",
+          "s32",
+          "b64",
+          "u64",
+          "s64",
+          "f32"
+        ],
+        "scalar64_declarations": [
+          "b64",
+          "s64"
+        ],
+        "unannotated_scalar_u64": false,
+        "pointer_alignment": [
+          4,
+          8
+        ],
+        "pointer_minimum_span": "alignment bytes; conservative4/8",
+        "wide_entry_pointers": "all explicitly align8",
+        "dynamic_access_extents": "trusted caller obligation"
+      },
+      "test_ids": [
+        "crates/ct-ptx/tests/memory.rs#preserves_integer_memory_types_and_explicit_scalar_abi",
+        "crates/ct-codegen-spirv/tests/translation.rs#typed_memory_and_scalar64_use_distinct_pointer_and_integer_signatures",
+        "crates/ct-cuda/src/images.rs#pointer_alignment_and_scalar64_kind_are_part_of_alternative_abi",
+        "tests/m3k_memory_check.py#def invalid_pointers",
+        "tests/m3k_cuda_app.c#main"
       ]
     }
   ]
