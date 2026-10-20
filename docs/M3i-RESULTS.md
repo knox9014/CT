@@ -99,3 +99,17 @@ there. Failure probes themselves load no real GPU driver. Real driver loss/reset
 device-wide invalidation, actual loader unload, automatic recovery and complete
 NVIDIA error precedence remain unverified. This is not full fault tolerance or a
 general CUDA compatibility milestone; P03 arithmetic/ABI expansion is still next.
+
+## Independent review
+
+A fresh-context whole-branch reviewer found no actionable findings and
+independently passed25 backend/CUDA library tests. The reviewer inspected existing
+native evidence rather than rerunning the full GPU matrix.
+
+Context startup failures before commands/allocations exist are not exhaustively
+covered by this provider. Local metadata/current-context APIs may still work
+after poison, but cannot bypass backend submission guards. A successful DtoH copy
+may have published confirmed bytes before later staging cleanup fails; no
+transactional host-output guarantee or universal sticky-error parity is claimed.
+Physical driver failure, device-wide invalidation, real loader unloading and
+automatic recovery remain separate unverified work.
