@@ -7,11 +7,20 @@ from m3d_fatbin_check import Producer
 from m3f_selection_check import load_code
 from m3g_modules_check import module, function
 from m3l_arithmetic_check import execute, SIZES
-from m3m_predicates_check import inputs
+from m3m_predicates_check import inputs as predicate_inputs
 
 OPERATIONS = ([(op, kind) for op in ('min', 'max')
                for kind in ('u32', 's32', 'u64', 's64')] +
               [(op, kind) for op in ('abs', 'neg') for kind in ('s32', 's64')])
+
+
+def inputs(width, n):
+    triples = predicate_inputs(width, n)
+    mask = (1 << width) - 1
+    for index, (a, b) in enumerate([(mask, 0), (1, mask)], 8):
+        if index < n:
+            triples[index] = (a, b, triples[index][2])
+    return triples
 
 
 def oracle(op, kind, a, b):

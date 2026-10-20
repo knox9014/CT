@@ -1,4 +1,4 @@
-# Experimental PTX profile through M3m
+# Experimental PTX profile through M3n
 
 CT parses instructions into typed control-flow IR and emits SPIR-V 1.0 Kernel/OpenCL with Physical64 addressing. Intel Level Zero compiles and executes it. Kernel names do not select replacement implementations.
 
@@ -24,6 +24,7 @@ Integer constants support decimal, `0x` hexadecimal and leading-zero octal. Inva
 | Move/address | `mov.u32`, `mov.b32`, `mov.u64`, `mov.b64`, `mov.f32`, `cvta.to.global.u64` |
 | Modular integer arithmetic | `add/sub/mul.lo/mad.lo` for `.s32/.u32/.s64/.u64`; low-width result bits, including overflow |
 | Other integer arithmetic | `mul.wide.u32`, `div.u32`, `rem.u32`; `mul.wide.s32` sign-extends both operands before a64-bit product |
+| Integer extrema/unary | `min/max.s32/u32/s64/u64`, `abs/neg.s32/s64`; no packed/relu variants |
 | Floating arithmetic | `add.f32`, `mul.f32`, `sub.f32`, optionally with `.rn` before `.f32`; separate operations carry SPIR-V NoContraction |
 | Integer predicates/select | `setp.eq/ne/lt/le/gt/ge` for `.s32/.u32/.s64/.u64`; `selp.b/u/s32`, `selp.b/u/s64`; one predicate destination, no predicate combining |
 | Float predicates/select | `setp.lt.f32`, `setp.ge.f32`, `selp.f32` |
