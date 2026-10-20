@@ -192,6 +192,37 @@ impl Writer {
             }
             Op::Div => self.result(134, tid, &ids),
             Op::Rem => self.result(137, tid, &ids),
+            Op::Min { signed } | Op::Max { signed } => {
+                let (a, b) = if signed {
+                    let st = if t == Ty::U64 { 14 } else { 13 };
+                    (
+                        self.result(124, st, &[ids[0]]),
+                        self.result(124, st, &[ids[1]]),
+                    )
+                } else {
+                    (ids[0], ids[1])
+                };
+                let less = self.result(if signed { 177 } else { 176 }, 2, &[a, b]);
+                let (yes, no) = if matches!(op, Op::Min { .. }) {
+                    (ids[0], ids[1])
+                } else {
+                    (ids[1], ids[0])
+                };
+                self.result(169, tid, &[less, yes, no])
+            }
+            Op::Neg | Op::Abs => {
+                let zero = self.constant(t, 0);
+                let negated = self.result(130, tid, &[zero, ids[0]]);
+                if op == Op::Neg {
+                    negated
+                } else {
+                    let st = if t == Ty::U64 { 14 } else { 13 };
+                    let input = self.result(124, st, &[ids[0]]);
+                    let signed_zero = self.result(124, st, &[zero]);
+                    let negative = self.result(177, 2, &[input, signed_zero]);
+                    self.result(169, tid, &[negative, negated, ids[0]])
+                }
+            }
             Op::Ge => self.result(if is_float { 190 } else { 174 }, 2, &ids),
             Op::SignedGe | Op::SignedLt | Op::SignedGt | Op::SignedLe => {
                 let signed_type = if t == Ty::U64 { 14 } else { 13 };

@@ -22,6 +22,29 @@ fn instructions(bytes: &[u8]) -> Vec<(u32, Vec<u32>)> {
 }
 
 #[test]
+fn signed64_minmax_and_abs_use_typed_comparisons_and_modular_negation() {
+    for op in ["min", "max", "abs", "neg"] {
+        let args = if matches!(op, "min" | "max") {
+            "%d,1"
+        } else {
+            "%d"
+        };
+        let text = format!(".version 7.0 .target sm_50 .address_size 64 .visible .entry clamp(.param .b64 a) {{ .reg .b64 %d; ld.param.b64 %d,[a]; {op}.s64 %d,{args}; ret; }}");
+        let insts = instructions(&translate(&text).unwrap().spirv);
+        if op != "neg" {
+            let cmp = insts.iter().find(|(code, _)| *code == 177).unwrap();
+            assert!(insts
+                .iter()
+                .any(|(code, v)| *code == 124 && v[0] == 14 && v[1] == cmp.1[2]));
+            assert!(insts.iter().any(|(code, v)| *code == 169 && v[0] == 4));
+        }
+        if matches!(op, "abs" | "neg") {
+            assert!(insts.iter().any(|(code, v)| *code == 130 && v[0] == 4));
+        }
+    }
+}
+
+#[test]
 fn signed64_predicates_use_signed64_operands_and_integer_select() {
     for (relation, opcode) in [("lt", 177), ("le", 179), ("gt", 173), ("ge", 175)] {
         let text = format!(".version 7.0 .target sm_50 .address_size 64 .visible .entry compare(.param .b64 a) {{ .reg .b64 %d; .reg .pred %p; ld.param.b64 %d,[a]; setp.{relation}.s64 %p,%d,1; selp.b64 %d,%d,2,%p; ret; }}");
