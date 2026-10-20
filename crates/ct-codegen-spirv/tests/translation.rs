@@ -22,6 +22,18 @@ fn instructions(bytes: &[u8]) -> Vec<(u32, Vec<u32>)> {
 }
 
 #[test]
+fn modular_mad_uses_declared_width_for_product_and_sum() {
+    let source = ".version 7.0 .target sm_50 .address_size 64 .visible .entry calc(.param .b64 a) { .reg .b64 %d; ld.param.b64 %d,[a]; mad.lo.s64 %d,%d,0xffffffffffffffff,1; ret; }";
+    let compiled = translate(source).unwrap();
+    let insts = instructions(&compiled.spirv);
+    let product = insts.iter().find(|(op, _)| *op == 132).unwrap();
+    let sum = insts.iter().find(|(op, _)| *op == 128).unwrap();
+    assert_eq!(product.1[0], 4, "product must be U64");
+    assert_eq!(sum.1[0], 4, "sum must be U64");
+    assert_eq!(sum.1[2], product.1[1]);
+}
+
+#[test]
 fn typed_memory_and_scalar64_use_distinct_pointer_and_integer_signatures() {
     let text=".version 7.0 .target sm_50 .address_size 64 .visible .entry mem(.param .u64 .ptr .global .align 8 p,.param .b64 v) { .reg .b64 %a; .reg .s64 %x; ld.param.u64 %a,[p]; ld.param.s64 %x,[v]; st.global.u64 [%a],%x; ld.global.b64 %x,[%a+8]; ret; }";
     let compiled = translate(text).unwrap();

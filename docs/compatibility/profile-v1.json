@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "baseline": "4642974",
+  "baseline": "5c2c063",
   "platform": {
     "os": "Windows",
     "host": "x64",
@@ -847,6 +847,34 @@
         "crates/ct-cuda/src/images.rs#pointer_alignment_and_scalar64_kind_are_part_of_alternative_abi",
         "tests/m3k_memory_check.py#def invalid_pointers",
         "tests/m3k_cuda_app.c#main"
+      ]
+    },
+    {
+      "id": "ptx.modular_arithmetic",
+      "state": "experimental",
+      "limits": {
+        "operations": [
+          "add",
+          "sub",
+          "mul.lo",
+          "mad.lo"
+        ],
+        "formats": [
+          "s32",
+          "u32",
+          "s64",
+          "u64"
+        ],
+        "result": "low width bits modulo2^width",
+        "carry": false,
+        "saturation": false,
+        "high_result": false
+      },
+      "test_ids": [
+        "crates/ct-ptx/tests/arithmetic.rs#modular_arithmetic_accepts_all_width_and_signedness_spellings",
+        "crates/ct-codegen-spirv/tests/translation.rs#modular_mad_uses_declared_width_for_product_and_sum",
+        "tests/m3l_arithmetic_check.py#def oracle",
+        "tests/m3l_arithmetic_check.py#def execute"
       ]
     }
   ]

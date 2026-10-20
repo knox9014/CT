@@ -1,4 +1,4 @@
-# Experimental PTX profile through M3k
+# Experimental PTX profile through M3l
 
 CT parses instructions into typed control-flow IR and emits SPIR-V 1.0 Kernel/OpenCL with Physical64 addressing. Intel Level Zero compiles and executes it. Kernel names do not select replacement implementations.
 
@@ -22,8 +22,8 @@ Integer constants support decimal, `0x` hexadecimal and leading-zero octal. Inva
 | Parameters | `ld.param.u/b/s32`, `ld.param.u/b/s64`, `ld.param.f32`, matching parameter width/kind |
 | Global memory | `ld.global`/`st.global` `.u/b/s32`, `.u/b/s64`, `.f32`; 64-bit address with optional nonnegative naturally aligned byte offset4/8 |
 | Move/address | `mov.u32`, `mov.b32`, `mov.u64`, `mov.b64`, `mov.f32`, `cvta.to.global.u64` |
-| Integer arithmetic | `add.u32`, `add.u64`, `sub.u32`, `mul.lo.u32`, `mul.wide.u32`, `mad.lo.u32`, `div.u32`, `rem.u32` |
-| Signed arithmetic | `add.s64`, `mad.lo.s32` (modular result bits); `mul.wide.s32` sign-extends both operands before a 64-bit product |
+| Modular integer arithmetic | `add/sub/mul.lo/mad.lo` for `.s32/.u32/.s64/.u64`; low-width result bits, including overflow |
+| Other integer arithmetic | `mul.wide.u32`, `div.u32`, `rem.u32`; `mul.wide.s32` sign-extends both operands before a64-bit product |
 | Floating arithmetic | `add.f32`, `mul.f32`, `sub.f32`, optionally with `.rn` before `.f32`; separate operations carry SPIR-V NoContraction |
 | Predicates/select | `setp.ge.u32`, `setp.lt.u32`, `setp.eq.u32`, `setp.lt.f32`, `setp.ge.f32`, `selp.f32` |
 | Additional predicates | `setp.ge.s32`, `setp.lt.s32`, `setp.eq.u64` |
@@ -39,7 +39,7 @@ Logical shifts with counts >= width return zero; arithmetic right shifts return
 sign fill. Bounded counts avoid undefined SPIR-V shifts;64-bit shifts normalize
 the bounded count internally to the base width. No float conversion, saturation or8/16-bit types are implied. Scalar64 ABI is the separate M3k extension below. See [M3j evidence](../M3j-RESULTS.md).
 
-Unknown directives/modifiers, unsupported predication and mismatched types are rejected. Signed operations interpret existing 32/64-bit register contents; signed register declarations are bit-container aliases; negative-token immediates remain unsupported. Synthetic signed tests use hexadecimal two's-complement bits. Other signed arithmetic, division by zero, NaNs, infinities, denormals and uncommon rounding behavior remain outside the validated workload. Finite test inputs do not establish full PTX floating-point conformance.
+Unknown directives/modifiers, unsupported predication and mismatched types are rejected. Signed operations interpret existing 32/64-bit register contents; signed register declarations are bit-container aliases; negative-token immediates remain unsupported. Synthetic signed tests use hexadecimal two's-complement bits. Signed division, saturation/carry/high-result variants, division by zero, NaNs, infinities, denormals and uncommon rounding behavior remain outside the validated workload. Modular multiply/add uses width-matched integer operations at both stages; see [M3l evidence](../M3l-RESULTS.md). Finite test inputs do not establish full PTX floating-point conformance.
 
 ## Launch and trust boundary
 
