@@ -354,6 +354,29 @@ fn instruction(
             "setp.lt.f32" => (Op::Lt, Ty::F32, 2),
             "setp.ge.f32" => (Op::Ge, Ty::F32, 2),
             "selp.f32" => (Op::Select, Ty::F32, 3),
+            "selp.u32" | "selp.s32" | "selp.b32" => (Op::Select, Ty::U32, 3),
+            "selp.u64" | "selp.s64" | "selp.b64" => (Op::Select, Ty::U64, 3),
+            _ if op.starts_with("setp.") => {
+                let parts: Vec<_> = op.split('.').collect();
+                if parts.len() != 3 {
+                    return Err(unsupported(line));
+                }
+                let (t, signed) = integer_format(parts[2]).ok_or_else(|| unsupported(line))?;
+                let cmp = match (parts[1], signed) {
+                    ("eq", _) => Op::Eq,
+                    ("ne", _) => Op::Ne,
+                    ("gt", false) => Op::Gt,
+                    ("gt", true) => Op::SignedGt,
+                    ("ge", false) => Op::Ge,
+                    ("ge", true) => Op::SignedGe,
+                    ("lt", false) => Op::Lt,
+                    ("lt", true) => Op::SignedLt,
+                    ("le", false) => Op::Le,
+                    ("le", true) => Op::SignedLe,
+                    _ => return Err(unsupported(line)),
+                };
+                (cmp, t, 2)
+            }
             _ => return Err(unsupported(line)),
         };
         if args.len() != n + 1 {
@@ -361,7 +384,16 @@ fn instruction(
         }
         let dt = if matches!(
             operation,
-            Op::Ge | Op::Lt | Op::Eq | Op::SignedGe | Op::SignedLt
+            Op::Ge
+                | Op::Lt
+                | Op::Eq
+                | Op::Ne
+                | Op::Gt
+                | Op::Le
+                | Op::SignedGe
+                | Op::SignedLt
+                | Op::SignedGt
+                | Op::SignedLe
         ) {
             Ty::Pred
         } else if matches!(operation, Op::MulWide | Op::SignedMulWide) {

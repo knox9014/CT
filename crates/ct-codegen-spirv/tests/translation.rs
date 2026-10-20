@@ -22,6 +22,25 @@ fn instructions(bytes: &[u8]) -> Vec<(u32, Vec<u32>)> {
 }
 
 #[test]
+fn signed64_predicates_use_signed64_operands_and_integer_select() {
+    for (relation, opcode) in [("lt", 177), ("le", 179), ("gt", 173), ("ge", 175)] {
+        let text = format!(".version 7.0 .target sm_50 .address_size 64 .visible .entry compare(.param .b64 a) {{ .reg .b64 %d; .reg .pred %p; ld.param.b64 %d,[a]; setp.{relation}.s64 %p,%d,1; selp.b64 %d,%d,2,%p; ret; }}");
+        let compiled = translate(&text).unwrap();
+        let insts = instructions(&compiled.spirv);
+        let cmp = insts.iter().find(|(op, _)| *op == opcode).unwrap();
+        for operand in &cmp.1[2..] {
+            assert!(
+                insts
+                    .iter()
+                    .any(|(op, v)| *op == 124 && v[0] == 14 && v[1] == *operand),
+                "signed compare must bitcast to signed64"
+            );
+        }
+        assert!(insts.iter().any(|(op, v)| *op == 169 && v[0] == 4));
+    }
+}
+
+#[test]
 fn modular_mad_uses_declared_width_for_product_and_sum() {
     let source = ".version 7.0 .target sm_50 .address_size 64 .visible .entry calc(.param .b64 a) { .reg .b64 %d; ld.param.b64 %d,[a]; mad.lo.s64 %d,%d,0xffffffffffffffff,1; ret; }";
     let compiled = translate(source).unwrap();

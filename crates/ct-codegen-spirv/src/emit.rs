@@ -193,13 +193,24 @@ impl Writer {
             Op::Div => self.result(134, tid, &ids),
             Op::Rem => self.result(137, tid, &ids),
             Op::Ge => self.result(if is_float { 190 } else { 174 }, 2, &ids),
-            Op::SignedGe | Op::SignedLt => {
-                let a = self.result(124, 13, &[ids[0]]);
-                let b = self.result(124, 13, &[ids[1]]);
-                self.result(if op == Op::SignedGe { 175 } else { 177 }, 2, &[a, b])
+            Op::SignedGe | Op::SignedLt | Op::SignedGt | Op::SignedLe => {
+                let signed_type = if t == Ty::U64 { 14 } else { 13 };
+                let a = self.result(124, signed_type, &[ids[0]]);
+                let b = self.result(124, signed_type, &[ids[1]]);
+                let opcode = match op {
+                    Op::SignedGe => 175,
+                    Op::SignedLt => 177,
+                    Op::SignedGt => 173,
+                    Op::SignedLe => 179,
+                    _ => unreachable!(),
+                };
+                self.result(opcode, 2, &[a, b])
             }
             Op::Lt => self.result(if is_float { 184 } else { 176 }, 2, &ids),
             Op::Eq => self.result(170, 2, &ids),
+            Op::Ne => self.result(171, 2, &ids),
+            Op::Gt => self.result(172, 2, &ids),
+            Op::Le => self.result(178, 2, &ids),
             Op::Select => self.result(169, tid, &[ids[2], ids[0], ids[1]]),
         };
         if is_float && matches!(op, Op::Add | Op::Sub | Op::Mul) {
