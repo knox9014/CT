@@ -77,7 +77,7 @@ pub(crate) fn compile_candidates(candidates: Vec<SourceCandidate>) -> Result<Com
         return Err(UNSUPPORTED);
     }
     let mut profiles = Vec::new();
-    let mut identity: Option<BTreeMap<String, Vec<ParamKind>>> = None;
+    let mut identity: Option<BTreeMap<String, Vec<(ParamKind, u32)>>> = None;
     let mut selected: Option<(u8, CompiledModule)> = None;
     for candidate in candidates {
         let compiled = ct_codegen_spirv::translate_module(&candidate.text).map_err(|e| {
@@ -102,7 +102,11 @@ pub(crate) fn compile_candidates(candidates: Vec<SourceCandidate>) -> Result<Com
             .map(|entry| {
                 (
                     entry.entry.clone(),
-                    entry.params.iter().map(|p| p.kind).collect::<Vec<_>>(),
+                    entry
+                        .params
+                        .iter()
+                        .map(|p| (p.kind, p.alignment))
+                        .collect::<Vec<_>>(),
                 )
             })
             .collect();
@@ -164,6 +168,29 @@ mod tests {
             assert_eq!(selected.profile, NEW);
             assert_eq!(selected.entries[0].params[0].name, "different");
         }
+    }
+    #[test]
+    fn pointer_alignment_and_scalar64_kind_are_part_of_alternative_abi() {
+        let pointer = |profile, alignment| {
+            candidate(
+                profile,
+                "choice",
+                &format!("u64 .ptr .global .align {alignment}"),
+            )
+        };
+        assert_eq!(
+            compile_candidates(vec![pointer(OLD, 4), pointer(NEW, 8)]).err(),
+            Some(801)
+        );
+        assert_eq!(
+            compile_candidates(vec![pointer(OLD, 8), candidate(NEW, "choice", "b64")]).err(),
+            Some(801)
+        );
+        assert!(compile_candidates(vec![
+            candidate(OLD, "choice", "b64"),
+            candidate(NEW, "choice", "s64")
+        ])
+        .is_ok());
     }
     #[test]
     fn rejects_profile_mismatch_duplicate_and_abi_conflict() {

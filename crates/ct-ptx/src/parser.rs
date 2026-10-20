@@ -128,8 +128,8 @@ fn identifier(s: &str) -> bool {
 fn ty(s: &str) -> Option<Ty> {
     match s {
         ".pred" => Some(Ty::Pred),
-        ".u32" | ".b32" => Some(Ty::U32),
-        ".u64" | ".b64" => Some(Ty::U64),
+        ".u32" | ".b32" | ".s32" => Some(Ty::U32),
+        ".u64" | ".b64" | ".s64" => Some(Ty::U64),
         ".f32" => Some(Ty::F32),
         _ => None,
     }
@@ -220,6 +220,7 @@ fn address(
     tokens: &[String],
     regs: &BTreeMap<String, Ty>,
     line: usize,
+    alignment: u64,
 ) -> Result<(Value, u64), Error> {
     if tokens.first().map(String::as_str) != Some("[")
         || tokens.last().map(String::as_str) != Some("]")
@@ -234,7 +235,7 @@ fn address(
     } else {
         return Err(unsupported(line));
     };
-    if !offset.is_multiple_of(4) {
+    if !offset.is_multiple_of(alignment) {
         return Err(unsupported(line));
     }
     Ok((value(&inside[..1], Ty::U64, regs, line)?, offset))
@@ -257,7 +258,7 @@ fn instruction(
             .position(|p| p.name == args[1][1])
             .ok_or_else(err)?;
         let pt = match params[index].kind {
-            ParamKind::Pointer => Ty::U64,
+            ParamKind::Pointer | ParamKind::U64 => Ty::U64,
             ParamKind::U32 => Ty::U32,
             ParamKind::F32 => Ty::F32,
         };
@@ -268,25 +269,33 @@ fn instruction(
             dst: destination(&args[0], dtype, regs, line)?,
             index,
         }
-    } else if op == "ld.global.f32" {
+    } else if let Some(suffix) = op.strip_prefix("ld.global.") {
+        let dtype = ty(&format!(".{suffix}"))
+            .filter(|t| *t != Ty::Pred)
+            .ok_or_else(|| unsupported(line))?;
         if args.len() != 2 {
             return Err(err());
         }
-        let (a, offset) = address(&args[1], regs, line)?;
+        let (a, offset) = address(&args[1], regs, line, if dtype == Ty::U64 { 8 } else { 4 })?;
         InstructionKind::Load {
-            dst: destination(&args[0], Ty::F32, regs, line)?,
+            ty: dtype,
+            dst: destination(&args[0], dtype, regs, line)?,
             address: a,
             offset,
         }
-    } else if op == "st.global.f32" {
+    } else if let Some(suffix) = op.strip_prefix("st.global.") {
+        let dtype = ty(&format!(".{suffix}"))
+            .filter(|t| *t != Ty::Pred)
+            .ok_or_else(|| unsupported(line))?;
         if args.len() != 2 {
             return Err(err());
         }
-        let (a, offset) = address(&args[0], regs, line)?;
+        let (a, offset) = address(&args[0], regs, line, if dtype == Ty::U64 { 8 } else { 4 })?;
         InstructionKind::Store {
+            ty: dtype,
             address: a,
             offset,
-            value: value(&args[1], Ty::F32, regs, line)?,
+            value: value(&args[1], dtype, regs, line)?,
         }
     } else if let Some(formats) = op.strip_prefix("cvt.") {
         let (dst, src) = formats.split_once('.').ok_or_else(|| unsupported(line))?;
@@ -521,14 +530,23 @@ fn parse_kernel(
         loop {
             p.expect(".param")?;
             let t = p.take()?;
+            let mut alignment = 4;
             let kind = match t.as_str() {
-                ".u32" => ParamKind::U32,
+                ".u32" | ".b32" | ".s32" => ParamKind::U32,
+                ".b64" | ".s64" => {
+                    alignment = 8;
+                    ParamKind::U64
+                }
                 ".f32" => ParamKind::F32,
                 ".u64" => {
                     if p.eat(".ptr") {
                         p.expect(".global")?;
                         p.expect(".align")?;
-                        p.expect("4")?;
+                        alignment = match p.take()?.as_str() {
+                            "4" => 4,
+                            "8" => 8,
+                            _ => return Err(unsupported(p.line())),
+                        };
                     } else {
                         inferred.push(params.len());
                     }
@@ -540,7 +558,11 @@ fn parse_kernel(
             if !identifier(&n) || globals.contains(&n) || params.iter().any(|v| v.name == n) {
                 return Err(fail(p.line(), "invalid/duplicate parameter"));
             }
-            params.push(Param { name: n, kind });
+            params.push(Param {
+                name: n,
+                kind,
+                alignment,
+            });
             if params.len() > 32 {
                 return Err(unsupported(p.line()));
             }
@@ -696,6 +718,18 @@ fn parse_kernel(
     };
     validate_flow(&kernel)?;
     validate_inferred_pointers(&kernel, &inferred)?;
+    if kernel.blocks.iter().flat_map(|b| &b.instructions).any(|i| {
+        matches!(
+            i.kind,
+            InstructionKind::Load { ty: Ty::U64, .. } | InstructionKind::Store { ty: Ty::U64, .. }
+        )
+    }) && kernel
+        .params
+        .iter()
+        .any(|p| p.kind == ParamKind::Pointer && p.alignment < 8)
+    {
+        return Err(unsupported(1));
+    }
     Ok(kernel)
 }
 

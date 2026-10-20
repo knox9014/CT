@@ -22,6 +22,32 @@ fn instructions(bytes: &[u8]) -> Vec<(u32, Vec<u32>)> {
 }
 
 #[test]
+fn typed_memory_and_scalar64_use_distinct_pointer_and_integer_signatures() {
+    let text=".version 7.0 .target sm_50 .address_size 64 .visible .entry mem(.param .u64 .ptr .global .align 8 p,.param .b64 v) { .reg .b64 %a; .reg .s64 %x; ld.param.u64 %a,[p]; ld.param.s64 %x,[v]; st.global.u64 [%a],%x; ld.global.b64 %x,[%a+8]; ret; }";
+    let compiled = translate(text).unwrap();
+    assert_eq!(compiled.params[1].kind, ParamKind::U64);
+    let ops = instructions(&compiled.spirv);
+    let global64 = ops
+        .iter()
+        .find(|(op, a)| *op == 32 && a[1] == 5 && a[2] == 4)
+        .unwrap()
+        .1[0];
+    assert!(ops.iter().any(|(op, a)| *op == 120 && a[0] == global64));
+    assert!(ops
+        .iter()
+        .any(|(op, a)| *op == 61 && a[0] == 4 && a.len() == 5 && a[3..] == [2, 8]));
+    assert!(ops
+        .iter()
+        .any(|(op, a)| *op == 62 && a.len() == 4 && a[2..] == [2, 8]));
+    let params: Vec<_> = ops
+        .iter()
+        .filter(|(op, _)| *op == 55)
+        .map(|(_, a)| a[0])
+        .collect();
+    assert_eq!(params, vec![global64, 4]);
+}
+
+#[test]
 fn integer_conversion_uses_source_signedness_and_correct_result_width() {
     let text=".version 7.0 .target sm_50 .address_size 64 .visible .entry c() { .reg .b32 %r; .reg .b64 %d; mov.u32 %r, 0xffffffff; cvt.u64.s32 %d, %r; cvt.s64.u32 %d, %r; cvt.s32.s64 %r, %d; cvt.s32.u32 %r, %r; ret; }";
     let ops = instructions(&translate(text).unwrap().spirv);

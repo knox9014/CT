@@ -32,6 +32,14 @@ fn register_pointer(t: Ty) -> u32 {
         Ty::F32 => 12,
     }
 }
+fn global_pointer(t: Ty) -> u32 {
+    match t {
+        Ty::F32 => 8,
+        Ty::U32 => 15,
+        Ty::U64 => 16,
+        Ty::Pred => unreachable!(),
+    }
+}
 struct Writer {
     next: u32,
     types: Vec<u32>,
@@ -91,13 +99,13 @@ impl Writer {
             }
         }
     }
-    fn address(&mut self, v: &Value, offset: u64) -> u32 {
+    fn address(&mut self, v: &Value, offset: u64, t: Ty) -> u32 {
         let mut addr = self.read(v, Ty::U64);
         if offset != 0 {
             let off = self.constant(Ty::U64, offset);
             addr = self.result(128, 4, &[addr, off]);
         }
-        self.result(120, 8, &[addr])
+        self.result(120, global_pointer(t), &[addr])
     }
     fn operation(&mut self, op: Op, t: Ty, args: &[Value]) -> u32 {
         let ids: Vec<u32> = args
@@ -205,7 +213,7 @@ pub(super) fn generate(k: &Kernel) -> Vec<u8> {
 }
 pub(super) fn generate_module(kernels: &[Kernel]) -> Vec<u8> {
     let mut w = Writer {
-        next: 15,
+        next: 17,
         types: vec![],
         globals: vec![],
         annotations: vec![],
@@ -226,6 +234,8 @@ pub(super) fn generate_module(kernels: &[Kernel]) -> Vec<u8> {
     inst(&mut w.types, 23, &[6, 4, 3]);
     inst(&mut w.types, 32, &[7, 1, 6]);
     inst(&mut w.types, 32, &[8, 5, 5]);
+    inst(&mut w.types, 32, &[15, 5, 3]);
+    inst(&mut w.types, 32, &[16, 5, 4]);
     for t in [Ty::Pred, Ty::U32, Ty::U64, Ty::F32] {
         inst(&mut w.types, 32, &[register_pointer(t), 7, type_id(t)]);
     }
@@ -259,8 +269,15 @@ fn generate_kernel(w: &mut Writer, k: &Kernel) -> u32 {
         .params
         .iter()
         .map(|p| match p.kind {
-            ParamKind::Pointer => 8,
+            ParamKind::Pointer => {
+                if p.alignment == 8 {
+                    16
+                } else {
+                    8
+                }
+            }
             ParamKind::U32 => 3,
+            ParamKind::U64 => 4,
             ParamKind::F32 => 5,
         })
         .collect();
@@ -309,22 +326,32 @@ fn generate_kernel(w: &mut Writer, k: &Kernel) -> u32 {
                     inst(&mut w.body, 62, &[w.registers[dst], id]);
                 }
                 InstructionKind::Load {
+                    ty,
                     dst,
                     address,
                     offset,
                 } => {
-                    let ptr = w.address(address, *offset);
-                    let id = w.result(61, 5, &[ptr]);
+                    let ptr = w.address(address, *offset, *ty);
+                    let id = w.result(
+                        61,
+                        type_id(*ty),
+                        &[ptr, 2, if *ty == Ty::U64 { 8 } else { 4 }],
+                    );
                     inst(&mut w.body, 62, &[w.registers[dst], id]);
                 }
                 InstructionKind::Store {
+                    ty,
                     address,
                     offset,
                     value,
                 } => {
-                    let ptr = w.address(address, *offset);
-                    let id = w.read(value, Ty::F32);
-                    inst(&mut w.body, 62, &[ptr, id]);
+                    let ptr = w.address(address, *offset, *ty);
+                    let id = w.read(value, *ty);
+                    inst(
+                        &mut w.body,
+                        62,
+                        &[ptr, id, 2, if *ty == Ty::U64 { 8 } else { 4 }],
+                    );
                 }
             }
         }

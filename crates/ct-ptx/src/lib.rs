@@ -11,12 +11,14 @@ pub enum Ty {
 pub enum ParamKind {
     Pointer,
     U32,
+    U64,
     F32,
 }
 #[derive(Clone, Debug)]
 pub struct Param {
     pub name: String,
     pub kind: ParamKind,
+    pub alignment: u32,
 }
 #[derive(Clone, Debug)]
 pub enum Value {
@@ -65,11 +67,13 @@ pub enum InstructionKind {
         args: Vec<Value>,
     },
     Load {
+        ty: Ty,
         dst: String,
         address: Value,
         offset: u64,
     },
     Store {
+        ty: Ty,
         address: Value,
         offset: u64,
         value: Value,

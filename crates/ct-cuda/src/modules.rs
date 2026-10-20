@@ -138,11 +138,18 @@ pub unsafe extern "system" fn cuLaunchKernel(
             let data = match param.kind {
                 ParamKind::Pointer => {
                     let value = pointer.cast::<u64>().read_unaligned();
-                    if !value.is_multiple_of(4) || !c.allocations.contains(value, 4) {
+                    if !value.is_multiple_of(u64::from(param.alignment))
+                        || !c.allocations.contains(value, param.alignment as usize)
+                    {
                         return Err(INVALID);
                     }
                     value.to_ne_bytes().to_vec()
                 }
+                ParamKind::U64 => pointer
+                    .cast::<u64>()
+                    .read_unaligned()
+                    .to_ne_bytes()
+                    .to_vec(),
                 ParamKind::U32 | ParamKind::F32 => pointer
                     .cast::<u32>()
                     .read_unaligned()
