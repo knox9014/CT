@@ -20,7 +20,9 @@ Reference: [PTX setp/selp](https://docs.nvidia.com/cuda/archive/12.1.1/parallel-
 - [x] Run M3l/M3k regressions and C/CLI consumer. Independent subagent review;
   fix equality-input coverage finding with RED/GREEN and native revalidation.
   Docs/manifest updated; existing user edits preserved.
-- [ ] Final privacy scans and stacked draft PR on M3l; no merge.
+- [x] Final privacy/identity scans passed; stacked
+  [draft PR16](https://github.com/knox9014/CT/pull/16) on M3l created and attached;
+  no merge.
 
 Review focus: correct signed width, relation opcode direction, full64-bit
 selected values, real equal/less/greater and both predicate outcomes,
