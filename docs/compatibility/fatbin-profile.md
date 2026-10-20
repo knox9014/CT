@@ -1,4 +1,4 @@
-# Experimental raw fatbin profile through M3g
+# Experimental raw fatbin profile through M3k
 
 CT can extract bounded plain or LZ4-compressed alternative PTX images from a raw CUDA fatbin passed to `cuModuleLoadData`. The runtime decoder is the dependency-free Rust `ct-fatbin` crate. NVIDIA's nvFatbin library is only a local test producer; CT does not load it to decode or execute images. M3f selects one known-profile image; it does not link modules.
 
@@ -16,7 +16,7 @@ This profile is verified against genuine NVIDIA nvFatbin12.4.99 output and compa
 
 ## Rejection and C-pointer contract
 
-Every candidate must parse/type-check and its metadata must match its PTX body. Metadata/body mismatch, malformed ranges/streams, missing terminators or nonzero padding map to INVALID_PTX=218. Recognized unsupported versions/flags, resource caps, duplicate profiles, differing complete entry-name/ordered-ParamKind maps, nonempty options, unknown profiles and images without PTX map to NOT_SUPPORTED=801. Entry order and parameter names may differ. Errors stop at the first detected extraction or compilation/selection error; a global precedence among errors in multiply invalid input is not promised. Outputs are cleared before failure; valid contexts remain usable after parse/selection failures.
+Every candidate must parse/type-check and its metadata must match its PTX body. Metadata/body mismatch, malformed ranges/streams, missing terminators or nonzero padding map to INVALID_PTX=218. Recognized unsupported versions/flags, resource caps, duplicate profiles, differing complete entry-name/ordered-(ParamKind,alignment) maps, nonempty options, unknown profiles and images without PTX map to NOT_SUPPORTED=801. Entry order and parameter names may differ. Errors stop at the first detected extraction or compilation/selection error; a global precedence among errors in multiply invalid input is not promised. Outputs are cleared before failure; valid contexts remain usable after parse/selection failures.
 
 Priority is explicitly8.0/sm_52 above7.0/sm_50, independent of record order. All candidates must be understood; unknown-profile skipping is not implemented. Shared entry-name/ABI map is not proof of equivalent computation; the caller supplies alternative images, and CT chooses one under this policy without concatenation or semantic-equivalence claims. Only the selected image reaches native module creation; native failure does not retry a lower profile. No device compute capability or newer CUDA version is advertised by this policy.
 
@@ -29,3 +29,5 @@ The launcher accepts binary `.fatbin` assets after checking their outer header, 
 General multi-profile selection, module linking, LTO-IR, unknown record kinds, runtime wrappers, CUDA Runtime registration, CUBIN execution, general nvcc-produced formats and NVIDIA parity/coexistence remain outside this increment. Duplicate-profile and JIT-option containers are rejected. Mixed CUBIN skipping is byte-bounds tested with synthetic opaque data; no NVIDIA machine code execution is claimed. See historical [M3d results](../M3d-RESULTS.md), [M3e results](../M3e-RESULTS.md), [M3f results](../M3f-RESULTS.md) and current [M3g results](../M3g-RESULTS.md). Decoder sequences follow the primary [LZ4 block format](https://github.com/lz4/lz4/blob/v1.10.0/doc/lz4_Block_format.md); real-producer parity and GPU checks establish the tested NVIDIA container profile, not every LZ4 producer/layout.
 
 M3g permits1..32 entries per image in the restricted PTX profile, producing one native module. Alternative images must expose the same entire entry map; they are selected, never linked. Used globals/device calls remain unsupported.
+
+M3k includes pointer/scalar kind and alignment in the complete ABI identity; changing4-byte to8-byte pointer requirements across alternatives is rejected. See [M3k evidence](../M3k-RESULTS.md).

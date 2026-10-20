@@ -7,6 +7,7 @@
 P03a의 다차원 실행은 [M3h](M3h-RESULTS.md)로 구현·Arc 검증했다. P03의 정수·비트 연산과 인자 형식 확장은 남아 있다. 저장된 전역 변수와 device 함수는 P04다.
 후속 [M3i](M3i-RESULTS.md)는 P19의 기본 오류 주입·실패 차단을 검사했다. 실제 장치 장애·자동 복구 또는 P19 전체 완료는 아니며, 다음 기능 작업은 P03의 정수·비트 연산 확장이다.
 P03b의32/64비트 정수 변환·비트·시프트 연산은 [M3j](M3j-RESULTS.md)로 구현·Arc 검증했다. 추가 정수 연산·작은 정수 타입·벡터/구조체 ABI는 후속 P03 작업이다.
+P03c의 정수 global 메모리와 명시적 scalar64 ABI는 [M3k](M3k-RESULTS.md)로 검증했다. 암묵적 scalaru64 분류, wide entry의 혼합 포인터 정렬, 작은 정수·벡터/구조체 ABI는 남아 있다.
 요구사항: [전체 목표 G0~G14](CT-COMPLETION-GOALS.md).
 첫 실행 명세: [M3f 명세](superpowers/specs/2026-10-19-m3f-selection-design.md).
 첫 실행 계획: [P00/P01 상세 계획](superpowers/plans/2026-10-19-m3f-selection.md).

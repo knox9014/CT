@@ -1,0 +1,88 @@
+// Synthetic typed integer memory fixture.
+.version 7.0
+.target sm_50
+.address_size 64
+.visible .entry xor32(
+ .param .u64 .ptr .global .align 4 input,
+ .param .u64 .ptr .global .align 4 output,
+ .param .s32 mask,
+ .param .u32 n
+) {
+ .reg .b32 %r<5>;
+ .reg .b64 %rd<5>;
+ .reg .b32 %v;
+ .reg .b32 %m;
+ .reg .pred %p;
+ ld.param.u32 %r0,[n];
+ mov.u32 %r1,%ctaid.x;
+ mov.u32 %r2,%ntid.x;
+ mov.u32 %r3,%tid.x;
+ mad.lo.u32 %r4,%r1,%r2,%r3;
+ setp.ge.u32 %p,%r4,%r0;
+ @%p bra DONE;
+ ld.param.u64 %rd1,[input];
+ ld.param.u64 %rd2,[output];
+ ld.param.s32 %m,[mask];
+ mul.wide.u32 %rd0,%r4,4;
+ add.u64 %rd3,%rd1,%rd0;
+ add.u64 %rd4,%rd2,%rd0;
+ ld.global.u32 %v,[%rd3+4];
+ xor.b32 %v,%v,%m;
+ st.global.b32 [%rd4+4],%v;
+DONE:
+ ret;
+}
+.visible .entry xor64(
+ .param .u64 .ptr .global .align 8 input,
+ .param .u64 .ptr .global .align 8 output,
+ .param .b64 mask,
+ .param .u32 n
+) {
+ .reg .b32 %r<5>;
+ .reg .b64 %rd<5>;
+ .reg .b64 %v;
+ .reg .b64 %m;
+ .reg .pred %p;
+ ld.param.u32 %r0,[n];
+ mov.u32 %r1,%ctaid.x;
+ mov.u32 %r2,%ntid.x;
+ mov.u32 %r3,%tid.x;
+ mad.lo.u32 %r4,%r1,%r2,%r3;
+ setp.ge.u32 %p,%r4,%r0;
+ @%p bra DONE;
+ ld.param.u64 %rd1,[input];
+ ld.param.u64 %rd2,[output];
+ ld.param.b64 %m,[mask];
+ mul.wide.u32 %rd0,%r4,8;
+ add.u64 %rd3,%rd1,%rd0;
+ add.u64 %rd4,%rd2,%rd0;
+ ld.global.u64 %v,[%rd3+8];
+ xor.b64 %v,%v,%m;
+ st.global.b64 [%rd4+8],%v;
+DONE:
+ ret;
+}
+.visible .entry fill64(
+ .param .u64 .ptr .global .align 8 output,
+ .param .s64 value,
+ .param .u32 n
+) {
+ .reg .b32 %r<5>;
+ .reg .b64 %rd<3>;
+ .reg .s64 %v;
+ .reg .pred %p;
+ ld.param.u32 %r0,[n];
+ mov.u32 %r1,%ctaid.x;
+ mov.u32 %r2,%ntid.x;
+ mov.u32 %r3,%tid.x;
+ mad.lo.u32 %r4,%r1,%r2,%r3;
+ setp.ge.u32 %p,%r4,%r0;
+ @%p bra DONE;
+ ld.param.u64 %rd1,[output];
+ ld.param.s64 %v,[value];
+ mul.wide.u32 %rd0,%r4,8;
+ add.u64 %rd2,%rd1,%rd0;
+ st.global.s64 [%rd2+8],%v;
+DONE:
+ ret;
+}

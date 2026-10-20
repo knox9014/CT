@@ -6,7 +6,7 @@ CT aims to develop a general-purpose translation and compatibility layer for run
 
 ## Project status / 현재 상태
 
-**M3j / P03b: bounded32/64-bit integer conversions, bitwise and shift operations passed CPU-oracle checks on Intel Arc B390.**
+**M3k / P03c: typed32/64-bit integer memory and explicit scalar64 CUDA arguments passed exact-bit checks on Intel Arc B390.**
 
 현재는 초기 개발 단계입니다. Windows의 Intel Arc B390에서 제한된 PTX를 SPIR-V로 번역해 실제 GPU에서 실행합니다. 벡터 덧셈·SAXPY·ReLU·행렬 곱셈 4개 커널의 53개 조합에서 출력 606,660개와 가드 값 4,992개를 검증했습니다. API는 26개 심볼이며, M1 메모리·컨텍스트 검사 210개도 통과했습니다. 외부 CUDA 앱의 일반적인 호환성, CUDA 라이브러리 및 AMD 지원은 아직 확보하지 못했습니다.
 
@@ -31,6 +31,8 @@ M3f에서는 알려진 두 프로파일의 대체 PTX를 검증하고 순서에 
 M3g에서는 하나의 모듈에 최대32개 kernel entry를 담고 각각 조회·실행합니다. 덧셈·뺄셈·다른 인자 ABI의 채우기 커널을 실제 Arc144개 조합에서 실행해 출력1,210,800개·가드9,216개를 검증했습니다. 모듈·컨텍스트별 핸들 수명, 부분 생성/해제 실패 시험, 독립 CUDA C 소비자와 공개 CLI도 통과했습니다. 아직 제한된 문법·동기1D 실행이며 저장된 전역 변수·device 함수·Runtime·AMD는 지원하지 않습니다. [M3g 결과](docs/M3g-RESULTS.md)
 
 ## Development plan / 개발 계획
+
+M3k에서는32/64비트 정수 배열 읽기·쓰기와 명시적64비트 정수 인자를 추가했습니다. 실제 Arc288개 조합에서 정수 출력2,421,600개·가드37,152개, 포인터 정렬·소유권 거부와 복구, 독립 CUDA C/CLI 연결을 검증했습니다. 주석 없는 `.u64` 정수 인자와 혼합 정렬·작은 정수·구조체 ABI는 아직 제한됩니다. [M3k 결과](docs/M3k-RESULTS.md)
 
 M3j에서는32·64비트 정수 변환과 비트/시프트 연산32개 표기를 추가했습니다. CPU 정답504종을 두 seed·두 프로파일·raw/압축 형식으로 검사해4,032개 비교와 가드10,752개가 통과했습니다. 별도 CUDA C/CLI 연결, 기존 다차원 실행과 오류 차단 검사도 통과했습니다. P03의 정수·인자 형식 전체를 완성한 것은 아닙니다. [M3j 결과](docs/M3j-RESULTS.md)
 
