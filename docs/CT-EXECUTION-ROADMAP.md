@@ -5,6 +5,7 @@
 첫 구현으로 전체26개 작업 또는 기존 M3/M4 릴리스 문턱을 통과한 것은 아니다.
 후속 P02: [M3g](M3g-RESULTS.md)로 제한 프로파일의 여러 entry/함수별 ABI/수명을 구현·검증했다.
 P03a의 다차원 실행은 [M3h](M3h-RESULTS.md)로 구현·Arc 검증했다. P03의 정수·비트 연산과 인자 형식 확장은 남아 있다. 저장된 전역 변수와 device 함수는 P04다.
+후속 [M3i](M3i-RESULTS.md)는 P19의 기본 오류 주입·실패 차단을 검사했다. 실제 장치 장애·자동 복구 또는 P19 전체 완료는 아니며, 다음 기능 작업은 P03의 정수·비트 연산 확장이다.
 요구사항: [전체 목표 G0~G14](CT-COMPLETION-GOALS.md).
 첫 실행 명세: [M3f 명세](superpowers/specs/2026-10-19-m3f-selection-design.md).
 첫 실행 계획: [P00/P01 상세 계획](superpowers/plans/2026-10-19-m3f-selection.md).

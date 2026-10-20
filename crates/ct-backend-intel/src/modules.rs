@@ -119,9 +119,19 @@ impl Backend {
                 )
             );
             module.native = handle as usize;
+            let _ = c.observe(&self.api, result);
             if !log.is_null() {
-                if let Err(code) = ze!(self.api, "zeModuleBuildLogDestroy", (Handle), (log)) {
-                    result = Err(code);
+                if c.poisoned {
+                    c.retained_build_logs.push(log as usize);
+                } else if let Err(code) = ze!(self.api, "zeModuleBuildLogDestroy", (Handle), (log))
+                {
+                    c.poisoned = true;
+                    self.api.keep_loaded.set(true);
+                    c.retained_build_logs.push(log as usize);
+                    // A cleanup failure must not replace the original error.
+                    if result.is_ok() {
+                        result = Err(code);
+                    }
                 }
             }
             if result.is_ok() {
@@ -142,6 +152,7 @@ impl Backend {
                     *storage = kernel as usize;
                     created
                 });
+                let _ = c.observe(&self.api, result);
             }
             if let Err(code) = result {
                 if self.unload_module(c, &mut module).is_err() {
@@ -221,7 +232,7 @@ impl Backend {
             .validate_launch(grid, block)?;
         unsafe {
             for (index, data) in args.iter().enumerate() {
-                ze!(
+                let result = ze!(
                     self.api,
                     "zeKernelSetArgumentValue",
                     (Handle, u32, usize, *const c_void),
@@ -231,14 +242,16 @@ impl Backend {
                         data.len(),
                         data.as_ptr().cast()
                     )
-                )?;
+                );
+                c.observe(&self.api, result)?;
             }
-            ze!(
+            let result = ze!(
                 self.api,
                 "zeKernelSetGroupSize",
                 (Handle, u32, u32, u32),
                 (kernel as Handle, block[0], block[1], block[2])
-            )?;
+            );
+            c.observe(&self.api, result)?;
             let groups = GroupCount {
                 x: grid[0],
                 y: grid[1],
