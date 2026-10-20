@@ -69,7 +69,7 @@ U64_MAX scalar proves an unowned numeric value is not treated as a pointer.
 App-local staging and public ct.py run both passed with executable/asset bytes
 preserved. This consumer is synthetic, not an unchanged upstream application.
 
-- Latest measured executable SHA-256: `f21ac918bc645e719fe58a0efc071daff6003e2a524d147c1e863d369856b000`.
+- Latest measured executable SHA-256: `e50d9908ade6f6a9986812939d054b7e99dce7814c2070f126684c89ba4a288a`.
 - Compressed asset SHA-256: `1499843b4db208531be32cc6f9079a169dd87158c048c482642f3b1bef8ddcce`.
 
 Rebuild executable hashes can differ. Only the two existing vendor-header
@@ -77,12 +77,18 @@ anonymous-struct warnings appeared; CT source had no new warnings.
 
 ## Review status
 
-Author review of the complete production diff found no additional blocking
-issue in typed load/store agreement, parameter alignment, scalar64 marshalling
-or alternative-image ABI identity. This is author review only. The requested
-independent reviewer could not start because its account usage limit was reached;
-no independent review verdict was produced. Keep this change as a stacked draft,
-with independent review pending before merge.
+An independent reviewer inspected the complete M3k range1166739..016e67a and
+approved it within the documented contract, with no actionable Critical,
+Important or Minor findings. It independently reran four focused parser,
+codegen and alternative-ABI tests, all passing. The initial review attempt had
+failed before inspection because of account usage limits; the later review
+completed. The reviewer did not independently rerun GPU smoke or establish
+official spirv-val, NVIDIA/AMD parity or general CUDA compatibility.
+
+The implementer separately reran Rust73, Python19, rustfmt, warnings-denied
+Clippy, manifest validation and the complete M3k native/application matrix;
+all passed. Prior M2/M3h/M3j native regression evidence above is unchanged.
+PR14 remains a stacked draft; no merge was performed.
 
 ## Regression and reproduction
 
