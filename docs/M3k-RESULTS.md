@@ -75,6 +75,15 @@ preserved. This consumer is synthetic, not an unchanged upstream application.
 Rebuild executable hashes can differ. Only the two existing vendor-header
 anonymous-struct warnings appeared; CT source had no new warnings.
 
+## Review status
+
+Author review of the complete production diff found no additional blocking
+issue in typed load/store agreement, parameter alignment, scalar64 marshalling
+or alternative-image ABI identity. This is author review only. The requested
+independent reviewer could not start because its account usage limit was reached;
+no independent review verdict was produced. Keep this change as a stacked draft,
+with independent review pending before merge.
+
 ## Regression and reproduction
 
 Rust73 including prepared ignored native/producer checks and all M3i failure
