@@ -24,7 +24,8 @@ Reference: [PTX integer arithmetic](https://docs.nvidia.com/cuda/archive/12.1.1/
   compressed/alternative PTX; preserve baseline rejection and hash.
 - [x] Run existing M3j/M3k regressions including official-header C consumer;
   update profile/results, independent subagent review (no actionable findings).
-- [ ] Final publication privacy/identity scans and stacked draft PR on M3k.
+- [x] Final publication privacy/identity scans passed; stacked
+  [draft PR15](https://github.com/knox9014/CT/pull/15) on M3k created and attached.
   No merge.
 
 ## Review focus
