@@ -1,4 +1,4 @@
-# Experimental PTX profile through M3h
+# Experimental PTX profile through M3j
 
 CT parses instructions into typed control-flow IR and emits SPIR-V 1.0 Kernel/OpenCL with Physical64 addressing. Intel Level Zero compiles and executes it. Kernel names do not select replacement implementations.
 
@@ -29,6 +29,16 @@ Integer constants support decimal, `0x` hexadecimal and leading-zero octal. Inva
 | Additional predicates | `setp.ge.s32`, `setp.lt.s32`, `setp.eq.u64` |
 | Control flow | labels, `bra`, `@%predicate bra`, `@!%predicate bra`, `ret` |
 | Special registers | Scalar `.x/.y/.z` of `%tid`, `%ntid`, `%ctaid`, `%nctaid`; U32 operands |
+| Integer conversion | All16 `cvt.{s32,u32,s64,u64}.{s32,u32,s64,u64}` pairs; no modifiers, width-matched bit/unsigned registers |
+| Bitwise | `and/or/xor/not.b32`, `.b64`; predicate forms excluded |
+| Shift | `shl.b32/b64`, `shr.b32/b64/u32/u64/s32/s64`; U32 count at either width |
+
+M3j integer conversions sign-extend signed sources on widening, zero-extend
+unsigned sources, truncate low bits on narrowing and preserve same-width bits.
+Logical shifts with counts >= width return zero; arithmetic right shifts return
+sign fill. Bounded counts avoid undefined SPIR-V shifts;64-bit shifts normalize
+the bounded count internally to the base width. No float conversion, saturation,
+8/16-bit or new parameter ABI is implied. See [M3j evidence](../M3j-RESULTS.md).
 
 Unknown directives/modifiers, unsupported predication and mismatched types are rejected. Signed operations interpret existing 32/64-bit register contents; separate signed register declarations and negative-token immediates are not added. Synthetic signed tests use hexadecimal two's-complement bits. Other signed arithmetic, division by zero, NaNs, infinities, denormals and uncommon rounding behavior remain outside the validated workload. Finite test inputs do not establish full PTX floating-point conformance.
 

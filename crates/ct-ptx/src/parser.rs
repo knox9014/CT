@@ -143,6 +143,15 @@ fn number(s: &str) -> Option<u64> {
         s.parse().ok()
     }
 }
+fn integer_format(s: &str) -> Option<(Ty, bool)> {
+    match s {
+        "u32" => Some((Ty::U32, false)),
+        "s32" => Some((Ty::U32, true)),
+        "u64" => Some((Ty::U64, false)),
+        "s64" => Some((Ty::U64, true)),
+        _ => None,
+    }
+}
 fn value(
     tokens: &[String],
     expected: Ty,
@@ -279,6 +288,19 @@ fn instruction(
             offset,
             value: value(&args[1], Ty::F32, regs, line)?,
         }
+    } else if let Some(formats) = op.strip_prefix("cvt.") {
+        let (dst, src) = formats.split_once('.').ok_or_else(|| unsupported(line))?;
+        let (to, _) = integer_format(dst).ok_or_else(|| unsupported(line))?;
+        let (from, signed) = integer_format(src).ok_or_else(|| unsupported(line))?;
+        if args.len() != 2 {
+            return Err(err());
+        }
+        InstructionKind::Compute {
+            dst: destination(&args[0], to, regs, line)?,
+            op: Op::Convert { to, signed },
+            ty: from,
+            args: vec![value(&args[1], from, regs, line)?],
+        }
     } else {
         let (operation, t, n) = match op {
             "mov.u32" | "mov.b32" => (Op::Mov, Ty::U32, 1),
@@ -294,6 +316,20 @@ fn instruction(
             "mad.lo.u32" | "mad.lo.s32" => (Op::Mad, Ty::U32, 3),
             "div.u32" => (Op::Div, Ty::U32, 2),
             "rem.u32" => (Op::Rem, Ty::U32, 2),
+            "and.b32" => (Op::And, Ty::U32, 2),
+            "and.b64" => (Op::And, Ty::U64, 2),
+            "or.b32" => (Op::Or, Ty::U32, 2),
+            "or.b64" => (Op::Or, Ty::U64, 2),
+            "xor.b32" => (Op::Xor, Ty::U32, 2),
+            "xor.b64" => (Op::Xor, Ty::U64, 2),
+            "not.b32" => (Op::Not, Ty::U32, 1),
+            "not.b64" => (Op::Not, Ty::U64, 1),
+            "shl.b32" => (Op::Shl, Ty::U32, 2),
+            "shl.b64" => (Op::Shl, Ty::U64, 2),
+            "shr.b32" | "shr.u32" => (Op::Shr, Ty::U32, 2),
+            "shr.b64" | "shr.u64" => (Op::Shr, Ty::U64, 2),
+            "shr.s32" => (Op::SignedShr, Ty::U32, 2),
+            "shr.s64" => (Op::SignedShr, Ty::U64, 2),
             "add.f32" | "add.rn.f32" => (Op::Add, Ty::F32, 2),
             "mul.f32" | "mul.rn.f32" => (Op::Mul, Ty::F32, 2),
             "sub.f32" | "sub.rn.f32" => (Op::Sub, Ty::F32, 2),
@@ -325,7 +361,9 @@ fn instruction(
         for (i, a) in args[1..].iter().enumerate() {
             values.push(value(
                 a,
-                if operation == Op::Select && i == 2 {
+                if matches!(operation, Op::Shl | Op::Shr | Op::SignedShr) && i == 1 {
+                    Ty::U32
+                } else if operation == Op::Select && i == 2 {
                     Ty::Pred
                 } else {
                     t
