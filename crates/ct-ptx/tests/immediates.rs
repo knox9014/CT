@@ -58,3 +58,18 @@ fn signed_literals_reject_range_errors_and_other_expressions() {
         assert!(ct_ptx::parse(&source(body)).is_err(), "{body}");
     }
 }
+
+#[test]
+fn conversion_literal_range_and_bits_follow_source_width() {
+    for (body, expected_ty, expected_bits) in [
+        ("cvt.u64.s32 %d,-2147483648;", Ty::U32, 1u64 << 31),
+        ("cvt.u32.s64 %r,-9223372036854775808;", Ty::U64, 1u64 << 63),
+    ] {
+        let k = ct_ptx::parse(&source(body)).unwrap();
+        assert!(
+            matches!(&k.blocks[0].instructions[0].kind, InstructionKind::Compute {ty,args,..}
+            if *ty==expected_ty && matches!(&args[0],Value::Bits(t,bits) if *t==expected_ty && *bits==expected_bits))
+        );
+    }
+    assert!(ct_ptx::parse(&source("cvt.u64.s32 %d,-2147483649;")).is_err());
+}

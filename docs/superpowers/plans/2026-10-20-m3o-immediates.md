@@ -14,14 +14,16 @@ signed offsets/initializers. Existing positive literals stay width-checked.
 These are deliberate subset limits, not full PTX constant-expression support.
 Reference: [PTX constant evaluation](https://docs.nvidia.com/cuda/archive/12.1.1/parallel-thread-execution/index.html).
 
-- [ ] Parser tests prove exact bits at both widths/radices/limits, instruction
+- [x] Parser tests prove exact bits at both widths/radices/limits, instruction
   use and rejection; observe RED then implement strict operand-local parsing.
-- [ ] Native32-entry mov/add matrix (eight literals x two widths x two uses),
+- [x] Native32-entry mov/add matrix (eight literals x two widths x two uses),
   six boundary sizes and raw/plain/compressed/alternative profiles. Exact
   outputs/guards, input preservation, baseline hash/rejection and profile choice.
-- [ ] Full Rust/Python/fmt/Clippy and M3n/M3m/M3k regressions including C/CLI;
-  docs/manifest, independent subagent review, privacy scans, stacked draft on
-  M3n, no merge. Preserve/exclude preexisting license/Cargo/README changes.
+- [x] Full Rust/Python/fmt/Clippy and M3n/M3m/M3k regressions including C/CLI;
+  docs/manifest, independent subagent review. Conversion source-width coverage
+  suggestion addressed; no deferred findings.
+- [ ] Final privacy scans and stacked draft on M3n, no merge.
+  Preserve/exclude preexisting license/Cargo/README changes.
 
 Review focus: signed minimum without host overflow, no truncation/range bypass,
 sign tokens cannot reach register/builtin/float/address parsing, bad octal,

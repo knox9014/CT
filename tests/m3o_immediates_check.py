@@ -13,8 +13,8 @@ from m3n_minmax_check import inputs
 def literals(width):
     mask = (1 << width) - 1; top = 1 << (width - 1)
     # Expected bits are explicit arithmetic values, not a PTX token parser.
-    return [('-1', mask), (f'-{top}', top), ('-0x1', mask), ('-01', mask),
-            (f'+0x{mask:x}', mask), ('+0', 0), ('-0', 0), ('+01', 1)]
+    return [('-1', mask), (f'-{top}', top), ('-0x1', mask), ('-010', mask - 7),
+            (f'+0x{mask:x}', mask), ('+0', 0), ('-0', 0), ('+010', 8)]
 
 
 OPERATIONS = [(mode, width, literal, bits) for mode in ('mov', 'add')
