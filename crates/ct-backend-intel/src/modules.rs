@@ -2,16 +2,66 @@
 use super::*;
 use std::ffi::CString;
 
+fn create_kernel_handles(
+    names: &[CString],
+    handles: &mut Vec<usize>,
+    mut create: impl FnMut(&CString, &mut usize) -> NativeResult<()>,
+) -> NativeResult<()> {
+    for name in names {
+        let mut handle = 0;
+        let result = create(name, &mut handle);
+        if handle != 0 {
+            handles.push(handle);
+        }
+        result?;
+        if handle == 0 {
+            return Err(UNKNOWN);
+        }
+    }
+    Ok(())
+}
+
+fn destroy_kernel_handles(
+    handles: &mut [usize],
+    mut destroy: impl FnMut(usize) -> NativeResult<()>,
+) -> NativeResult<()> {
+    for handle in handles {
+        if *handle != 0 {
+            destroy(*handle)?;
+            *handle = 0;
+        }
+    }
+    Ok(())
+}
+
 impl Backend {
     pub fn load_module(&self, c: &mut Context, code: &[u8], entry: &str) -> NativeResult<Module> {
+        self.load_module_entries(c, code, &[entry])
+    }
+    pub fn load_module_entries(
+        &self,
+        c: &mut Context,
+        code: &[u8],
+        entries: &[&str],
+    ) -> NativeResult<Module> {
         if c.poisoned {
             return Err(UNKNOWN);
         }
-        let name = CString::new(entry).map_err(|_| BAD_ARGUMENT)?;
+        if entries.is_empty() || entries.len() > 32 {
+            return Err(BAD_ARGUMENT);
+        }
+        let mut unique = std::collections::BTreeSet::new();
+        let mut names = Vec::new();
+        for entry in entries {
+            if entry.is_empty() || !unique.insert(*entry) {
+                return Err(BAD_ARGUMENT);
+            }
+            names.push(CString::new(*entry).map_err(|_| BAD_ARGUMENT)?);
+        }
         unsafe {
             let mut module = Module {
                 native: 0,
-                kernel: 0,
+                kernels: Vec::with_capacity(names.len()),
             };
             let mut handle = null_mut();
             let mut log = null_mut();
@@ -43,20 +93,23 @@ impl Backend {
                 }
             }
             if result.is_ok() {
-                let descriptor = KernelDesc {
-                    stype: 0x1d,
-                    next: null(),
-                    flags: 0,
-                    name: name.as_ptr(),
-                };
-                let mut kernel = null_mut();
-                result = ze!(
-                    self.api,
-                    "zeKernelCreate",
-                    (Handle, *const KernelDesc, *mut Handle),
-                    (handle, &descriptor, &mut kernel)
-                );
-                module.kernel = kernel as usize;
+                result = create_kernel_handles(&names, &mut module.kernels, |name, storage| {
+                    let descriptor = KernelDesc {
+                        stype: 0x1d,
+                        next: null(),
+                        flags: 0,
+                        name: name.as_ptr(),
+                    };
+                    let mut kernel = null_mut();
+                    let created = ze!(
+                        self.api,
+                        "zeKernelCreate",
+                        (Handle, *const KernelDesc, *mut Handle),
+                        (handle, &descriptor, &mut kernel)
+                    );
+                    *storage = kernel as usize;
+                    created
+                });
             }
             if let Err(code) = result {
                 if self.unload_module(c, &mut module).is_err() {
@@ -73,18 +126,12 @@ impl Backend {
             return Err(UNKNOWN);
         }
         unsafe {
-            if module.kernel != 0 {
-                if let Err(code) = ze!(
-                    self.api,
-                    "zeKernelDestroy",
-                    (Handle),
-                    (module.kernel as Handle)
-                ) {
-                    c.poisoned = true;
-                    self.api.keep_loaded.set(true);
-                    return Err(code);
-                }
-                module.kernel = 0;
+            if let Err(code) = destroy_kernel_handles(&mut module.kernels, |kernel| {
+                ze!(self.api, "zeKernelDestroy", (Handle), (kernel as Handle))
+            }) {
+                c.poisoned = true;
+                self.api.keep_loaded.set(true);
+                return Err(code);
             }
             if module.native != 0 {
                 if let Err(code) = ze!(
@@ -110,7 +157,19 @@ impl Backend {
         grid: u32,
         block: u32,
     ) -> NativeResult<()> {
-        if c.poisoned || module.kernel == 0 {
+        self.launch_entry(c, module, 0, args, grid, block)
+    }
+    pub fn launch_entry(
+        &self,
+        c: &mut Context,
+        module: &Module,
+        entry: usize,
+        args: &[Vec<u8>],
+        grid: u32,
+        block: u32,
+    ) -> NativeResult<()> {
+        let kernel = *module.kernels.get(entry).ok_or(BAD_ARGUMENT)?;
+        if c.poisoned || kernel == 0 {
             return Err(UNKNOWN);
         }
         unsafe {
@@ -120,7 +179,7 @@ impl Backend {
                     "zeKernelSetArgumentValue",
                     (Handle, u32, usize, *const c_void),
                     (
-                        module.kernel as Handle,
+                        kernel as Handle,
                         index as u32,
                         data.len(),
                         data.as_ptr().cast()
@@ -131,7 +190,7 @@ impl Backend {
                 self.api,
                 "zeKernelSetGroupSize",
                 (Handle, u32, u32, u32),
-                (module.kernel as Handle, block, 1, 1)
+                (kernel as Handle, block, 1, 1)
             )?;
             let groups = GroupCount {
                 x: grid,
@@ -144,7 +203,7 @@ impl Backend {
                 (Handle, Handle, *const GroupCount, Handle, u32, *mut Handle),
                 (
                     c.list as Handle,
-                    module.kernel as Handle,
+                    kernel as Handle,
                     &groups,
                     null_mut(),
                     0,
@@ -157,5 +216,64 @@ impl Backend {
             }
             result
         }
+    }
+}
+
+#[cfg(test)]
+mod cleanup_tests {
+    use super::*;
+    #[test]
+    fn failed_destroy_retains_only_live_handles_and_skips_destroyed_ones() {
+        let mut handles = [11, 0, 22, 33];
+        let mut calls = Vec::new();
+        let result = destroy_kernel_handles(&mut handles, |h| {
+            calls.push(h);
+            if h == 22 {
+                Err(UNKNOWN)
+            } else {
+                Ok(())
+            }
+        });
+        assert_eq!(result, Err(UNKNOWN));
+        assert_eq!(calls, vec![11, 22]);
+        assert_eq!(handles, [0, 0, 22, 33]);
+        calls.clear();
+        destroy_kernel_handles(&mut handles, |h| {
+            calls.push(h);
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(calls, vec![22, 33]);
+        assert_eq!(handles, [0, 0, 0, 0]);
+    }
+    #[test]
+    fn failed_creation_retains_partial_handles_for_ordered_cleanup() {
+        let names = [
+            CString::new("first").unwrap(),
+            CString::new("second").unwrap(),
+            CString::new("third").unwrap(),
+        ];
+        let mut handles = Vec::new();
+        let mut count = 0;
+        let result = create_kernel_handles(&names, &mut handles, |_, handle| {
+            count += 1;
+            *handle = count;
+            if count == 2 {
+                Err(UNKNOWN)
+            } else {
+                Ok(())
+            }
+        });
+        assert_eq!(result, Err(UNKNOWN));
+        assert_eq!(count, 2);
+        assert_eq!(handles, vec![1, 2]);
+        let mut destroyed = Vec::new();
+        destroy_kernel_handles(&mut handles, |h| {
+            destroyed.push(h);
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(destroyed, vec![1, 2]);
+        assert_eq!(handles, vec![0, 0]);
     }
 }

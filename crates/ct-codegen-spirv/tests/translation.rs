@@ -1,6 +1,89 @@
 use ct_codegen_spirv::translate;
 use ct_ptx::ParamKind;
 const SOURCE: &str = include_str!("../../../tests/fixtures/vector_add.ptx");
+
+fn instructions(bytes: &[u8]) -> Vec<(u32, Vec<u32>)> {
+    let words: Vec<_> = bytes
+        .chunks_exact(4)
+        .map(|b| u32::from_le_bytes(b.try_into().unwrap()))
+        .collect();
+    let mut offset = 5;
+    let mut out = Vec::new();
+    while offset < words.len() {
+        let size = (words[offset] >> 16) as usize;
+        assert!(size > 0 && offset + size <= words.len());
+        out.push((
+            words[offset] & 65535,
+            words[offset + 1..offset + size].to_vec(),
+        ));
+        offset += size;
+    }
+    out
+}
+
+#[test]
+fn emits_one_module_with_distinct_functions_and_shared_signatures() {
+    let body = &SOURCE[SOURCE.find(".visible").unwrap()..];
+    let source = format!(
+        "{SOURCE}{}",
+        body.replace("vector_add", "other")
+            .replace("add.rn.f32", "sub.rn.f32")
+    );
+    let compiled = ct_codegen_spirv::translate_module(&source).unwrap();
+    assert_eq!(compiled.entries.len(), 2);
+    assert_eq!(compiled.entries[0].entry, "vector_add");
+    assert_eq!(compiled.entries[1].entry, "other");
+    let insts = instructions(&compiled.spirv);
+    assert_eq!(
+        insts.iter().filter(|(op, _)| *op == 33).count(),
+        1,
+        "reuse same function type"
+    );
+    let functions: Vec<_> = insts
+        .iter()
+        .filter(|(op, _)| *op == 54)
+        .map(|(_, v)| v[1])
+        .collect();
+    assert_eq!(functions.len(), 2);
+    assert_ne!(functions[0], functions[1]);
+    assert_eq!(
+        insts
+            .iter()
+            .filter(|(op, _)| *op == 15)
+            .map(|(_, v)| v[1])
+            .collect::<Vec<_>>(),
+        functions
+    );
+    let vars: Vec<_> = insts
+        .iter()
+        .filter(|(op, v)| *op == 59 && v[2] == 7)
+        .map(|(_, v)| v[1])
+        .collect();
+    assert_eq!(
+        vars.len(),
+        vars.iter().collect::<std::collections::BTreeSet<_>>().len()
+    );
+    assert!(translate(&source).err().unwrap().unsupported);
+}
+
+#[test]
+fn keeps_distinct_signatures_and_entry_builtin_interfaces() {
+    let source = format!("{SOURCE}\n.visible .entry no_builtin(.param .f32 scalar) {{ ret; }}");
+    let compiled = ct_codegen_spirv::translate_module(&source).unwrap();
+    assert_eq!(compiled.entries[1].params[0].kind, ParamKind::F32);
+    let insts = instructions(&compiled.spirv);
+    assert_eq!(insts.iter().filter(|(op, _)| *op == 33).count(), 2);
+    let counts: Vec<_> = insts
+        .iter()
+        .filter(|(op, _)| *op == 15)
+        .map(|(_, v)| {
+            let bytes: Vec<_> = v[2..].iter().flat_map(|w| w.to_le_bytes()).collect();
+            let name_bytes = bytes.iter().position(|b| *b == 0).unwrap() + 1;
+            v.len() - 2 - name_bytes.div_ceil(4)
+        })
+        .collect();
+    assert_eq!(counts, vec![3, 0]);
+}
 #[test]
 fn compiled_profile_matches_parsed_source() {
     for text in [

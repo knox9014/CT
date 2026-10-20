@@ -4,7 +4,7 @@
 #![allow(non_snake_case)]
 use ct_backend_intel::{Backend, Context, Module};
 use ct_core::AllocationRanges;
-use ct_ptx::{Param, ParamKind};
+use ct_ptx::ParamKind;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::ffi::{c_char, c_void};
@@ -21,12 +21,15 @@ struct OwnedContext {
     native: Context,
     allocations: AllocationRanges,
     modules: BTreeMap<usize, OwnedModule>,
-    functions: BTreeMap<usize, usize>,
+    functions: BTreeMap<usize, OwnedFunction>,
 }
 struct OwnedModule {
     native: Module,
-    entry: String,
-    params: Vec<Param>,
+    entries: Vec<ct_codegen_spirv::CompiledEntry>,
+}
+struct OwnedFunction {
+    module: usize,
+    entry: usize,
 }
 mod entrypoints;
 mod images;

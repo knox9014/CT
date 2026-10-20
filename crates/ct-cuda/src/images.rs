@@ -1,7 +1,8 @@
 //! Pure image validation/selection; native module creation happens only afterward.
 use super::{INVALID, UNSUPPORTED};
-use ct_codegen_spirv::Compiled;
+use ct_codegen_spirv::CompiledModule;
 use ct_ptx::{ParamKind, Profile};
+use std::collections::BTreeMap;
 use std::ffi::c_void;
 
 pub(crate) struct SourceCandidate {
@@ -66,7 +67,7 @@ pub(crate) unsafe fn read_candidates(image: *const c_void) -> Result<Vec<SourceC
     Err(UNSUPPORTED)
 }
 
-pub(crate) fn compile_candidates(candidates: Vec<SourceCandidate>) -> Result<Compiled, i32> {
+pub(crate) fn compile_candidates(candidates: Vec<SourceCandidate>) -> Result<CompiledModule, i32> {
     if candidates.is_empty()
         || (candidates.len() != 1 && candidates.iter().any(|c| c.profile.is_none()))
     {
@@ -76,10 +77,10 @@ pub(crate) fn compile_candidates(candidates: Vec<SourceCandidate>) -> Result<Com
         return Err(UNSUPPORTED);
     }
     let mut profiles = Vec::new();
-    let mut identity: Option<(String, Vec<ParamKind>)> = None;
-    let mut selected: Option<(u8, Compiled)> = None;
+    let mut identity: Option<BTreeMap<String, Vec<ParamKind>>> = None;
+    let mut selected: Option<(u8, CompiledModule)> = None;
     for candidate in candidates {
-        let compiled = ct_codegen_spirv::translate(&candidate.text).map_err(|e| {
+        let compiled = ct_codegen_spirv::translate_module(&candidate.text).map_err(|e| {
             if e.unsupported {
                 UNSUPPORTED
             } else {
@@ -95,13 +96,22 @@ pub(crate) fn compile_candidates(candidates: Vec<SourceCandidate>) -> Result<Com
             return Err(UNSUPPORTED);
         }
         profiles.push(compiled.profile);
-        let kinds: Vec<_> = compiled.params.iter().map(|p| p.kind).collect();
-        if let Some((name, abi)) = &identity {
-            if *name != compiled.entry || *abi != kinds {
+        let entries: BTreeMap<_, _> = compiled
+            .entries
+            .iter()
+            .map(|entry| {
+                (
+                    entry.entry.clone(),
+                    entry.params.iter().map(|p| p.kind).collect::<Vec<_>>(),
+                )
+            })
+            .collect();
+        if let Some(abi) = &identity {
+            if *abi != entries {
                 return Err(UNSUPPORTED);
             }
         } else {
-            identity = Some((compiled.entry.clone(), kinds));
+            identity = Some(entries);
         }
         let rank = match (
             compiled.profile.major,
@@ -152,7 +162,7 @@ mod tests {
             };
             let selected = compile_candidates(entries).unwrap();
             assert_eq!(selected.profile, NEW);
-            assert_eq!(selected.params[0].name, "different");
+            assert_eq!(selected.entries[0].params[0].name, "different");
         }
     }
     #[test]
@@ -224,5 +234,31 @@ mod tests {
             bytes[8..].copy_from_slice(&u64::MAX.to_le_bytes());
             assert_eq!(read_candidates(bytes.as_ptr().cast()).err(), Some(218));
         }
+    }
+
+    #[test]
+    fn alternative_entry_maps_ignore_order_but_enforce_every_abi() {
+        let mut old = candidate(OLD, "first", "u32");
+        old.text
+            .push_str("\n.visible .entry second(.param .f32 value) { ret; }");
+        let mut new = candidate(NEW, "second", "f32");
+        new.text
+            .push_str("\n.visible .entry first(.param .u32 renamed) { ret; }");
+        let selected = compile_candidates(vec![old, new]).unwrap();
+        assert_eq!(selected.entries.len(), 2);
+        assert_eq!(selected.profile, NEW);
+        for tail in ["", "\n.visible .entry second(.param .u32 value) { ret; }"] {
+            let mut old = candidate(OLD, "first", "u32");
+            old.text
+                .push_str("\n.visible .entry second(.param .f32 value) { ret; }");
+            let mut new = candidate(NEW, "first", "u32");
+            new.text.push_str(tail);
+            assert_eq!(compile_candidates(vec![old, new]).err(), Some(801));
+        }
+        let mut invalid = candidate(OLD, "first", "u32");
+        invalid
+            .text
+            .push_str("\n.visible .entry second() { bar.sync 0; ret; }");
+        assert_eq!(compile_candidates(vec![invalid]).err(), Some(801));
     }
 }

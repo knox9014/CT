@@ -96,6 +96,11 @@ pub struct Kernel {
     pub registers: BTreeMap<String, Ty>,
     pub blocks: Vec<Block>,
 }
+#[derive(Clone, Debug)]
+pub struct Module {
+    pub profile: Profile,
+    pub kernels: Vec<Kernel>,
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Profile {
     pub major: u16,
@@ -115,4 +120,4 @@ impl std::fmt::Display for Error {
 }
 impl std::error::Error for Error {}
 mod parser;
-pub use parser::parse;
+pub use parser::{parse, parse_module};

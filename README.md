@@ -6,7 +6,7 @@ CT aims to develop a general-purpose translation and compatibility layer for run
 
 ## Project status / 현재 상태
 
-**M3f: bounded alternative PTX selection passed on Intel Arc B390. Two known profiles, one matching kernel entry; no module linking.**
+**M3g: multiple CUDA kernels in one PTX/SPIR-V/native module passed on Intel Arc B390. Up to32 entries within the restricted PTX profile.**
 
 현재는 초기 개발 단계입니다. Windows의 Intel Arc B390에서 제한된 PTX를 SPIR-V로 번역해 실제 GPU에서 실행합니다. 벡터 덧셈·SAXPY·ReLU·행렬 곱셈 4개 커널의 53개 조합에서 출력 606,660개와 가드 값 4,992개를 검증했습니다. API는 26개 심볼이며, M1 메모리·컨텍스트 검사 210개도 통과했습니다. 외부 CUDA 앱의 일반적인 호환성, CUDA 라이브러리 및 AMD 지원은 아직 확보하지 못했습니다.
 
@@ -27,6 +27,8 @@ M3d에서는 같은 공식 호스트에 NVIDIA `nvFatbin`이 만든 실제 바�
 M3e에서는 CT 내부의 크기 제한을 둔 압축 해제기로 실제 압축 PTX fatbin도 처리합니다. 공식 샘플 50,000개 검사, 압축 입력의 독립 출력 50,450개·가드 384개와 이름·연산을 바꾼 커널 검사를 통과했습니다. M3d의 압축 거부 제한은 해제됐으며, 복수 PTX·JIT 옵션·CUDA Runtime·AMD 지원은 아직 확보하지 못했습니다. [압축 fatbin 검증 결과](docs/M3e-RESULTS.md)
 
 M3f에서는 알려진 두 프로파일의 대체 PTX를 검증하고 순서에 관계없이 선택합니다. 실제 Arc의48개 조합에서 출력403,600개·가드3,072개, 오류6종 거부·복구와 모듈 생성/해제1,000회를 통과했습니다. 같은 entry와 인자 종류를 가진 서로 다른 프로파일만 허용하며, 알 수 없는 프로파일·복수 entry·링킹은 아직 지원하지 않습니다. 기능 추적표 검증과 실제 실행 결과도 분리했습니다. [M3f 결과](docs/M3f-RESULTS.md)
+
+M3g에서는 하나의 모듈에 최대32개 kernel entry를 담고 각각 조회·실행합니다. 덧셈·뺄셈·다른 인자 ABI의 채우기 커널을 실제 Arc144개 조합에서 실행해 출력1,210,800개·가드9,216개를 검증했습니다. 모듈·컨텍스트별 핸들 수명, 부분 생성/해제 실패 시험, 독립 CUDA C 소비자와 공개 CLI도 통과했습니다. 아직 제한된 문법·동기1D 실행이며 저장된 전역 변수·device 함수·Runtime·AMD는 지원하지 않습니다. [M3g 결과](docs/M3g-RESULTS.md)
 
 ## Development plan / 개발 계획
 

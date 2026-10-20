@@ -24,15 +24,15 @@ pub unsafe extern "system" fn cuModuleLoadData(
         let module_id = token(r)?;
         let b = r.backend.as_ref().ok_or(NOT_INITIALIZED)?;
         let c = r.contexts.get_mut(&id).ok_or(INVALID_CONTEXT)?;
+        let names: Vec<_> = compiled.entries.iter().map(|e| e.entry.as_str()).collect();
         let native = b
-            .load_module(&mut c.native, &compiled.spirv, &compiled.entry)
+            .load_module_entries(&mut c.native, &compiled.spirv, &names)
             .map_err(native_error)?;
         c.modules.insert(
             module_id,
             OwnedModule {
                 native,
-                entry: compiled.entry,
-                params: compiled.params,
+                entries: compiled.entries,
             },
         );
         output.write(module_id as *mut c_void);
@@ -55,15 +55,23 @@ pub unsafe extern "system" fn cuModuleGetFunction(
         output.write(std::ptr::null_mut());
         let c = r.contexts.get(&id).ok_or(INVALID_CONTEXT)?;
         let m = c.modules.get(&(module as usize)).ok_or(INVALID_HANDLE)?;
-        if CStr::from_ptr(name).to_bytes() != m.entry.as_bytes() {
-            return Err(500);
-        }
+        let entry = m
+            .entries
+            .iter()
+            .position(|e| e.entry.as_bytes() == CStr::from_ptr(name).to_bytes())
+            .ok_or(500)?;
         let fid = token(r)?;
         r.contexts
             .get_mut(&id)
             .ok_or(INVALID_CONTEXT)?
             .functions
-            .insert(fid, module as usize);
+            .insert(
+                fid,
+                OwnedFunction {
+                    module: module as usize,
+                    entry,
+                },
+            );
         output.write(fid as *mut c_void);
         Ok(())
     })
@@ -79,7 +87,7 @@ pub extern "system" fn cuModuleUnload(module: *mut c_void) -> i32 {
         b.unload_module(&mut c.native, &mut m.native)
             .map_err(native_error)?;
         c.modules.remove(&mid);
-        c.functions.retain(|_, v| *v != mid);
+        c.functions.retain(|_, v| v.module != mid);
         Ok(())
     })
 }
@@ -105,11 +113,12 @@ pub unsafe extern "system" fn cuLaunchKernel(
         let id = context_id(r)?;
         let b = r.backend.as_ref().ok_or(NOT_INITIALIZED)?;
         let c = r.contexts.get_mut(&id).ok_or(INVALID_CONTEXT)?;
-        let mid = c
+        let owned = c
             .functions
             .get(&(function as usize))
             .ok_or(INVALID_HANDLE)?;
-        let m = c.modules.get(mid).ok_or(INVALID_HANDLE)?;
+        let m = c.modules.get(&owned.module).ok_or(INVALID_HANDLE)?;
+        let entry = m.entries.get(owned.entry).ok_or(INVALID_HANDLE)?;
         if gy != 1
             || gz != 1
             || by != 1
@@ -130,11 +139,11 @@ pub unsafe extern "system" fn cuLaunchKernel(
         {
             return Err(INVALID);
         }
-        if !m.params.is_empty() && parameters.is_null() {
+        if !entry.params.is_empty() && parameters.is_null() {
             return Err(INVALID);
         }
         let mut arguments = Vec::new();
-        for (i, param) in m.params.iter().enumerate() {
+        for (i, param) in entry.params.iter().enumerate() {
             let pointer = parameters.add(i).read();
             if pointer.is_null() {
                 return Err(INVALID);
@@ -155,7 +164,7 @@ pub unsafe extern "system" fn cuLaunchKernel(
             };
             arguments.push(data);
         }
-        b.launch(&mut c.native, &m.native, &arguments, gx, bx)
+        b.launch_entry(&mut c.native, &m.native, owned.entry, &arguments, gx, bx)
             .map_err(native_error)
     })
 }

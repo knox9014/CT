@@ -82,7 +82,10 @@ struct Parser {
 }
 impl Parser {
     fn line(&self) -> usize {
-        self.tokens.get(self.pos).map_or(1, |t| t.line)
+        self.tokens
+            .get(self.pos)
+            .or_else(|| self.tokens.last())
+            .map_or(1, |t| t.line)
     }
     fn peek(&self) -> &str {
         self.tokens.get(self.pos).map_or("", |t| t.text.as_str())
@@ -352,6 +355,14 @@ fn new_block(line: usize) -> PendingBlock {
 }
 
 pub fn parse(source: &str) -> Result<Kernel, Error> {
+    let mut module = parse_module(source)?;
+    if module.kernels.len() != 1 {
+        return Err(unsupported(1));
+    }
+    module.kernels.pop().ok_or_else(|| fail(1, "missing entry"))
+}
+
+pub fn parse_module(source: &str) -> Result<Module, Error> {
     let mut p = Parser {
         tokens: lex(source)?,
         pos: 0,
@@ -411,6 +422,45 @@ pub fn parse(source: &str) -> Result<Kernel, Error> {
             _ => return Err(unsupported(p.line())),
         }
         p.expect(";")?;
+    }
+    let profile = if version == "7.0" {
+        Profile {
+            major: 7,
+            minor: 0,
+            target: 50,
+        }
+    } else {
+        Profile {
+            major: 8,
+            minor: 0,
+            target: 52,
+        }
+    };
+    let mut kernels = Vec::new();
+    let mut names = BTreeSet::new();
+    while p.pos < p.tokens.len() {
+        if kernels.len() >= 32 {
+            return Err(unsupported(p.line()));
+        }
+        let kernel = parse_kernel(&mut p, profile, &globals)?;
+        if !names.insert(kernel.name.clone()) {
+            return Err(fail(p.line(), "duplicate entry"));
+        }
+        kernels.push(kernel);
+    }
+    if kernels.is_empty() {
+        return Err(fail(p.line(), "missing entry"));
+    }
+    Ok(Module { profile, kernels })
+}
+
+fn parse_kernel(
+    p: &mut Parser,
+    profile: Profile,
+    globals: &BTreeSet<String>,
+) -> Result<Kernel, Error> {
+    if p.peek() != ".visible" {
+        return Err(unsupported(p.line()));
     }
     p.expect(".visible")?;
     p.expect(".entry")?;
@@ -563,9 +613,6 @@ pub fn parse(source: &str) -> Result<Kernel, Error> {
         }
     }
     p.expect("}")?;
-    if p.pos != p.tokens.len() {
-        return Err(unsupported(p.line()));
-    }
     let mut final_blocks = Vec::new();
     for b in blocks {
         let target = |name: &str| {
@@ -595,19 +642,7 @@ pub fn parse(source: &str) -> Result<Kernel, Error> {
         });
     }
     let kernel = Kernel {
-        profile: if version == "7.0" {
-            Profile {
-                major: 7,
-                minor: 0,
-                target: 50,
-            }
-        } else {
-            Profile {
-                major: 8,
-                minor: 0,
-                target: 52,
-            }
-        },
+        profile,
         name,
         params,
         registers: regs,

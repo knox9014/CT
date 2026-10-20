@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "baseline": "65e0139",
+  "baseline": "f9df499",
   "platform": {
     "os": "Windows",
     "host": "x64",
@@ -408,7 +408,7 @@
           "8.0/sm_52"
         ],
         "address_bits": 64,
-        "entries": 1,
+        "entries": 32,
         "source_bytes": 262144,
         "tokens": 65536,
         "registers": 256,
@@ -695,7 +695,7 @@
           "8.0/sm_52",
           "7.0/sm_50"
         ],
-        "entry_and_argument_kinds": "must match; argument names ignored",
+        "entry_and_argument_kinds": "entire entry-name -> ordered argument-kind map must match; entry order and parameter names ignored",
         "duplicate_profile": "unsupported",
         "unknown_profile": "unsupported",
         "metadata_mismatch": 218,
@@ -704,6 +704,28 @@
       "test_ids": [
         "crates/ct-cuda/src/images.rs#selects_profile_independent_of_record_order_and_parameter_names",
         "tests/m3f_selection_check.py#def main"
+      ]
+    },
+    {
+      "id": "module.multi_entry",
+      "state": "experimental",
+      "limits": {
+        "entries": 32,
+        "native_modules_per_cuda_module": 1,
+        "per_entry_parameters": 32,
+        "abi_kinds": [
+          "Pointer global f32 align4",
+          "U32",
+          "F32"
+        ],
+        "used_globals": false,
+        "device_calls": false
+      },
+      "test_ids": [
+        "crates/ct-ptx/tests/modules.rs#parses_all_entries_with_independent_scopes_and_abi",
+        "crates/ct-codegen-spirv/tests/translation.rs#emits_one_module_with_distinct_functions_and_shared_signatures",
+        "crates/ct-backend-intel/src/modules.rs#failed_creation_retains_partial_handles_for_ordered_cleanup",
+        "tests/m3g_modules_check.py#def run_loaded"
       ]
     }
   ]
