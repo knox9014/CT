@@ -21,7 +21,8 @@ pub struct Param {
 #[derive(Clone, Debug)]
 pub enum Value {
     Reg(String),
-    Builtin(u32),
+    /// SPIR-V builtin vector kind and scalar component (0=x, 1=y, 2=z).
+    Builtin(u32, u32),
     Bits(Ty, u64),
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

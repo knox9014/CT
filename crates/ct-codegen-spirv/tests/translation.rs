@@ -22,6 +22,39 @@ fn instructions(bytes: &[u8]) -> Vec<(u32, Vec<u32>)> {
 }
 
 #[test]
+fn extracts_each_axis_and_shares_builtin_vectors_across_entries() {
+    let mut body = String::new();
+    for name in ["nctaid", "ntid", "ctaid", "tid"] {
+        for axis in ["x", "y", "z"] {
+            body.push_str(&format!("mov.u32 %r, %{name}.{axis};\n"));
+        }
+    }
+    let entry = format!(".visible .entry first() {{ .reg .u32 %r; {body} ret; }}");
+    let text = format!(
+        ".version 7.0 .target sm_50 .address_size 64 {entry} {}",
+        entry.replace("first", "second")
+    );
+    let compiled = ct_codegen_spirv::translate_module(&text).unwrap();
+    let ops = instructions(&compiled.spirv);
+    let axes: Vec<_> = ops
+        .iter()
+        .filter(|(op, _)| *op == 81)
+        .map(|(_, a)| a[3])
+        .collect();
+    assert_eq!(axes, [0, 1, 2].repeat(8));
+    let decorations: Vec<_> = ops
+        .iter()
+        .filter(|(op, a)| *op == 71 && a[1] == 11)
+        .map(|(_, a)| a[2])
+        .collect();
+    assert_eq!(decorations, vec![24, 25, 26, 27]);
+    assert_eq!(
+        ops.iter().filter(|(op, a)| *op == 59 && a[2] == 1).count(),
+        4
+    );
+}
+
+#[test]
 fn emits_one_module_with_distinct_functions_and_shared_signatures() {
     let body = &SOURCE[SOURCE.find(".visible").unwrap()..];
     let source = format!(
