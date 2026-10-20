@@ -1,0 +1,147 @@
+// Synthetic CT coordinate and bounded matrix fixture.
+.version 7.0
+.target sm_50
+.address_size 64
+.visible .entry coordinates(
+    .param .u64 .ptr .global .align 4 output,
+    .param .u64 .ptr .global .align 4 lookup
+) {
+    .reg .b32 %r<12>;
+    .reg .b64 %rd<6>;
+    .reg .f32 %f;
+    mov.u32 %r0, %ctaid.x;
+    mov.u32 %r1, %ntid.x;
+    mov.u32 %r2, %tid.x;
+    mad.lo.u32 %r3, %r0, %r1, %r2;
+    mov.u32 %r0, %ctaid.y;
+    mov.u32 %r1, %ntid.y;
+    mov.u32 %r2, %tid.y;
+    mad.lo.u32 %r4, %r0, %r1, %r2;
+    mov.u32 %r0, %ctaid.z;
+    mov.u32 %r1, %ntid.z;
+    mov.u32 %r2, %tid.z;
+    mad.lo.u32 %r5, %r0, %r1, %r2;
+    mov.u32 %r6, %nctaid.x;
+    mov.u32 %r7, %ntid.x;
+    mul.lo.u32 %r6, %r6, %r7;
+    mov.u32 %r8, %nctaid.y;
+    mov.u32 %r9, %ntid.y;
+    mul.lo.u32 %r8, %r8, %r9;
+    mad.lo.u32 %r10, %r5, %r8, %r4;
+    mad.lo.u32 %r10, %r10, %r6, %r3;
+    mul.lo.u32 %r10, %r10, 12;
+    mul.wide.u32 %rd0, %r10, 4;
+    ld.param.u64 %rd1, [output];
+    ld.param.u64 %rd2, [lookup];
+    add.u64 %rd3, %rd1, %rd0;
+    mov.u32 %r11, %tid.x;
+    mul.wide.u32 %rd4, %r11, 4;
+    add.u64 %rd5, %rd2, %rd4;
+    ld.global.f32 %f, [%rd5];
+    st.global.f32 [%rd3+0], %f;
+    mov.u32 %r11, %tid.y;
+    mul.wide.u32 %rd4, %r11, 4;
+    add.u64 %rd5, %rd2, %rd4;
+    ld.global.f32 %f, [%rd5];
+    st.global.f32 [%rd3+4], %f;
+    mov.u32 %r11, %tid.z;
+    mul.wide.u32 %rd4, %r11, 4;
+    add.u64 %rd5, %rd2, %rd4;
+    ld.global.f32 %f, [%rd5];
+    st.global.f32 [%rd3+8], %f;
+    mov.u32 %r11, %ntid.x;
+    mul.wide.u32 %rd4, %r11, 4;
+    add.u64 %rd5, %rd2, %rd4;
+    ld.global.f32 %f, [%rd5];
+    st.global.f32 [%rd3+12], %f;
+    mov.u32 %r11, %ntid.y;
+    mul.wide.u32 %rd4, %r11, 4;
+    add.u64 %rd5, %rd2, %rd4;
+    ld.global.f32 %f, [%rd5];
+    st.global.f32 [%rd3+16], %f;
+    mov.u32 %r11, %ntid.z;
+    mul.wide.u32 %rd4, %r11, 4;
+    add.u64 %rd5, %rd2, %rd4;
+    ld.global.f32 %f, [%rd5];
+    st.global.f32 [%rd3+20], %f;
+    mov.u32 %r11, %ctaid.x;
+    mul.wide.u32 %rd4, %r11, 4;
+    add.u64 %rd5, %rd2, %rd4;
+    ld.global.f32 %f, [%rd5];
+    st.global.f32 [%rd3+24], %f;
+    mov.u32 %r11, %ctaid.y;
+    mul.wide.u32 %rd4, %r11, 4;
+    add.u64 %rd5, %rd2, %rd4;
+    ld.global.f32 %f, [%rd5];
+    st.global.f32 [%rd3+28], %f;
+    mov.u32 %r11, %ctaid.z;
+    mul.wide.u32 %rd4, %r11, 4;
+    add.u64 %rd5, %rd2, %rd4;
+    ld.global.f32 %f, [%rd5];
+    st.global.f32 [%rd3+32], %f;
+    mov.u32 %r11, %nctaid.x;
+    mul.wide.u32 %rd4, %r11, 4;
+    add.u64 %rd5, %rd2, %rd4;
+    ld.global.f32 %f, [%rd5];
+    st.global.f32 [%rd3+36], %f;
+    mov.u32 %r11, %nctaid.y;
+    mul.wide.u32 %rd4, %r11, 4;
+    add.u64 %rd5, %rd2, %rd4;
+    ld.global.f32 %f, [%rd5];
+    st.global.f32 [%rd3+40], %f;
+    mov.u32 %r11, %nctaid.z;
+    mul.wide.u32 %rd4, %r11, 4;
+    add.u64 %rd5, %rd2, %rd4;
+    ld.global.f32 %f, [%rd5];
+    st.global.f32 [%rd3+44], %f;
+    ret;
+}
+.visible .entry matrix_add(
+    .param .u64 .ptr .global .align 4 a,
+    .param .u64 .ptr .global .align 4 b,
+    .param .u64 .ptr .global .align 4 c,
+    .param .u32 nx,
+    .param .u32 ny,
+    .param .u32 nz
+) {
+    .reg .b32 %r<10>;
+    .reg .b64 %rd<7>;
+    .reg .f32 %f<3>;
+    .reg .pred %p;
+    mov.u32 %r0, %ctaid.x;
+    mov.u32 %r1, %ntid.x;
+    mov.u32 %r2, %tid.x;
+    mad.lo.u32 %r3, %r0, %r1, %r2;
+    mov.u32 %r0, %ctaid.y;
+    mov.u32 %r1, %ntid.y;
+    mov.u32 %r2, %tid.y;
+    mad.lo.u32 %r4, %r0, %r1, %r2;
+    mov.u32 %r0, %ctaid.z;
+    mov.u32 %r1, %ntid.z;
+    mov.u32 %r2, %tid.z;
+    mad.lo.u32 %r5, %r0, %r1, %r2;
+    ld.param.u32 %r6, [nx];
+    ld.param.u32 %r7, [ny];
+    ld.param.u32 %r8, [nz];
+    setp.ge.u32 %p, %r3, %r6;
+    @%p bra DONE;
+    setp.ge.u32 %p, %r4, %r7;
+    @%p bra DONE;
+    setp.ge.u32 %p, %r5, %r8;
+    @%p bra DONE;
+    mad.lo.u32 %r9, %r5, %r7, %r4;
+    mad.lo.u32 %r9, %r9, %r6, %r3;
+    mul.wide.u32 %rd0, %r9, 4;
+    ld.param.u64 %rd1, [a];
+    ld.param.u64 %rd2, [b];
+    ld.param.u64 %rd3, [c];
+    add.u64 %rd4, %rd1, %rd0;
+    add.u64 %rd5, %rd2, %rd0;
+    add.u64 %rd6, %rd3, %rd0;
+    ld.global.f32 %f0, [%rd4];
+    ld.global.f32 %f1, [%rd5];
+    add.rn.f32 %f2, %f0, %f1;
+    st.global.f32 [%rd6], %f2;
+DONE:
+    ret;
+}

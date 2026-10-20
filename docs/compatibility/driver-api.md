@@ -9,7 +9,7 @@ Export calling convention: Windows CUDA `__stdcall` / Rust `extern "system"` (un
 | cuInit | flags=0, idempotent initialization of the Intel backend |
 | cuDeviceGetCount, cuDeviceGet | native Intel GPU list and ordinal validation |
 | cuDeviceGetName | bounded NUL-terminated name; positive buffer size required |
-| cuDeviceGetAttribute | attributes 1..4 (max threads/group and X/Y/Z dimensions); M3c also supports 20/compute mode as DEFAULT=0 for CT's shared contexts; other values return NOT_SUPPORTED and output 0 |
+| cuDeviceGetAttribute | attributes1..4 (max threads/group and X/Y/Z dimensions), M3h5..7 (grid X/Y/Z limits, capped to I32_MAX), and20/compute mode as DEFAULT=0; others return NOT_SUPPORTED and output0 |
 | cuCtxCreate_v2, cuCtxDestroy_v2 | flags=0; monotonic non-dereferenced handles; destroy releases owned native allocations on normal path |
 | cuCtxGetCurrent, cuCtxSetCurrent | per-thread current-context stack; null set detaches the top entry |
 | cuCtxPushCurrent_v2, cuCtxPopCurrent_v2 | attach/detach an existing live context; foreign host threads start with no current context |
@@ -34,7 +34,7 @@ The M1 table above contains 20 exports. M2 adds four, bringing the experimental 
 | cuModuleLoadData | bounded NUL-terminated text in the [PTX profile](ptx-profile.md), or M3d's [raw fatbin profile](fatbin-profile.md); current context required; malformed input returns INVALID_PTX=218, unsupported features return NOT_SUPPORTED=801 |
 | cuModuleGetFunction | exact entry name in a current-context module; missing entry returns NOT_FOUND=500 |
 | cuModuleUnload | synchronous destruction; invalidates the module's function handles |
-| cuLaunchKernel | one-dimensional synchronous dispatch with kernelParams; checks device limits, pointer argument starts and context ownership; streams/shared memory/extra unsupported |
+| cuLaunchKernel | synchronous1D/2D/3D dispatch with kernelParams; checks per-axis limits, checked block volume, U32 global axis sizes, pointer argument starts and context ownership; streams/shared memory/extra unsupported |
 
 Stale or foreign module/function tokens return INVALID_HANDLE=400. Context destruction unloads owned modules before native context destruction. Uncertain native work or cleanup retains resources and poisons the context. Host pointer validity and dynamic kernel access bounds remain caller obligations.
 
@@ -53,3 +53,12 @@ retain module/context ownership. Module unload or context destruction invalidate
 all its functions. Missing names return500/null, stale or foreign handles400.
 Synchronous1D launch,26 exports and all existing trust/unsupported contracts remain.
 See [M3g evidence](../M3g-RESULTS.md).
+
+## M3h dimension extension
+
+M3h extends the earlier1D restriction to all three grid/block axes and all12
+PTX coordinate components. Validation is shared by CUDA and native entry paths,
+before argument mutation or launch submission. Zero/over-limit dimensions and
+oversized or overflowing block volume return INVALID_VALUE. The26 exported
+signatures, synchronous semantics and module ownership rules remain unchanged.
+See [M3h evidence](../M3h-RESULTS.md).

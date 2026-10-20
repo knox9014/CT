@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "baseline": "f9df499",
+  "baseline": "6385455",
   "platform": {
     "os": "Windows",
     "host": "x64",
@@ -615,14 +615,21 @@
       "id": "launch",
       "state": "experimental",
       "limits": {
-        "dimensions": 1,
+        "dimensions": 3,
         "synchronous": true,
         "streams": false,
         "dynamic_shared": false,
-        "extra": false
+        "extra": false,
+        "grid_axis_cap": "min(native, I32_MAX)",
+        "global_axis_cap": "U32_MAX",
+        "block_volume": "checked u64, <= native maxTotalGroupSize"
       },
       "test_ids": [
-        "tests/m2_kernel_host.c#main"
+        "tests/m2_kernel_host.c#main",
+        "crates/ct-backend-intel/src/modules.rs#validates_each_dimension_and_checked_block_volume",
+        "tests/m3h_dimensions_check.py#def run_coordinates",
+        "tests/m3h_dimensions_check.py#def rejected_launches",
+        "tests/m3h_cuda_app.c#execute"
       ]
     },
     {
@@ -726,6 +733,29 @@
         "crates/ct-codegen-spirv/tests/translation.rs#emits_one_module_with_distinct_functions_and_shared_signatures",
         "crates/ct-backend-intel/src/modules.rs#failed_creation_retains_partial_handles_for_ordered_cleanup",
         "tests/m3g_modules_check.py#def run_loaded"
+      ]
+    },
+    {
+      "id": "ptx.coordinate_components",
+      "state": "experimental",
+      "limits": {
+        "names": [
+          "tid",
+          "ntid",
+          "ctaid",
+          "nctaid"
+        ],
+        "axes": [
+          "x",
+          "y",
+          "z"
+        ],
+        "type": "U32"
+      },
+      "test_ids": [
+        "crates/ct-ptx/tests/dimensions.rs#preserves_all_twelve_special_register_components",
+        "crates/ct-codegen-spirv/tests/translation.rs#extracts_each_axis_and_shares_builtin_vectors_across_entries",
+        "tests/m3h_dimensions_check.py#def run_coordinates"
       ]
     }
   ]

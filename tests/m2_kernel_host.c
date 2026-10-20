@@ -52,7 +52,7 @@ static int run_case(const char *source,const char *entry,int mode,unsigned int w
     }
     for(j=n;j<n+group;++j){REQUIRE(out[j]==-12345.25f);++guards;}
     CHECK(f.cuLaunchKernel(kernel,0,1,1,group,1,1,0,NULL,args,NULL),1);
-    CHECK(f.cuLaunchKernel(kernel,grid,2,1,group,1,1,0,NULL,args,NULL),801);
+    CHECK(f.cuLaunchKernel(kernel,grid,0,1,group,1,1,0,NULL,args,NULL),1);
     CHECK(f.cuLaunchKernel(kernel,grid,1,1,group,1,1,1,NULL,args,NULL),801);
     CHECK(f.cuLaunchKernel(kernel,grid,1,1,group,1,1,0,(CUstream)1,args,NULL),801);
     CHECK(f.cuLaunchKernel(kernel,grid,1,1,group,1,1,0,NULL,args,args),801);

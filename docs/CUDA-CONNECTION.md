@@ -60,3 +60,12 @@ alternative-profile checks passed144 GPU combinations. A separate ordinary CUDA
 consumer built with NVIDIA headers also passed through app-local loading and the
 public CLI. This consumer is synthetic; stored globals/device calls, Runtime and
 AMD remain future work. See [M3g results](M3g-RESULTS.md).
+
+## M3h / P03a update
+
+Synchronous CUDA grid/block x/y/z now map directly to native three-axis launches,
+with all12 coordinate registers and consistent device limit attributes. A
+separate official-header synthetic C consumer and public CLI passed2D/3D matrix
+checks with byte preservation. This remains a restricted Driver API path; P03
+arithmetic/ABI expansion and Runtime/AMD support are later work.
+See [measured M3h results](M3h-RESULTS.md).

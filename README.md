@@ -6,7 +6,7 @@ CT aims to develop a general-purpose translation and compatibility layer for run
 
 ## Project status / 현재 상태
 
-**M3g: multiple CUDA kernels in one PTX/SPIR-V/native module passed on Intel Arc B390. Up to32 entries within the restricted PTX profile.**
+**M3h / P03a: synchronous 2D/3D CUDA grid/block execution passed on Intel Arc B390, including all12 special-register components.**
 
 현재는 초기 개발 단계입니다. Windows의 Intel Arc B390에서 제한된 PTX를 SPIR-V로 번역해 실제 GPU에서 실행합니다. 벡터 덧셈·SAXPY·ReLU·행렬 곱셈 4개 커널의 53개 조합에서 출력 606,660개와 가드 값 4,992개를 검증했습니다. API는 26개 심볼이며, M1 메모리·컨텍스트 검사 210개도 통과했습니다. 외부 CUDA 앱의 일반적인 호환성, CUDA 라이브러리 및 AMD 지원은 아직 확보하지 못했습니다.
 
@@ -31,6 +31,8 @@ M3f에서는 알려진 두 프로파일의 대체 PTX를 검증하고 순서에 
 M3g에서는 하나의 모듈에 최대32개 kernel entry를 담고 각각 조회·실행합니다. 덧셈·뺄셈·다른 인자 ABI의 채우기 커널을 실제 Arc144개 조합에서 실행해 출력1,210,800개·가드9,216개를 검증했습니다. 모듈·컨텍스트별 핸들 수명, 부분 생성/해제 실패 시험, 독립 CUDA C 소비자와 공개 CLI도 통과했습니다. 아직 제한된 문법·동기1D 실행이며 저장된 전역 변수·device 함수·Runtime·AMD는 지원하지 않습니다. [M3g 결과](docs/M3g-RESULTS.md)
 
 ## Development plan / 개발 계획
+
+M3h에서는 CUDA grid/block의 세 축과12개 좌표 레지스터를 연결했습니다. 실제 Arc26개 사례에서 출력37,394개·가드4,856개, 잘못된 크기 거부·복구, 별도 C 소비자의2D/3D 실행과 CLI 연결을 통과했습니다. P03의 첫 하위 작업이며 정수 연산·인자 형식 확장은 남아 있습니다. [M3h 결과](docs/M3h-RESULTS.md)
 
 [범용 CUDA 번역기의 전체 구현 목표와 완료 기준](docs/CT-COMPLETION-GOALS.md)에 현재 위치, 남은 기능, 개발 순서와 출시 조건을 정리했습니다.
 
