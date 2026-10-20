@@ -23,7 +23,7 @@ Host pointers must refer to valid sufficiently sized memory for the operation. N
 
 Error subset: SUCCESS=0, INVALID_VALUE=1, OUT_OF_MEMORY=2, NOT_INITIALIZED=3, NO_DEVICE=100, INVALID_DEVICE=101, INVALID_CONTEXT=201, NOT_SUPPORTED=801, UNKNOWN=999. Exact parity with every NVIDIA error-precedence edge case is not established.
 
-Native transfers use pinned staging and a synchronous immediate list. Uncertain completion or staging cleanup failure poisons the context and retains potentially live resources until process exit. Subsequent operations fail rather than pretending recovery. Device-loss/timeouts and all allocation/cleanup failures have not been fault-injected. No production fault-recovery claim is made.
+Native transfers use pinned staging and a synchronous immediate list. Uncertain completion or cleanup failure poisons the context and retains possibly live resources until process exit. M3i adds deterministic foreign-call failure probes and fatal LOST/RESET handling before submission. Real device loss/timeouts, actual loader unload and automatic recovery remain unverified. No production fault-recovery claim is made. See [M3i evidence](../M3i-RESULTS.md).
 
 ## M2 module and kernel extension
 
@@ -62,3 +62,13 @@ before argument mutation or launch submission. Zero/over-limit dimensions and
 oversized or overflowing block volume return INVALID_VALUE. The26 exported
 signatures, synchronous semantics and module ownership rules remain unchanged.
 See [M3h evidence](../M3h-RESULTS.md).
+
+## M3i failure containment
+
+Fatal native LOST/RESET errors poison the affected context even during allocation,
+module creation and kernel setup. All device-free failures and uncertain
+submission/completion/cleanup failures stop subsequent native work. Build-log
+cleanup preserves the first error and retains an uncertain log handle. Ordinary
+allocation OOM and nonfatal setup argument errors remain recoverable. Native
+OOM maps to CUDA2; fatal/unknown errors map to999, without full NVIDIA parity.
+The private test-only injection provider is absent from normal builds.

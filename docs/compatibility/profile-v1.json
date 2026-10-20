@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "baseline": "6385455",
+  "baseline": "f8f2d78",
   "platform": {
     "os": "Windows",
     "host": "x64",
@@ -756,6 +756,29 @@
         "crates/ct-ptx/tests/dimensions.rs#preserves_all_twelve_special_register_components",
         "crates/ct-codegen-spirv/tests/translation.rs#extracts_each_axis_and_shares_builtin_vectors_across_entries",
         "tests/m3h_dimensions_check.py#def run_coordinates"
+      ]
+    },
+    {
+      "id": "failure.containment",
+      "state": "experimental",
+      "limits": {
+        "injection": "backend unit tests only, cfg(test)",
+        "fatal_codes": [
+          "DEVICE_LOST",
+          "DEVICE_REQUIRES_RESET"
+        ],
+        "uncertain_cleanup": "stop and retain",
+        "allocation_oom": "nonfatal before submission",
+        "cuda_oom": 2,
+        "cuda_fatal_or_unknown": 999,
+        "automatic_recovery": false,
+        "real_device_failure": "unverified"
+      },
+      "test_ids": [
+        "crates/ct-backend-intel/src/fault_tests.rs#failed_launch_reports_original_error_and_blocks_every_later_native_operation",
+        "crates/ct-backend-intel/src/fault_tests.rs#fatal_setup_errors_poison_but_ordinary_setup_errors_allow_a_later_launch",
+        "crates/ct-backend-intel/src/fault_tests.rs#module_build_log_failure_preserves_primary_error_and_stops_native_cleanup",
+        "crates/ct-cuda/src/lib.rs#native_failures_never_map_to_success_and_oom_keeps_its_cuda_category"
       ]
     }
   ]
