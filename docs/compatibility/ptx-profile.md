@@ -1,4 +1,4 @@
-# Experimental PTX profile through M3l
+# Experimental PTX profile through M3m
 
 CT parses instructions into typed control-flow IR and emits SPIR-V 1.0 Kernel/OpenCL with Physical64 addressing. Intel Level Zero compiles and executes it. Kernel names do not select replacement implementations.
 
@@ -25,8 +25,8 @@ Integer constants support decimal, `0x` hexadecimal and leading-zero octal. Inva
 | Modular integer arithmetic | `add/sub/mul.lo/mad.lo` for `.s32/.u32/.s64/.u64`; low-width result bits, including overflow |
 | Other integer arithmetic | `mul.wide.u32`, `div.u32`, `rem.u32`; `mul.wide.s32` sign-extends both operands before a64-bit product |
 | Floating arithmetic | `add.f32`, `mul.f32`, `sub.f32`, optionally with `.rn` before `.f32`; separate operations carry SPIR-V NoContraction |
-| Predicates/select | `setp.ge.u32`, `setp.lt.u32`, `setp.eq.u32`, `setp.lt.f32`, `setp.ge.f32`, `selp.f32` |
-| Additional predicates | `setp.ge.s32`, `setp.lt.s32`, `setp.eq.u64` |
+| Integer predicates/select | `setp.eq/ne/lt/le/gt/ge` for `.s32/.u32/.s64/.u64`; `selp.b/u/s32`, `selp.b/u/s64`; one predicate destination, no predicate combining |
+| Float predicates/select | `setp.lt.f32`, `setp.ge.f32`, `selp.f32` |
 | Control flow | labels, `bra`, `@%predicate bra`, `@!%predicate bra`, `ret` |
 | Special registers | Scalar `.x/.y/.z` of `%tid`, `%ntid`, `%ctaid`, `%nctaid`; U32 operands |
 | Integer conversion | All16 `cvt.{s32,u32,s64,u64}.{s32,u32,s64,u64}` pairs; no modifiers, width-matched bit/unsigned registers |
