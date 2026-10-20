@@ -50,3 +50,13 @@ Real nvFatbin inputs passed48 native combinations with changed arithmetic and
 entry names, plus rejection/recovery and repeated resource-cycle checks.
 This completes the first narrow selection policy, not general linking, multiple
 entries, unknown-profile fallback or CUDA Runtime registration. See [M3f results](M3f-RESULTS.md).
+
+## Multiple kernels in one module (M3g / P02)
+
+The parser/code generator and Intel backend now preserve1..32 entries in one
+native module. Function handles retain their module/entry ABI; unload and context
+destruction invalidate all corresponding functions. Raw/plain/compressed and
+alternative-profile checks passed144 GPU combinations. A separate ordinary CUDA
+consumer built with NVIDIA headers also passed through app-local loading and the
+public CLI. This consumer is synthetic; stored globals/device calls, Runtime and
+AMD remain future work. See [M3g results](M3g-RESULTS.md).

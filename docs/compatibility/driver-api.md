@@ -43,3 +43,13 @@ Primary contexts, streams/events, cudart, cuBLAS and AMD remain unsupported. See
 ## M3b versioned entry-point extension
 
 M3b adds `cuGetProcAddress` and `cuGetProcAddress_v2`, bringing the total to 26 exports. They select existing CT functions through explicitly supported version intervals, without implying broader support or advertising a CUDA driver version. See [lookup contracts and limits](driver-entrypoints.md) and [official-header consumer results](../M3b-RESULTS.md).
+
+## M3g multiple-entry module extension
+
+Within the restricted [PTX profile](ptx-profile.md), a CUDA module owns one native
+module with1..32 distinct entries. cuModuleGetFunction selects any such entry and
+its argument ABI; multiple lookup tokens may refer to the same entry. Handles
+retain module/context ownership. Module unload or context destruction invalidates
+all its functions. Missing names return500/null, stale or foreign handles400.
+Synchronous1D launch,26 exports and all existing trust/unsupported contracts remain.
+See [M3g evidence](../M3g-RESULTS.md).
