@@ -119,26 +119,13 @@ pub unsafe extern "system" fn cuLaunchKernel(
             .ok_or(INVALID_HANDLE)?;
         let m = c.modules.get(&owned.module).ok_or(INVALID_HANDLE)?;
         let entry = m.entries.get(owned.entry).ok_or(INVALID_HANDLE)?;
-        if gy != 1
-            || gz != 1
-            || by != 1
-            || bz != 1
-            || shared != 0
-            || !stream.is_null()
-            || !extra.is_null()
-        {
+        if shared != 0 || !stream.is_null() || !extra.is_null() {
             return Err(UNSUPPORTED);
         }
         let d = &b.devices[c.native.device];
-        if gx == 0
-            || bx == 0
-            || gx > d.max_groups_x
-            || bx > d.max_group[0]
-            || bx > d.max_group[1]
-            || (gx as u64) * (bx as u64) > u32::MAX as u64
-        {
-            return Err(INVALID);
-        }
+        let grid = [gx, gy, gz];
+        let block = [bx, by, bz];
+        d.validate_launch(grid, block).map_err(|_| INVALID)?;
         if !entry.params.is_empty() && parameters.is_null() {
             return Err(INVALID);
         }
@@ -164,7 +151,14 @@ pub unsafe extern "system" fn cuLaunchKernel(
             };
             arguments.push(data);
         }
-        b.launch_entry(&mut c.native, &m.native, owned.entry, &arguments, gx, bx)
-            .map_err(native_error)
+        b.launch_entry_3d(
+            &mut c.native,
+            &m.native,
+            owned.entry,
+            &arguments,
+            grid,
+            block,
+        )
+        .map_err(native_error)
     })
 }

@@ -2,6 +2,38 @@
 use super::*;
 use std::ffi::CString;
 
+fn validate_dimensions(
+    grid: [u32; 3],
+    block: [u32; 3],
+    max_groups: [u32; 3],
+    max_group: [u32; 4],
+) -> NativeResult<()> {
+    let mut volume = 1u64;
+    for axis in 0..3 {
+        if grid[axis] == 0
+            || block[axis] == 0
+            || grid[axis] > max_groups[axis]
+            || block[axis] > max_group[axis + 1]
+            || u64::from(grid[axis]) * u64::from(block[axis]) > u64::from(u32::MAX)
+        {
+            return Err(BAD_ARGUMENT);
+        }
+        volume = volume
+            .checked_mul(u64::from(block[axis]))
+            .ok_or(BAD_ARGUMENT)?;
+    }
+    if volume > u64::from(max_group[0]) {
+        return Err(BAD_ARGUMENT);
+    }
+    Ok(())
+}
+
+impl Device {
+    pub fn validate_launch(&self, grid: [u32; 3], block: [u32; 3]) -> NativeResult<()> {
+        validate_dimensions(grid, block, self.max_groups, self.max_group)
+    }
+}
+
 fn create_kernel_handles(
     names: &[CString],
     handles: &mut Vec<usize>,
@@ -168,10 +200,25 @@ impl Backend {
         grid: u32,
         block: u32,
     ) -> NativeResult<()> {
+        self.launch_entry_3d(c, module, entry, args, [grid, 1, 1], [block, 1, 1])
+    }
+    pub fn launch_entry_3d(
+        &self,
+        c: &mut Context,
+        module: &Module,
+        entry: usize,
+        args: &[Vec<u8>],
+        grid: [u32; 3],
+        block: [u32; 3],
+    ) -> NativeResult<()> {
         let kernel = *module.kernels.get(entry).ok_or(BAD_ARGUMENT)?;
         if c.poisoned || kernel == 0 {
             return Err(UNKNOWN);
         }
+        self.devices
+            .get(c.device)
+            .ok_or(BAD_ARGUMENT)?
+            .validate_launch(grid, block)?;
         unsafe {
             for (index, data) in args.iter().enumerate() {
                 ze!(
@@ -190,12 +237,12 @@ impl Backend {
                 self.api,
                 "zeKernelSetGroupSize",
                 (Handle, u32, u32, u32),
-                (kernel as Handle, block, 1, 1)
+                (kernel as Handle, block[0], block[1], block[2])
             )?;
             let groups = GroupCount {
-                x: grid,
-                y: 1,
-                z: 1,
+                x: grid[0],
+                y: grid[1],
+                z: grid[2],
             };
             let result = ze!(
                 self.api,
@@ -222,6 +269,54 @@ impl Backend {
 #[cfg(test)]
 mod cleanup_tests {
     use super::*;
+    #[test]
+    fn validates_each_dimension_and_checked_block_volume() {
+        let group = [96, 32, 16, 8];
+        let counts = [101, 71, 43];
+        assert_eq!(
+            validate_dimensions([3, 5, 7], [4, 3, 2], counts, group),
+            Ok(())
+        );
+        assert_eq!(validate_dimensions(counts, [1; 3], counts, group), Ok(()));
+        assert_eq!(
+            validate_dimensions([1; 3], [8, 4, 3], counts, group),
+            Ok(())
+        );
+        for axis in 0..3 {
+            for bad in [0, counts[axis] + 1] {
+                let mut grid = [1; 3];
+                grid[axis] = bad;
+                assert_eq!(
+                    validate_dimensions(grid, [1; 3], counts, group),
+                    Err(BAD_ARGUMENT)
+                );
+            }
+            for bad in [0, group[axis + 1] + 1] {
+                let mut block = [1; 3];
+                block[axis] = bad;
+                assert_eq!(
+                    validate_dimensions([1; 3], block, counts, group),
+                    Err(BAD_ARGUMENT)
+                );
+            }
+            let mut grid = [1; 3];
+            grid[axis] = u32::MAX;
+            let mut block = [1; 3];
+            block[axis] = 2;
+            assert_eq!(
+                validate_dimensions(grid, block, [u32::MAX; 3], [u32::MAX; 4]),
+                Err(BAD_ARGUMENT)
+            );
+        }
+        assert_eq!(
+            validate_dimensions([1; 3], [8, 4, 4], counts, group),
+            Err(BAD_ARGUMENT)
+        );
+        assert_eq!(
+            validate_dimensions([1; 3], [u32::MAX; 3], [u32::MAX; 3], [u32::MAX; 4]),
+            Err(BAD_ARGUMENT)
+        );
+    }
     #[test]
     fn failed_destroy_retains_only_live_handles_and_skips_destroyed_ones() {
         let mut handles = [11, 0, 22, 33];
