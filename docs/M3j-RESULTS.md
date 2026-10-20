@@ -96,3 +96,13 @@ remain ignored; only CT/synthetic source and sanitized evidence publish.
 
 References: [PTX conversion table and shifts](https://docs.nvidia.com/cuda/archive/11.8.0/parallel-thread-execution/index.html),
 [SPIR-V1.0](https://registry.khronos.org/SPIR-V/specs/1.0/SPIRV.html).
+
+## Independent review
+
+A fresh-context whole-branch review found no actionable findings across all18
+changed files. The reviewer independently passed25 parser/codegen tests, manifest
+validation and the full168-image native integer harness with identical counts,
+negative-input recovery and baseline rejection. Existing workspace, C/CLI and
+regression evidence was inspected rather than independently rerun. Additional
+random seeds, unsupported ABI/type forms, real NVIDIA/AMD, untrusted kernels and
+general application compatibility are not inferred from this bounded evidence.
