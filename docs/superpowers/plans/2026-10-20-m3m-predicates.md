@@ -10,15 +10,17 @@ CUDA ABI, alignment and trust boundaries stay unchanged.
 
 Reference: [PTX setp/selp](https://docs.nvidia.com/cuda/archive/12.1.1/parallel-thread-execution/index.html).
 
-- [ ] Add parser width/predicate/arity/modifier tests; observe RED, implement.
-- [ ] Add signed64 SPIR-V compare and select type test; observe RED, implement;
+- [x] Add parser width/predicate/arity/modifier tests; observe RED, implement.
+- [x] Add signed64 SPIR-V compare and select type test; observe RED, implement;
   run Rust, Python, format and Clippy checks.
-- [ ] Arc CUDA consumer compares every selected integer bit with a Python
+- [x] Arc CUDA consumer compares every selected integer bit with a Python
   relational oracle: signed extrema, equal pairs, high-bit patterns, both truth
   outcomes, sizes1/63/64/65/257/50000; raw/plain/compressed/alternative inputs.
   Check baseline hash/rejection, guards/input preservation and selected profile.
-- [ ] Run M3l/M3k regressions and C/CLI consumer. Independent subagent review,
-  docs/manifest/privacy scans, stacked draft PR on M3l; no merge.
+- [x] Run M3l/M3k regressions and C/CLI consumer. Independent subagent review;
+  fix equality-input coverage finding with RED/GREEN and native revalidation.
+  Docs/manifest updated; existing user edits preserved.
+- [ ] Final privacy scans and stacked draft PR on M3l; no merge.
 
 Review focus: correct signed width, relation opcode direction, full64-bit
 selected values, real equal/less/greater and both predicate outcomes,

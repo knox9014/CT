@@ -9,6 +9,7 @@ P03a의 다차원 실행은 [M3h](M3h-RESULTS.md)로 구현·Arc 검증했다. P
 P03b의32/64비트 정수 변환·비트·시프트 연산은 [M3j](M3j-RESULTS.md)로 구현·Arc 검증했다. 추가 정수 연산·작은 정수 타입·벡터/구조체 ABI는 후속 P03 작업이다.
 P03c의 정수 global 메모리와 명시적 scalar64 ABI는 [M3k](M3k-RESULTS.md)로 검증했다. 암묵적 scalaru64 분류, wide entry의 혼합 포인터 정렬, 작은 정수·벡터/구조체 ABI는 남아 있다.
 요구사항: [전체 목표 G0~G14](CT-COMPLETION-GOALS.md).
+P03e의32/64비트 정수 비교6종과 정수 선택은 [M3m](M3m-RESULTS.md)으로 Arc 검증했다. 작은 정수·벡터/구조체 ABI 등은 후속 작업이다.
 P03d의32/64비트 modular add/sub/mul.lo/mad.lo는 [M3l](M3l-RESULTS.md)로 Arc 검증했다. 작은 정수·벡터/구조체 ABI와 나머지 연산은 후속 작업이다.
 첫 실행 명세: [M3f 명세](superpowers/specs/2026-10-19-m3f-selection-design.md).
 첫 실행 계획: [P00/P01 상세 계획](superpowers/plans/2026-10-19-m3f-selection.md).

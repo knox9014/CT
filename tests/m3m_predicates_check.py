@@ -9,12 +9,23 @@ from m3d_fatbin_check import Producer
 from m3f_selection_check import load_code
 from m3g_modules_check import module, function
 from m3k_memory_check import allocate, args
-from m3l_arithmetic_check import inputs, SIZES
+from m3l_arithmetic_check import inputs as arithmetic_inputs, SIZES
 
 RELATIONS = dict(eq=operator.eq, ne=operator.ne, lt=operator.lt,
                  le=operator.le, gt=operator.gt, ge=operator.ge)
 OPERATIONS = [(relation, kind) for relation in RELATIONS
               for kind in ('u32', 's32', 'u64', 's64')]
+
+
+def inputs(width, n):
+    triples = arithmetic_inputs(width, n)
+    if width == 64:
+        # Indices1..4 survive the every-fifth-element equality override.
+        for index, (a, b) in enumerate([(1 << 32, 0), (1 << 63, 0),
+                                       (0, 1 << 32), ((1 << 32) + 1, 1)], 1):
+            if index < n:
+                triples[index] = (a, b, triples[index][2])
+    return triples
 
 
 def oracle(relation, kind, a, b, value, invert=False):

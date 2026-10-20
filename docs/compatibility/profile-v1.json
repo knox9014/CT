@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "baseline": "5c2c063",
+  "baseline": "1eed6d0",
   "platform": {
     "os": "Windows",
     "host": "x64",
@@ -875,6 +875,44 @@
         "crates/ct-codegen-spirv/tests/translation.rs#modular_mad_uses_declared_width_for_product_and_sum",
         "tests/m3l_arithmetic_check.py#def oracle",
         "tests/m3l_arithmetic_check.py#def execute"
+      ]
+    },
+    {
+      "id": "ptx.integer_predicates",
+      "state": "experimental",
+      "limits": {
+        "comparisons": [
+          "eq",
+          "ne",
+          "lt",
+          "le",
+          "gt",
+          "ge"
+        ],
+        "formats": [
+          "s32",
+          "u32",
+          "s64",
+          "u64"
+        ],
+        "select_formats": [
+          "b32",
+          "u32",
+          "s32",
+          "b64",
+          "u64",
+          "s64"
+        ],
+        "paired_predicates": false,
+        "predicate_combining": false
+      },
+      "test_ids": [
+        "crates/ct-ptx/tests/predicates.rs#integer_predicates_and_select_accept_supported_widths",
+        "crates/ct-ptx/tests/predicates.rs#integer_predicates_reject_bad_widths_and_predicates",
+        "crates/ct-codegen-spirv/tests/translation.rs#signed64_predicates_use_signed64_operands_and_integer_select",
+        "tests/m3m_predicates_check.py#def oracle",
+        "tests/m3m_predicates_check.py#def execute",
+        "tests/test_predicate_inputs.py#test_high_bits_alone_can_change_equality"
       ]
     }
   ]
