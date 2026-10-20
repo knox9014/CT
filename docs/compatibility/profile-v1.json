@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "baseline": "1eed6d0",
+  "baseline": "2d029df",
   "platform": {
     "os": "Windows",
     "host": "x64",
@@ -913,6 +913,34 @@
         "tests/m3m_predicates_check.py#def oracle",
         "tests/m3m_predicates_check.py#def execute",
         "tests/test_predicate_inputs.py#test_high_bits_alone_can_change_equality"
+      ]
+    },
+    {
+      "id": "ptx.integer_extrema",
+      "state": "experimental",
+      "limits": {
+        "min_max": [
+          "s32",
+          "u32",
+          "s64",
+          "u64"
+        ],
+        "abs_neg": [
+          "s32",
+          "s64"
+        ],
+        "signed_minimum_unary": "masked two-complement bits; CPU oracle only",
+        "floating": false,
+        "packed": false,
+        "relu": false
+      },
+      "test_ids": [
+        "crates/ct-ptx/tests/minmax.rs#minmax_and_signed_unary_accept_declared_widths",
+        "crates/ct-ptx/tests/minmax.rs#minmax_unary_reject_bad_types_arities_and_modifiers",
+        "crates/ct-codegen-spirv/tests/translation.rs#signed64_minmax_and_abs_use_typed_comparisons_and_modular_negation",
+        "tests/m3n_minmax_check.py#def oracle",
+        "tests/m3n_minmax_check.py#def main",
+        "tests/test_extrema_inputs.py#test_unary_operands_include_both_signed_extrema_zero_and_units"
       ]
     }
   ]

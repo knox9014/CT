@@ -69,11 +69,14 @@ def inputs(width, n):
                    (0xa0761d6478bd642f, top - 1))) for i in range(n)]
 
 
-def execute(device, handle, op, width, n):
+def execute(device, handle, op, width, n, *, input_values=None, expected_values=None):
     kind = U64 if width == 64 else U32
     mask = (1 << width) - 1; guard = 0xdeadbeefcafebabe & mask
-    triples = inputs(width, n)
-    expected = [oracle(op, *values, width) for values in triples]
+    triples = inputs(width, n) if input_values is None else input_values
+    expected = ([oracle(op, *values, width) for values in triples]
+                if expected_values is None else expected_values)
+    if len(triples) != n or len(expected) != n:
+        raise ValueError('input/oracle length must match payload')
     arrays = [(kind * (n + 128))(*([guard] * (n + 128))) for _ in range(4)]
     for i, values in enumerate(triples):
         for j in range(3): arrays[j][64 + i] = values[j]
