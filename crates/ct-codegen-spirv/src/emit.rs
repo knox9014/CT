@@ -74,7 +74,7 @@ impl Writer {
         match v {
             Value::Reg(n) => self.result(61, type_id(t), &[self.registers[n]]),
             Value::Bits(t, b) => self.constant(*t, *b),
-            Value::Builtin(kind) => {
+            Value::Builtin(kind, component) => {
                 let variable = if let Some(&id) = self.builtins.get(kind) {
                     id
                 } else {
@@ -86,8 +86,8 @@ impl Writer {
                 };
                 self.current_builtins.insert(variable);
                 let vec = self.result(61, 6, &[variable]);
-                let x = self.result(81, 4, &[vec, 0]);
-                self.result(113, 3, &[x])
+                let scalar = self.result(81, 4, &[vec, *component]);
+                self.result(113, 3, &[scalar])
             }
         }
     }

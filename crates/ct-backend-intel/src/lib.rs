@@ -26,7 +26,7 @@ pub struct Device {
     native: usize,
     pub name: String,
     pub max_group: [u32; 4],
-    pub max_groups_x: u32,
+    pub max_groups: [u32; 3],
 }
 pub struct Backend {
     api: Api,
@@ -122,7 +122,8 @@ impl Backend {
                             compute.max_y,
                             compute.max_z,
                         ],
-                        max_groups_x: compute.count_x,
+                        max_groups: [compute.count_x, compute.count_y, compute.count_z]
+                            .map(|v| v.min(i32::MAX as u32)),
                     });
                 }
             }

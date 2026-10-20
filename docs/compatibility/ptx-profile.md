@@ -1,4 +1,4 @@
-# Experimental PTX profile through M3g
+# Experimental PTX profile through M3h
 
 CT parses instructions into typed control-flow IR and emits SPIR-V 1.0 Kernel/OpenCL with Physical64 addressing. Intel Level Zero compiles and executes it. Kernel names do not select replacement implementations.
 
@@ -28,13 +28,13 @@ Integer constants support decimal, `0x` hexadecimal and leading-zero octal. Inva
 | Predicates/select | `setp.ge.u32`, `setp.lt.u32`, `setp.eq.u32`, `setp.lt.f32`, `setp.ge.f32`, `selp.f32` |
 | Additional predicates | `setp.ge.s32`, `setp.lt.s32`, `setp.eq.u64` |
 | Control flow | labels, `bra`, `@%predicate bra`, `@!%predicate bra`, `ret` |
-| Special registers | `%tid.x`, `%ntid.x`, `%ctaid.x`, `%nctaid.x` |
+| Special registers | Scalar `.x/.y/.z` of `%tid`, `%ntid`, `%ctaid`, `%nctaid`; U32 operands |
 
 Unknown directives/modifiers, unsupported predication and mismatched types are rejected. Signed operations interpret existing 32/64-bit register contents; separate signed register declarations and negative-token immediates are not added. Synthetic signed tests use hexadecimal two's-complement bits. Other signed arithmetic, division by zero, NaNs, infinities, denormals and uncommon rounding behavior remain outside the validated workload. Finite test inputs do not establish full PTX floating-point conformance.
 
 ## Launch and trust boundary
 
-Launches are synchronous and one-dimensional: Y/Z grid/block dimensions must be 1; X must be positive and within device limits. Streams, dynamic shared memory and packed `extra` arguments are unsupported. `kernelParams` points to host storage of 8 bytes per device pointer and 4 bytes per scalar.
+Launches are synchronous with1D/2D/3D grid/block dimensions. Every axis must be nonzero and within native device limits; grid counts are capped to I32_MAX and advertised by attributes5..7. Block volume must fit maxTotalGroupSize (checked u64 multiplication), and grid[i]*block[i] must fit U32_MAX for each axis. Streams, dynamic shared memory and packed `extra` arguments are unsupported. `kernelParams` points to host storage of 8 bytes per device pointer and 4 bytes per scalar. See [M3h evidence](../M3h-RESULTS.md); this is only the dimension slice of P03.
 
 Pointer arguments require 4-byte alignment and at least 4 bytes in a current-context allocation. This cannot prove the extent of subsequent kernel accesses. Callers must provide valid extents, initialized inputs and terminating trusted code. CT is not an isolation boundary for untrusted PTX. Arbitrary C host pointers must also be valid and sufficiently sized.
 

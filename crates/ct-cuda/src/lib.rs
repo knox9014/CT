@@ -155,7 +155,7 @@ pub unsafe extern "system" fn cuDeviceGetName(name: *mut c_char, length: i32, de
     })
 }
 /// # Safety
-/// value must be writable for one C int. Only group dimensions (1..=4) exist.
+/// value must be writable for one C int. Group/grid limits and compute mode exist.
 #[no_mangle]
 pub unsafe extern "system" fn cuDeviceGetAttribute(
     value: *mut i32,
@@ -174,10 +174,11 @@ pub unsafe extern "system" fn cuDeviceGetAttribute(
         if attribute == 20 {
             return Ok(());
         }
-        if !(1..=4).contains(&attribute) {
-            return Err(UNSUPPORTED);
-        }
-        let x = d.max_group[attribute as usize - 1];
+        let x = match attribute {
+            1..=4 => d.max_group[attribute as usize - 1],
+            5..=7 => d.max_groups[attribute as usize - 5],
+            _ => return Err(UNSUPPORTED),
+        };
         if x > i32::MAX as u32 {
             return Err(UNSUPPORTED);
         }

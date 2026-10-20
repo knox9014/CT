@@ -160,15 +160,23 @@ fn value(
         return Ok(Value::Reg(s.clone()));
     }
     if expected == Ty::U32 {
-        let builtin = match s.as_str() {
-            "%nctaid.x" => Some(24),
-            "%ntid.x" => Some(25),
-            "%ctaid.x" => Some(26),
-            "%tid.x" => Some(27),
-            _ => None,
-        };
-        if let Some(v) = builtin {
-            return Ok(Value::Builtin(v));
+        if let Some((name, axis)) = s.rsplit_once('.') {
+            let kind = match name {
+                "%nctaid" => Some(24),
+                "%ntid" => Some(25),
+                "%ctaid" => Some(26),
+                "%tid" => Some(27),
+                _ => None,
+            };
+            let component = match axis {
+                "x" => Some(0),
+                "y" => Some(1),
+                "z" => Some(2),
+                _ => None,
+            };
+            if let (Some(kind), Some(component)) = (kind, component) {
+                return Ok(Value::Builtin(kind, component));
+            }
         }
     }
     if s.starts_with('%') {
