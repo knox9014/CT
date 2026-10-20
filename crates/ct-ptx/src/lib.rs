@@ -43,6 +43,14 @@ pub enum Op {
     Eq,
     Select,
     Cvta,
+    Convert { to: Ty, signed: bool },
+    And,
+    Or,
+    Xor,
+    Not,
+    Shl,
+    Shr,
+    SignedShr,
 }
 #[derive(Clone, Debug)]
 pub enum InstructionKind {
