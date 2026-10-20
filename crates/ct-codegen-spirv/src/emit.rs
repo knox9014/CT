@@ -126,16 +126,14 @@ impl Writer {
             .collect();
         let is_float = t == Ty::F32;
         let tid = type_id(t);
-        let id = match op {
-            Op::Mov | Op::Cvta => return ids[0],
+        match op {
+            Op::Mov | Op::Cvta => ids[0],
             Op::Convert { to, signed } => {
                 if to == t {
                     return ids[0];
                 }
                 if signed && t == Ty::U32 && to == Ty::U64 {
-                    let signed_input = self.result(124, 13, &[ids[0]]);
-                    let wide = self.result(114, 14, &[signed_input]);
-                    self.result(124, 4, &[wide])
+                    self.result(114, 4, &[ids[0]])
                 } else {
                     self.result(113, type_id(to), &ids)
                 }
@@ -159,10 +157,7 @@ impl Writer {
                     safe
                 };
                 if op == Op::SignedShr {
-                    let signed_type = if t == Ty::U64 { 14 } else { 13 };
-                    let base = self.result(124, signed_type, &[ids[0]]);
-                    let shifted = self.result(195, signed_type, &[base, safe]);
-                    self.result(124, tid, &[shifted])
+                    self.result(195, tid, &[ids[0], safe])
                 } else {
                     let shifted =
                         self.result(if op == Op::Shl { 196 } else { 194 }, tid, &[ids[0], safe]);
@@ -179,12 +174,9 @@ impl Writer {
                 self.result(132, 4, &[a, b])
             }
             Op::SignedMulWide => {
-                let a = self.result(124, 13, &[ids[0]]);
-                let b = self.result(124, 13, &[ids[1]]);
-                let a = self.result(114, 14, &[a]);
-                let b = self.result(114, 14, &[b]);
-                let product = self.result(132, 14, &[a, b]);
-                self.result(124, 4, &[product])
+                let a = self.result(114, 4, &[ids[0]]);
+                let b = self.result(114, 4, &[ids[1]]);
+                self.result(132, 4, &[a, b])
             }
             Op::Mad => {
                 let product = self.result(132, tid, &ids[..2]);
@@ -193,16 +185,7 @@ impl Writer {
             Op::Div => self.result(134, tid, &ids),
             Op::Rem => self.result(137, tid, &ids),
             Op::Min { signed } | Op::Max { signed } => {
-                let (a, b) = if signed {
-                    let st = if t == Ty::U64 { 14 } else { 13 };
-                    (
-                        self.result(124, st, &[ids[0]]),
-                        self.result(124, st, &[ids[1]]),
-                    )
-                } else {
-                    (ids[0], ids[1])
-                };
-                let less = self.result(if signed { 177 } else { 176 }, 2, &[a, b]);
+                let less = self.result(if signed { 177 } else { 176 }, 2, &ids);
                 let (yes, no) = if matches!(op, Op::Min { .. }) {
                     (ids[0], ids[1])
                 } else {
@@ -216,18 +199,12 @@ impl Writer {
                 if op == Op::Neg {
                     negated
                 } else {
-                    let st = if t == Ty::U64 { 14 } else { 13 };
-                    let input = self.result(124, st, &[ids[0]]);
-                    let signed_zero = self.result(124, st, &[zero]);
-                    let negative = self.result(177, 2, &[input, signed_zero]);
+                    let negative = self.result(177, 2, &[ids[0], zero]);
                     self.result(169, tid, &[negative, negated, ids[0]])
                 }
             }
             Op::Ge => self.result(if is_float { 190 } else { 174 }, 2, &ids),
             Op::SignedGe | Op::SignedLt | Op::SignedGt | Op::SignedLe => {
-                let signed_type = if t == Ty::U64 { 14 } else { 13 };
-                let a = self.result(124, signed_type, &[ids[0]]);
-                let b = self.result(124, signed_type, &[ids[1]]);
                 let opcode = match op {
                     Op::SignedGe => 175,
                     Op::SignedLt => 177,
@@ -235,7 +212,7 @@ impl Writer {
                     Op::SignedLe => 179,
                     _ => unreachable!(),
                 };
-                self.result(opcode, 2, &[a, b])
+                self.result(opcode, 2, &ids)
             }
             Op::Lt => self.result(if is_float { 184 } else { 176 }, 2, &ids),
             Op::Eq => self.result(170, 2, &ids),
@@ -243,11 +220,7 @@ impl Writer {
             Op::Gt => self.result(172, 2, &ids),
             Op::Le => self.result(178, 2, &ids),
             Op::Select => self.result(169, tid, &[ids[2], ids[0], ids[1]]),
-        };
-        if is_float && matches!(op, Op::Add | Op::Sub | Op::Mul) {
-            inst(&mut self.annotations, 71, &[id, 42]);
         }
-        id
     }
 }
 pub(super) fn generate(k: &Kernel) -> Vec<u8> {
@@ -270,8 +243,8 @@ pub(super) fn generate_module(kernels: &[Kernel]) -> Vec<u8> {
     inst(&mut w.types, 20, &[2]);
     inst(&mut w.types, 21, &[3, 32, 0]);
     inst(&mut w.types, 21, &[4, 64, 0]);
-    inst(&mut w.types, 21, &[13, 32, 1]);
-    inst(&mut w.types, 21, &[14, 64, 1]);
+    // Kernel requires Signedness 0 on every OpTypeInt. Signed interpretation is
+    // carried by OpSConvert / signed compare / arithmetic-shift opcodes.
     inst(&mut w.types, 22, &[5, 32]);
     inst(&mut w.types, 23, &[6, 4, 3]);
     inst(&mut w.types, 32, &[7, 1, 6]);
@@ -294,8 +267,13 @@ pub(super) fn generate_module(kernels: &[Kernel]) -> Vec<u8> {
         inst(&mut out, 17, &[cap]);
     }
     inst(&mut out, 14, &[2, 2]);
+    for entry in &entries {
+        inst(&mut out, 15, entry);
+    }
+    // PTX .rn operations must not be contracted across instructions. Kernel
+    // uses ContractionOff; NoContraction decoration requires Shader capability.
     for entry in entries {
-        inst(&mut out, 15, &entry);
+        inst(&mut out, 16, &[entry[1], 31]);
     }
     out.extend(w.annotations);
     out.extend(w.types);

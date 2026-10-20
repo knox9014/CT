@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "source_ref": "tests/corpus/sources/vector_add.cu",
+  "tool_id": "nvrtc",
+  "options": [
+    "--gpu-architecture=compute_52",
+    "--fmad=false",
+    "--std=c++11"
+  ]
+}

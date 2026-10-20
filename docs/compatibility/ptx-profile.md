@@ -25,7 +25,7 @@ Integer instruction constants support decimal, `0x` hexadecimal and leading-zero
 | Modular integer arithmetic | `add/sub/mul.lo/mad.lo` for `.s32/.u32/.s64/.u64`; low-width result bits, including overflow |
 | Other integer arithmetic | `mul.wide.u32`, `div.u32`, `rem.u32`; `mul.wide.s32` sign-extends both operands before a64-bit product |
 | Integer extrema/unary | `min/max.s32/u32/s64/u64`, `abs/neg.s32/s64`; no packed/relu variants |
-| Floating arithmetic | `add.f32`, `mul.f32`, `sub.f32`, optionally with `.rn` before `.f32`; separate operations carry SPIR-V NoContraction |
+| Floating arithmetic | `add.f32`, `mul.f32`, `sub.f32`, optionally with `.rn` before `.f32`; SPIR-V Kernel `ContractionOff` on every entry prevents contraction across separate operations |
 | Integer predicates/select | `setp.eq/ne/lt/le/gt/ge` for `.s32/.u32/.s64/.u64`; `selp.b/u/s32`, `selp.b/u/s64`; one predicate destination, no predicate combining |
 | Float predicates/select | `setp.lt.f32`, `setp.ge.f32`, `selp.f32` |
 | Control flow | labels, `bra`, `@%predicate bra`, `@!%predicate bra`, `ret` |

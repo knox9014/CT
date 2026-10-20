@@ -1,0 +1,43 @@
+name: CT foundation CPU and validator
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  foundation:
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Select Rust
+        shell: pwsh
+        run: |
+          rustup toolchain install 1.96.1 --profile minimal --component rustfmt --component clippy
+          if ($LASTEXITCODE -ne 0) { throw 'Rust preparation failed.' }
+          rustup override set 1.96.1
+      - name: CPU checks
+        shell: pwsh
+        run: ./scripts/run_validation.ps1 -Lane cpu -Required -OutputDirectory results/local/ci-cpu
+      - name: Build validator from fixed source archives
+        shell: pwsh
+        run: |
+          $taskVsWhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
+          $taskVs = & $taskVsWhere -latest -products '*' -property installationPath
+          $taskCmake = Join-Path $taskVs 'Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe'
+          python scripts/prepare_spirv_tools.py --cmake $taskCmake --generator 'Visual Studio 17 2022' --output-lock results/local/ci-validator/toolchain-lock.json
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned validator preparation failed.' }
+      - name: Actual validator controls
+        shell: pwsh
+        run: |
+          $taskBinding = Get-Content -Raw results/local/ci-validator/validator-binding.json | ConvertFrom-Json
+          ./scripts/run_validation.ps1 -Lane validator -Required -Validator $taskBinding.executable -Lock results/local/ci-validator/toolchain-lock.json -OutputDirectory results/local/ci-validator
+      - name: Record absent hardware lanes
+        shell: pwsh
+        run: |
+          Write-Output 'Producer, Arc, AMD and NVIDIA lanes: not_run on hosted CPU CI.'
+          Write-Output 'This job does not claim CUDA application or GPU compatibility.'

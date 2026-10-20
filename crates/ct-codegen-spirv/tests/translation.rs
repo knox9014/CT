@@ -35,7 +35,7 @@ fn signed64_minmax_and_abs_use_typed_comparisons_and_modular_negation() {
             let cmp = insts.iter().find(|(code, _)| *code == 177).unwrap();
             assert!(insts
                 .iter()
-                .any(|(code, v)| *code == 124 && v[0] == 14 && v[1] == cmp.1[2]));
+                .any(|(code, v)| matches!(code, 43 | 61) && v[0] == 4 && v[1] == cmp.1[2]));
             assert!(insts.iter().any(|(code, v)| *code == 169 && v[0] == 4));
         }
         if matches!(op, "abs" | "neg") {
@@ -55,8 +55,8 @@ fn signed64_predicates_use_signed64_operands_and_integer_select() {
             assert!(
                 insts
                     .iter()
-                    .any(|(op, v)| *op == 124 && v[0] == 14 && v[1] == *operand),
-                "signed compare must bitcast to signed64"
+                    .any(|(op, v)| matches!(op, 43 | 61) && v[0] == 4 && v[1] == *operand),
+                "signed compare must retain the 64-bit Kernel operand width"
             );
         }
         assert!(insts.iter().any(|(op, v)| *op == 169 && v[0] == 4));
@@ -105,7 +105,7 @@ fn typed_memory_and_scalar64_use_distinct_pointer_and_integer_signatures() {
 fn integer_conversion_uses_source_signedness_and_correct_result_width() {
     let text=".version 7.0 .target sm_50 .address_size 64 .visible .entry c() { .reg .b32 %r; .reg .b64 %d; mov.u32 %r, 0xffffffff; cvt.u64.s32 %d, %r; cvt.s64.u32 %d, %r; cvt.s32.s64 %r, %d; cvt.s32.u32 %r, %r; ret; }";
     let ops = instructions(&translate(text).unwrap().spirv);
-    assert!(ops.iter().any(|(op, a)| *op == 114 && a[0] == 14));
+    assert!(ops.iter().any(|(op, a)| *op == 114 && a[0] == 4));
     assert!(ops.iter().any(|(op, a)| *op == 113 && a[0] == 4));
     assert!(ops.iter().any(|(op, a)| *op == 113 && a[0] == 3));
     assert_eq!(ops.iter().filter(|(op, _)| *op == 114).count(), 1);
