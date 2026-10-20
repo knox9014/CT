@@ -158,6 +158,30 @@ fn value(
     regs: &BTreeMap<String, Ty>,
     line: usize,
 ) -> Result<Value, Error> {
+    if tokens.len() == 2
+        && matches!(expected, Ty::U32 | Ty::U64)
+        && matches!(tokens[0].as_str(), "+" | "-")
+    {
+        let magnitude = number(&tokens[1]).ok_or_else(|| fail(line, "invalid integer literal"))?;
+        let width = if expected == Ty::U32 { 32 } else { 64 };
+        let mask = if width == 32 {
+            u32::MAX as u64
+        } else {
+            u64::MAX
+        };
+        let bits = if tokens[0] == "-" {
+            if magnitude > (1u64 << (width - 1)) {
+                return Err(fail(line, "negative immediate out of range"));
+            }
+            magnitude.wrapping_neg() & mask
+        } else {
+            if magnitude > mask {
+                return Err(fail(line, "immediate out of range"));
+            }
+            magnitude
+        };
+        return Ok(Value::Bits(expected, bits));
+    }
     if tokens.len() != 1 {
         return Err(fail(line, "invalid operand"));
     }
@@ -312,8 +336,8 @@ fn instruction(
         }
     } else {
         let (operation, t, n) = match op {
-            "mov.u32" | "mov.b32" => (Op::Mov, Ty::U32, 1),
-            "mov.u64" | "mov.b64" => (Op::Mov, Ty::U64, 1),
+            "mov.u32" | "mov.b32" | "mov.s32" => (Op::Mov, Ty::U32, 1),
+            "mov.u64" | "mov.b64" | "mov.s64" => (Op::Mov, Ty::U64, 1),
             "mov.f32" => (Op::Mov, Ty::F32, 1),
             "cvta.to.global.u64" => (Op::Cvta, Ty::U64, 1),
             "add.u32" | "add.s32" => (Op::Add, Ty::U32, 2),

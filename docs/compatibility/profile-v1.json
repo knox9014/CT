@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "baseline": "2d029df",
+  "baseline": "f0b72e0",
   "platform": {
     "os": "Windows",
     "host": "x64",
@@ -941,6 +941,40 @@
         "tests/m3n_minmax_check.py#def oracle",
         "tests/m3n_minmax_check.py#def main",
         "tests/test_extrema_inputs.py#test_unary_operands_include_both_signed_extrema_zero_and_units"
+      ]
+    },
+    {
+      "id": "ptx.signed_immediates",
+      "state": "experimental",
+      "limits": {
+        "operand_types": [
+          "U32",
+          "U64"
+        ],
+        "radices": [
+          "decimal",
+          "hex0x",
+          "octal0"
+        ],
+        "signs": [
+          "+",
+          "-"
+        ],
+        "negative_magnitude": "at most2^(operandwidth-1)",
+        "positive_magnitude": "fits operandwidth",
+        "signed_mov_aliases": [
+          "s32",
+          "s64"
+        ],
+        "general_constant_expressions": false,
+        "signed_offsets": false
+      },
+      "test_ids": [
+        "crates/ct-ptx/tests/immediates.rs#signed_literals_preserve_exact_bits_at_declared_operand_width",
+        "crates/ct-ptx/tests/immediates.rs#signed_literals_reject_range_errors_and_other_expressions",
+        "tests/m3o_immediates_check.py#def literals",
+        "tests/m3o_immediates_check.py#def run_case",
+        "crates/ct-ptx/tests/immediates.rs#conversion_literal_range_and_bits_follow_source_width"
       ]
     }
   ]

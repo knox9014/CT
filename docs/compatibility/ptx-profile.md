@@ -1,4 +1,4 @@
-# Experimental PTX profile through M3n
+# Experimental PTX profile through M3o
 
 CT parses instructions into typed control-flow IR and emits SPIR-V 1.0 Kernel/OpenCL with Physical64 addressing. Intel Level Zero compiles and executes it. Kernel names do not select replacement implementations.
 
@@ -13,7 +13,7 @@ CT parses instructions into typed control-flow IR and emits SPIR-V 1.0 Kernel/Op
 - Per entry: at most256 registers,128 blocks,4,096 non-control instructions and32 parameters. Register/parameter/label scopes are independent. Identifiers use letters, digits, `_`, `$`, without a leading digit; maximum128 characters. Single `_` or `$` is rejected. Duplicate entry names or collisions with module globals are rejected.
 - All blocks must be reachable. Every register must be defined on every incoming path before use, including loop-carried values.
 
-Integer constants support decimal, `0x` hexadecimal and leading-zero octal. Invalid octal such as `08` is rejected. Floating constants use `0fXXXXXXXX` bit notation. This is narrower than full PTX syntax.
+Integer instruction constants support decimal, `0x` hexadecimal and leading-zero octal, with one optional unary `+`/`-`. Positive magnitudes fit the operand width; negative magnitude is at most2^(width-1), converted to two's-complement bits. Invalid octal such as `08` is rejected. No U suffix, compound expression, signed register/builtin/float/predicate or signed address-offset/initializer support. Floating constants use `0fXXXXXXXX` bit notation. This is narrower than full PTX syntax; see [M3o evidence](../M3o-RESULTS.md).
 
 ## Instructions
 
@@ -21,7 +21,7 @@ Integer constants support decimal, `0x` hexadecimal and leading-zero octal. Inva
 | --- | --- |
 | Parameters | `ld.param.u/b/s32`, `ld.param.u/b/s64`, `ld.param.f32`, matching parameter width/kind |
 | Global memory | `ld.global`/`st.global` `.u/b/s32`, `.u/b/s64`, `.f32`; 64-bit address with optional nonnegative naturally aligned byte offset4/8 |
-| Move/address | `mov.u32`, `mov.b32`, `mov.u64`, `mov.b64`, `mov.f32`, `cvta.to.global.u64` |
+| Move/address | `mov.u32`, `mov.b32`, `mov.s32`, `mov.u64`, `mov.b64`, `mov.s64`, `mov.f32`, `cvta.to.global.u64` |
 | Modular integer arithmetic | `add/sub/mul.lo/mad.lo` for `.s32/.u32/.s64/.u64`; low-width result bits, including overflow |
 | Other integer arithmetic | `mul.wide.u32`, `div.u32`, `rem.u32`; `mul.wide.s32` sign-extends both operands before a64-bit product |
 | Integer extrema/unary | `min/max.s32/u32/s64/u64`, `abs/neg.s32/s64`; no packed/relu variants |
@@ -40,7 +40,7 @@ Logical shifts with counts >= width return zero; arithmetic right shifts return
 sign fill. Bounded counts avoid undefined SPIR-V shifts;64-bit shifts normalize
 the bounded count internally to the base width. No float conversion, saturation or8/16-bit types are implied. Scalar64 ABI is the separate M3k extension below. See [M3j evidence](../M3j-RESULTS.md).
 
-Unknown directives/modifiers, unsupported predication and mismatched types are rejected. Signed operations interpret existing 32/64-bit register contents; signed register declarations are bit-container aliases; negative-token immediates remain unsupported. Synthetic signed tests use hexadecimal two's-complement bits. Signed division, saturation/carry/high-result variants, division by zero, NaNs, infinities, denormals and uncommon rounding behavior remain outside the validated workload. Modular multiply/add uses width-matched integer operations at both stages; see [M3l evidence](../M3l-RESULTS.md). Finite test inputs do not establish full PTX floating-point conformance.
+Unknown directives/modifiers, unsupported predication and mismatched types are rejected. Signed operations interpret existing 32/64-bit register contents; signed register declarations are bit-container aliases; negative integer immediates use the bounded M3o rule above. Signed tests include both literal signs and hexadecimal two's-complement bits. Signed division, saturation/carry/high-result variants, division by zero, NaNs, infinities, denormals and uncommon rounding behavior remain outside the validated workload. Modular multiply/add uses width-matched integer operations at both stages; see [M3l evidence](../M3l-RESULTS.md). Finite test inputs do not establish full PTX floating-point conformance.
 
 ## Launch and trust boundary
 
