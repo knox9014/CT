@@ -22,7 +22,9 @@ Reference: [PTX constant evaluation](https://docs.nvidia.com/cuda/archive/12.1.1
 - [x] Full Rust/Python/fmt/Clippy and M3n/M3m/M3k regressions including C/CLI;
   docs/manifest, independent subagent review. Conversion source-width coverage
   suggestion addressed; no deferred findings.
-- [ ] Final privacy scans and stacked draft on M3n, no merge.
+- [x] Final privacy/identity scans passed; stacked
+  [draft PR18](https://github.com/knox9014/CT/pull/18) on M3n created and attached;
+  no merge.
   Preserve/exclude preexisting license/Cargo/README changes.
 
 Review focus: signed minimum without host overflow, no truncation/range bypass,
