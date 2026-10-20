@@ -143,6 +143,13 @@ impl Writer {
                 let oversized = self.result(174, 2, &[ids[1], limit]);
                 // SPIR-V shifts must never see counts >= the base bit width.
                 let safe = self.result(169, 3, &[oversized, max_shift, ids[1]]);
+                // Keep PTX counts U32, then normalize the bounded count to the
+                // base width for the native compiler's integer shift lowering.
+                let safe = if t == Ty::U64 {
+                    self.result(113, 4, &[safe])
+                } else {
+                    safe
+                };
                 if op == Op::SignedShr {
                     let signed_type = if t == Ty::U64 { 14 } else { 13 };
                     let base = self.result(124, signed_type, &[ids[0]]);

@@ -46,8 +46,14 @@ fn every_shift_uses_a_bounded_u32_count_and_oversized_logical_result_select() {
         .collect();
     assert_eq!(shifts.len(), 3);
     assert_eq!(safe.len(), 3);
+    let normalized: std::collections::BTreeSet<_> = ops
+        .iter()
+        .filter(|(op, a)| *op == 113 && a[0] == 4 && safe.contains(&a[2]))
+        .map(|(_, a)| a[1])
+        .collect();
+    assert_eq!(normalized.len(), 3);
     for (_, a) in shifts {
-        assert!(safe.contains(&a[3]));
+        assert!(normalized.contains(&a[3]));
     }
     assert_eq!(
         ops.iter().filter(|(op, a)| *op == 169 && a[0] == 4).count(),

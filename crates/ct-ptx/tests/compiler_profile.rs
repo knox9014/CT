@@ -59,6 +59,9 @@ fn rejects_ambiguous_u64_and_accepts_proven_pointer_parameters() {
     assert_eq!(parse(&text).unwrap().params[0].kind, ParamKind::Pointer);
     assert!(parse(&compiler_shape()).is_err());
     assert!(parse(&text.replace("cvta.to.global.u64 %rd1, %rd7;", "mov.u64 %rd1, %rd7;")).is_err());
+    assert!(
+        parse(&text.replace("cvta.to.global.u64 %rd1, %rd7;", "cvt.u64.u64 %rd1, %rd7;")).is_err()
+    );
     assert!(parse(&text.replace(
         "cvta.to.global.u64 %rd1, %rd7;",
         "cvta.to.global.u64 %rd1, %rd7; mov.u64 %rd7, 0;"
