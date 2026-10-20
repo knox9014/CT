@@ -38,7 +38,7 @@ DLL before modifications, never reset other work or merge main.
   guards through public CLI. Verify Rust including native/producer, Python19,
   native ABI and M2/M3c/M3f/M3g affected regressions. Run official validator if
   available; otherwise explicit skip. Record exact executed counts.
-- [ ] Update results, profile manifest and support docs without marking all P03
+- [x] Update results, profile manifest and support docs without marking all P03
   complete. Review, publication/identity scans, commit, push, stacked draft PR,
   attach artifact. No merge.
 

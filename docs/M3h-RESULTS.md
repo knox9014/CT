@@ -89,5 +89,14 @@ and coexistence, device loss and full CUDA error precedence remain unverified.
 No new arithmetic, vector/structure ABI, Runtime, shared/warp/barrier, stored
 global or device-function support is claimed.
 
+## Independent review
+
+A fresh-context whole-branch review found no actionable findings. The reviewer
+independently passed24 targeted Rust tests, the26-case Arc harness with identical
+output/guard counts and rejection/recovery results, the manifest and diff checks.
+It inspected existing C/stress evidence without rerunning those checks. Actual
+driver failure, giant launches, other GPUs, deferred CUDA features and exact
+multiple-invalid-input error precedence remain outside this verified slice.
+
 References: [PTX special registers](https://docs.nvidia.com/cuda/parallel-thread-execution/index.html),
 [Level Zero device limits](https://oneapi-src.github.io/level-zero-spec/level-zero/1.18.31/core/api/apis/device.html).
