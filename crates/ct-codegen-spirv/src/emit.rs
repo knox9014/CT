@@ -106,7 +106,9 @@ impl Writer {
             .map(|(i, v)| {
                 self.read(
                     v,
-                    if op == Op::Select && i == 2 {
+                    if matches!(op, Op::Shl | Op::Shr | Op::SignedShr) && i == 1 {
+                        Ty::U32
+                    } else if op == Op::Select && i == 2 {
                         Ty::Pred
                     } else {
                         t
@@ -118,6 +120,41 @@ impl Writer {
         let tid = type_id(t);
         let id = match op {
             Op::Mov | Op::Cvta => return ids[0],
+            Op::Convert { to, signed } => {
+                if to == t {
+                    return ids[0];
+                }
+                if signed && t == Ty::U32 && to == Ty::U64 {
+                    let signed_input = self.result(124, 13, &[ids[0]]);
+                    let wide = self.result(114, 14, &[signed_input]);
+                    self.result(124, 4, &[wide])
+                } else {
+                    self.result(113, type_id(to), &ids)
+                }
+            }
+            Op::And => self.result(199, tid, &ids),
+            Op::Or => self.result(197, tid, &ids),
+            Op::Xor => self.result(198, tid, &ids),
+            Op::Not => self.result(200, tid, &ids),
+            Op::Shl | Op::Shr | Op::SignedShr => {
+                let width = if t == Ty::U64 { 64 } else { 32 };
+                let limit = self.constant(Ty::U32, width);
+                let max_shift = self.constant(Ty::U32, width - 1);
+                let oversized = self.result(174, 2, &[ids[1], limit]);
+                // SPIR-V shifts must never see counts >= the base bit width.
+                let safe = self.result(169, 3, &[oversized, max_shift, ids[1]]);
+                if op == Op::SignedShr {
+                    let signed_type = if t == Ty::U64 { 14 } else { 13 };
+                    let base = self.result(124, signed_type, &[ids[0]]);
+                    let shifted = self.result(195, signed_type, &[base, safe]);
+                    self.result(124, tid, &[shifted])
+                } else {
+                    let shifted =
+                        self.result(if op == Op::Shl { 196 } else { 194 }, tid, &[ids[0], safe]);
+                    let zero = self.constant(t, 0);
+                    self.result(169, tid, &[oversized, zero, shifted])
+                }
+            }
             Op::Add => self.result(if is_float { 129 } else { 128 }, tid, &ids),
             Op::Sub => self.result(if is_float { 131 } else { 130 }, tid, &ids),
             Op::Mul => self.result(if is_float { 133 } else { 132 }, tid, &ids),

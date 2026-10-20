@@ -22,6 +22,41 @@ fn instructions(bytes: &[u8]) -> Vec<(u32, Vec<u32>)> {
 }
 
 #[test]
+fn integer_conversion_uses_source_signedness_and_correct_result_width() {
+    let text=".version 7.0 .target sm_50 .address_size 64 .visible .entry c() { .reg .b32 %r; .reg .b64 %d; mov.u32 %r, 0xffffffff; cvt.u64.s32 %d, %r; cvt.s64.u32 %d, %r; cvt.s32.s64 %r, %d; cvt.s32.u32 %r, %r; ret; }";
+    let ops = instructions(&translate(text).unwrap().spirv);
+    assert!(ops.iter().any(|(op, a)| *op == 114 && a[0] == 14));
+    assert!(ops.iter().any(|(op, a)| *op == 113 && a[0] == 4));
+    assert!(ops.iter().any(|(op, a)| *op == 113 && a[0] == 3));
+    assert_eq!(ops.iter().filter(|(op, _)| *op == 114).count(), 1);
+}
+
+#[test]
+fn every_shift_uses_a_bounded_u32_count_and_oversized_logical_result_select() {
+    let text=".version 7.0 .target sm_50 .address_size 64 .visible .entry s() { .reg .b32 %c; .reg .b64 %d; mov.u32 %c, 64; shl.b64 %d, 1, %c; shr.u64 %d, %d, %c; shr.s64 %d, %d, %c; ret; }";
+    let ops = instructions(&translate(text).unwrap().spirv);
+    let safe: std::collections::BTreeSet<_> = ops
+        .iter()
+        .filter(|(op, a)| *op == 169 && a[0] == 3)
+        .map(|(_, a)| a[1])
+        .collect();
+    let shifts: Vec<_> = ops
+        .iter()
+        .filter(|(op, _)| (194..=196).contains(op))
+        .collect();
+    assert_eq!(shifts.len(), 3);
+    assert_eq!(safe.len(), 3);
+    for (_, a) in shifts {
+        assert!(safe.contains(&a[3]));
+    }
+    assert_eq!(
+        ops.iter().filter(|(op, a)| *op == 169 && a[0] == 4).count(),
+        2
+    );
+    assert_eq!(ops.iter().filter(|(op, _)| *op == 174).count(), 3);
+}
+
+#[test]
 fn extracts_each_axis_and_shares_builtin_vectors_across_entries() {
     let mut body = String::new();
     for name in ["nctaid", "ntid", "ctaid", "tid"] {
