@@ -6,7 +6,7 @@ CT aims to develop a general-purpose translation and compatibility layer for run
 
 ## Project status / 현재 상태
 
-**M3i: deterministic native-failure containment probes passed. M3h / P03a 2D/3D CUDA execution remains verified on Intel Arc B390.**
+**M3j / P03b: bounded32/64-bit integer conversions, bitwise and shift operations passed CPU-oracle checks on Intel Arc B390.**
 
 현재는 초기 개발 단계입니다. Windows의 Intel Arc B390에서 제한된 PTX를 SPIR-V로 번역해 실제 GPU에서 실행합니다. 벡터 덧셈·SAXPY·ReLU·행렬 곱셈 4개 커널의 53개 조합에서 출력 606,660개와 가드 값 4,992개를 검증했습니다. API는 26개 심볼이며, M1 메모리·컨텍스트 검사 210개도 통과했습니다. 외부 CUDA 앱의 일반적인 호환성, CUDA 라이브러리 및 AMD 지원은 아직 확보하지 못했습니다.
 
@@ -31,6 +31,8 @@ M3f에서는 알려진 두 프로파일의 대체 PTX를 검증하고 순서에 
 M3g에서는 하나의 모듈에 최대32개 kernel entry를 담고 각각 조회·실행합니다. 덧셈·뺄셈·다른 인자 ABI의 채우기 커널을 실제 Arc144개 조합에서 실행해 출력1,210,800개·가드9,216개를 검증했습니다. 모듈·컨텍스트별 핸들 수명, 부분 생성/해제 실패 시험, 독립 CUDA C 소비자와 공개 CLI도 통과했습니다. 아직 제한된 문법·동기1D 실행이며 저장된 전역 변수·device 함수·Runtime·AMD는 지원하지 않습니다. [M3g 결과](docs/M3g-RESULTS.md)
 
 ## Development plan / 개발 계획
+
+M3j에서는32·64비트 정수 변환과 비트/시프트 연산32개 표기를 추가했습니다. CPU 정답504종을 두 seed·두 프로파일·raw/압축 형식으로 검사해4,032개 비교와 가드10,752개가 통과했습니다. 별도 CUDA C/CLI 연결, 기존 다차원 실행과 오류 차단 검사도 통과했습니다. P03의 정수·인자 형식 전체를 완성한 것은 아닙니다. [M3j 결과](docs/M3j-RESULTS.md)
 
 M3i에서는 실제 GPU를 중단시키지 않고 native 오류를 주입해 실패 보고·후속 연산 차단·자원 보존을 검사했습니다. 설정/할당 단계의 치명적 오류와 해제·빌드 로그 정리 실패 처리를 보완했고 Rust64개·Python19개 및 실제 Arc 정상 경로가 통과했습니다. 오류 주입은 테스트 빌드에만 포함되며 실제 드라이버 재시작·자동 복구는 검증하지 않았습니다. [M3i 결과](docs/M3i-RESULTS.md)
 

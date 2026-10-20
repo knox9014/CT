@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "baseline": "f8f2d78",
+  "baseline": "e594634",
   "platform": {
     "os": "Windows",
     "host": "x64",
@@ -779,6 +779,39 @@
         "crates/ct-backend-intel/src/fault_tests.rs#fatal_setup_errors_poison_but_ordinary_setup_errors_allow_a_later_launch",
         "crates/ct-backend-intel/src/fault_tests.rs#module_build_log_failure_preserves_primary_error_and_stops_native_cleanup",
         "crates/ct-cuda/src/lib.rs#native_failures_never_map_to_success_and_oom_keeps_its_cuda_category"
+      ]
+    },
+    {
+      "id": "ptx.integer_bits",
+      "state": "experimental",
+      "limits": {
+        "cvt_formats": [
+          "s32",
+          "u32",
+          "s64",
+          "u64"
+        ],
+        "bitwise": [
+          "and",
+          "or",
+          "xor",
+          "not"
+        ],
+        "shifts": [
+          "shl.b32/b64",
+          "shr.b32/b64/u32/u64/s32/s64"
+        ],
+        "shift_count": "U32; bounded then internally widened for64-bit base",
+        "oversized_shift": "logical zero; arithmetic sign fill",
+        "new_parameter_kinds": false,
+        "float_conversion": false,
+        "saturation": false
+      },
+      "test_ids": [
+        "crates/ct-ptx/tests/integer.rs#converts_all_signed_unsigned_width_pairs_with_source_semantics",
+        "crates/ct-codegen-spirv/tests/translation.rs#every_shift_uses_a_bounded_u32_count_and_oversized_logical_result_select",
+        "tests/m3j_integer_check.py#def oracle",
+        "tests/m3j_cuda_app.c#main"
       ]
     }
   ]
