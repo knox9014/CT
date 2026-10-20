@@ -187,8 +187,8 @@ impl Writer {
                 self.result(124, 4, &[product])
             }
             Op::Mad => {
-                let product = self.result(132, 3, &ids[..2]);
-                self.result(128, 3, &[product, ids[2]])
+                let product = self.result(132, tid, &ids[..2]);
+                self.result(128, tid, &[product, ids[2]])
             }
             Op::Div => self.result(134, tid, &ids),
             Op::Rem => self.result(137, tid, &ids),
