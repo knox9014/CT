@@ -14,17 +14,18 @@ Reference: [PTX integer arithmetic](https://docs.nvidia.com/cuda/archive/12.1.1/
 
 ## Steps
 
-- [ ] Parser tests cover16 spellings and reject wrong width/arity/modifiers;
+- [x] Parser tests cover16 spellings and reject wrong width/arity/modifiers;
   observe unsupported-source RED then reuse existing Op variants.
-- [ ] Codegen test verifies64-bit mad product and sum; observe RED then
+- [x] Codegen test verifies64-bit mad product and sum; observe RED then
   replace hardcoded U32 result IDs with the operation type. Run Rust/lint.
-- [ ] Native Driver API harness loads generated generic kernels with input
+- [x] Native Driver API harness loads generated generic kernels with input
   arrays, exact Python modular oracle,32/64-bit high-bit/boundary values,
   sizes1/63/64/65/257/50000, guards and unchanged inputs. Test raw/plain/
   compressed/alternative PTX; preserve baseline rejection and hash.
-- [ ] Run existing M3j/M3k regressions including official-header C consumer;
-  update profile/results, independent subagent review, privacy scans and
-  stacked draft PR on M3k. No merge.
+- [x] Run existing M3j/M3k regressions including official-header C consumer;
+  update profile/results, independent subagent review (no actionable findings).
+- [ ] Final publication privacy/identity scans and stacked draft PR on M3k.
+  No merge.
 
 ## Review focus
 
