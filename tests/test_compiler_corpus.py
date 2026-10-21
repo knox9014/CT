@@ -15,6 +15,11 @@ from run_compiler_corpus import CorpusContext, run_case, validate_corpus, verify
 
 
 class CorpusTests(unittest.TestCase):
+    def test_existing_hook_and_assembly_lf_policies_are_preserved(self):
+        for name in ('.githooks/pre-push', 'tests/fixtures/vector_add.spvasm'):
+            result = subprocess.check_output(['git', 'check-attr', 'eol', '--', name], cwd=ROOT)
+            self.assertTrue(result.decode().strip().endswith(': eol: lf'), name)
+
     def test_public_corpus_inputs_have_portable_lf_hashes(self):
         data = json.loads((ROOT/'docs/compatibility/producer-corpus-v1.json').read_text())
         self.assertEqual(validate_corpus(data, ROOT, {'nvrtc'}), [])
