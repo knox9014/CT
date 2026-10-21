@@ -15,7 +15,7 @@ Use CUDA base names, such as `cuMemAlloc`, not exported suffix spellings like `c
 | cuModuleLoadData, cuModuleGetFunction, cuModuleUnload | 2000 | same-name export |
 | cuDriverGetVersion | 2020 | same-name export; still returns NOT_SUPPORTED and zero |
 | cuCtxCreate | 3020 | cuCtxCreate_v2, only through requested version 11039 |
-| cuMemAlloc, cuMemFree, cuMemcpyHtoD, cuMemcpyDtoH | 3020 | corresponding `_v2` export |
+| cuMemAlloc, cuMemFree, cuMemcpyHtoD, cuMemcpyDtoH, cuMemcpyDtoD, cuMemsetD8, cuMemsetD16, cuMemsetD32 | 3020 | corresponding `_v2` export |
 | cuCtxDestroy, cuCtxPushCurrent, cuCtxPopCurrent | 4000 | corresponding `_v2` export |
 | cuCtxGetCurrent, cuCtxSetCurrent, cuLaunchKernel | 4000 | same-name export |
 | cuGetErrorName, cuGetErrorString | 6000 | same-name export |

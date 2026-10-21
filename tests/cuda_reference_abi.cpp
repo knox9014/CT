@@ -29,6 +29,10 @@ int main() {
     PROBE(cuMemFree_v2, cuMemFree_v3020);
     PROBE(cuMemcpyHtoD_v2, cuMemcpyHtoD_v3020);
     PROBE(cuMemcpyDtoH_v2, cuMemcpyDtoH_v3020);
+    PROBE(cuMemcpyDtoD_v2, cuMemcpyDtoD_v3020);
+    PROBE(cuMemsetD8_v2, cuMemsetD8_v3020);
+    PROBE(cuMemsetD16_v2, cuMemsetD16_v3020);
+    PROBE(cuMemsetD32_v2, cuMemsetD32_v3020);
     PROBE(cuGetErrorName, cuGetErrorName_v6000);
     PROBE(cuGetErrorString, cuGetErrorString_v6000);
     PROBE(cuModuleLoadData, cuModuleLoadData_v2000);

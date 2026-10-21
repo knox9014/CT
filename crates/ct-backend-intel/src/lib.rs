@@ -42,6 +42,8 @@ pub struct Backend {
 pub struct Context {
     native: usize,
     list: usize,
+    max_fill_pattern: usize,
+    retained_patterns: Vec<Box<[u8]>>,
     pub device: usize,
     pub poisoned: bool,
     staging: Vec<usize>,
@@ -222,6 +224,8 @@ impl Backend {
             Ok(Context {
                 native: context as usize,
                 list: list as usize,
+                max_fill_pattern: props[ordinal as usize].max_fill_size,
+                retained_patterns: Vec::new(),
                 device: index,
                 poisoned: false,
                 staging: Vec::new(),
@@ -368,6 +372,112 @@ impl Backend {
         }
         c.staging.pop();
         Ok(())
+    }
+    /// The caller validates both owned ranges and excludes overlap.
+    pub fn copy_device(
+        &self,
+        c: &mut Context,
+        destination: u64,
+        source: u64,
+        size: usize,
+    ) -> NativeResult<()> {
+        if c.poisoned {
+            return Err(UNKNOWN);
+        }
+        if size == 0 {
+            return Ok(());
+        }
+        let result = unsafe {
+            ze!(
+                self.api,
+                "zeCommandListAppendMemoryCopy",
+                (
+                    Handle,
+                    Handle,
+                    *const c_void,
+                    usize,
+                    Handle,
+                    u32,
+                    *mut Handle
+                ),
+                (
+                    c.list as Handle,
+                    destination as Handle,
+                    source as *const c_void,
+                    size,
+                    null_mut(),
+                    0,
+                    null_mut()
+                )
+            )
+        };
+        self.observe_submission(c, result)
+    }
+    /// The caller validates ownership, alignment, and count multiplication.
+    pub fn fill_device(
+        &self,
+        c: &mut Context,
+        destination: u64,
+        value: u32,
+        width: usize,
+        size: usize,
+    ) -> NativeResult<()> {
+        if c.poisoned {
+            return Err(UNKNOWN);
+        }
+        if !matches!(width, 1 | 2 | 4)
+            || !destination.is_multiple_of(width as u64)
+            || !size.is_multiple_of(width)
+        {
+            return Err(BAD_ARGUMENT);
+        }
+        if size == 0 {
+            return Ok(());
+        }
+        if width > c.max_fill_pattern {
+            return Err(0x78000003);
+        }
+        // Keep pattern storage alive even if a failed append leaves completion
+        // uncertain. Synchronous-list success establishes safe reclamation.
+        c.retained_patterns
+            .push(value.to_le_bytes().to_vec().into_boxed_slice());
+        let pattern = c.retained_patterns.last().unwrap();
+        let result = unsafe {
+            ze!(
+                self.api,
+                "zeCommandListAppendMemoryFill",
+                (
+                    Handle,
+                    Handle,
+                    *const c_void,
+                    usize,
+                    usize,
+                    Handle,
+                    u32,
+                    *mut Handle
+                ),
+                (
+                    c.list as Handle,
+                    destination as Handle,
+                    pattern.as_ptr().cast(),
+                    width,
+                    size,
+                    null_mut(),
+                    0,
+                    null_mut()
+                )
+            )
+        };
+        self.observe_submission(c, result)?;
+        c.retained_patterns.pop();
+        Ok(())
+    }
+    fn observe_submission(&self, c: &mut Context, result: NativeResult<()>) -> NativeResult<()> {
+        if result.is_err() {
+            c.poisoned = true;
+            self.api.keep_loaded.set(true);
+        }
+        result
     }
     pub fn synchronize(&self, c: &mut Context) -> NativeResult<()> {
         if c.poisoned {

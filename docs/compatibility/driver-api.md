@@ -152,3 +152,43 @@ require that minimum current-context allocation span. Alternative images must
 match both argument kind and alignment. Unannotated u64 scalar inference and
 packed/vector/structure arguments remain unsupported. See the restricted
 [PTX contract](ptx-profile.md) and [M3k native evidence](../M3k-RESULTS.md).
+
+
+## P06a device copy and typed fill slice
+
+Four new Windows x64 exports bring the total to36: `cuMemcpyDtoD_v2`,
+`cuMemsetD8_v2`, `cuMemsetD16_v2` and `cuMemsetD32_v2`. Canonical lookup names
+select these v3020 ABIs through the existing12000 ceiling; PTDS/async and legacy
+32-bit-size signatures remain unavailable. See [CUDA12.0.1 memory APIs](https://docs.nvidia.com/cuda/archive/12.0.1/cuda-driver-api/group__CUDA__MEM.html).
+
+Both copy ranges must belong to the current context and fit inside individual
+allocations. Interior offsets and nonoverlapping regions in one allocation are
+accepted. Positive overlapping regions, including identical pointers, return1;
+CT does not provide memmove or peer-context semantics. This overlap rejection is
+an explicit supported-profile restriction, not a claimed NVIDIA error contract.
+Fill counts are elements: D8/D16/D32 repeat1/2/4-byte values with checked count
+multiplication and required1/2/4-byte destination alignment. Typed values retain
+all their bits; D16/D32 are not low-byte memset substitutions.
+
+Current-context validation precedes argument validation. Poisoned contexts
+return999 before any no-op or native operation. Invalid/null/overflowing,
+foreign, freed and out-of-range pointers return1. Zero count requires an owned
+interior address (and typed alignment), performs no native work, and accepts no
+null or otherwise unowned address. An address numerically at one allocation's
+end may validly begin another allocation; pointers carry no allocation provenance.
+Zero/overlap/repeated stale-address NVIDIA parity is unverified. Raw address
+reuse after another allocation remains possible.
+
+Native D2D uses direct Level Zero memory copy without host staging. Fill checks
+the selected command queue group's maximum pattern size before submitting:
+positive unsupported widths return801 without poisoning or mutation. Zero fill
+requires no hardware pattern capability. Pattern storage remains owned until
+successful synchronous completion; uncertain append failure retains it and
+poisons the context, preserving the existing resource quarantine policy.
+See [Level Zero fill contract](https://oneapi-src.github.io/level-zero-spec/level-zero/1.18.31/core/api/apis/command_list.html#zecommandlistappendmemoryfill).
+
+CT completes eagerly using its synchronous immediate list and serializes calls.
+CUDA D2D and device memset can return without host synchronization; this slice
+does not establish CUDA timing, default-stream concurrency, asynchronous or
+per-thread stream equivalence. See [CUDA synchronization](https://docs.nvidia.com/cuda/archive/12.0.1/cuda-driver-api/api-sync-behavior.html).
+P06a pointer properties, UVA/managed/pinned/peer memory and2D/3D remain separate.

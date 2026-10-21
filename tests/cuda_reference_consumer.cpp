@@ -46,6 +46,15 @@ int wmain(int argc, wchar_t **argv) {
     if (new_query("cuDevicePrimaryCtxReset", &function, 11000, 0, &status) || function != reinterpret_cast<void *>(reset) || status != CU_GET_PROC_ADDRESS_SUCCESS) return 1;
     if (new_query("cuDevicePrimaryCtxRelease", &function, 10999, 0, &status) || function || status != CU_GET_PROC_ADDRESS_VERSION_NOT_SUFFICIENT) return 1;
     if (new_query("cuDevicePrimaryCtxRelease", &function, 11000, 0, &status) || function != reinterpret_cast<void *>(release) || status != CU_GET_PROC_ADDRESS_SUCCESS) return 1;
+    auto copy = reinterpret_cast<PFN_cuMemcpyDtoD_v3020>(GetProcAddress(dll, "cuMemcpyDtoD_v2"));
+    auto fill8 = reinterpret_cast<PFN_cuMemsetD8_v3020>(GetProcAddress(dll, "cuMemsetD8_v2"));
+    auto fill16 = reinterpret_cast<PFN_cuMemsetD16_v3020>(GetProcAddress(dll, "cuMemsetD16_v2"));
+    auto fill32 = reinterpret_cast<PFN_cuMemsetD32_v3020>(GetProcAddress(dll, "cuMemsetD32_v2"));
+    if (!copy || !fill8 || !fill16 || !fill32) return 1;
+    if (copy(0, 0, 0) != CUDA_ERROR_NOT_INITIALIZED ||
+        fill8(0, 0x78, 0) != CUDA_ERROR_NOT_INITIALIZED ||
+        fill16(0, 0x5678, 0) != CUDA_ERROR_NOT_INITIALIZED ||
+        fill32(0, 0x12345678, 0) != CUDA_ERROR_NOT_INITIALIZED) return 1;
     FreeLibrary(dll);
     std::puts("Official PFN consumer: error mapping, resolver ABI versions and primary calls passed.");
 }

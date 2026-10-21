@@ -34,7 +34,9 @@ struct OwnedFunction {
 mod context_stack;
 mod entrypoints;
 mod images;
+mod memory;
 mod modules;
+pub use memory::{cuMemcpyDtoD_v2, cuMemsetD16_v2, cuMemsetD32_v2, cuMemsetD8_v2};
 mod primary;
 mod primary_state;
 pub use entrypoints::{cuGetProcAddress, cuGetProcAddress_v2};
