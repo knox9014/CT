@@ -17,6 +17,8 @@ Use CUDA base names, such as `cuMemAlloc`, not exported suffix spellings like `c
 | cuCtxCreate | 3020 | cuCtxCreate_v2, only through requested version 11039 |
 | cuMemAlloc, cuMemFree, cuMemcpyHtoD, cuMemcpyDtoH, cuMemcpyDtoD, cuMemsetD8, cuMemsetD16, cuMemsetD32 | 3020 | corresponding `_v2` export |
 | cuCtxDestroy, cuCtxPushCurrent, cuCtxPopCurrent | 4000 | corresponding `_v2` export |
+| cuMemGetAddressRange | 3020 | cuMemGetAddressRange_v2; current-context live allocations |
+| cuPointerGetAttribute | 4000 | same-name export; attributes8/9/11/12 only |
 | cuCtxGetCurrent, cuCtxSetCurrent, cuLaunchKernel | 4000 | same-name export |
 | cuGetErrorName, cuGetErrorString | 6000 | same-name export |
 | cuDevicePrimaryCtxRetain, cuDevicePrimaryCtxGetState | 7000 | same-name export; default-flags P05a subset |

@@ -143,6 +143,8 @@ def steps(lane, validator, lock):
     arc.append(('arc.context_destroy','native',['pwsh','-NoProfile','-File','scripts/run_p05d_smoke.ps1']))
     # Catalog marker: arc.device_memory
     arc.append(('arc.device_memory','native',['pwsh','-NoProfile','-File','scripts/run_p06a_smoke.ps1']))
+    # Catalog marker: arc.memory_queries
+    arc.append(('arc.memory_queries','native',['pwsh','-NoProfile','-File','scripts/run_p06q_smoke.ps1']))
     combined=cpu+validator_steps+producer+arc+[
         ('combined.all','semantic',['cargo','test','--workspace','--','--include-ignored'])]
     return {'cpu':cpu,'validator':validator_steps,'producer':producer,'arc':arc,'combined':combined}[lane]
@@ -168,7 +170,7 @@ def configuration(root, lane, selected):
                 artifacts[variant+'_fatbin']=hashlib.sha256((root/'.cache/reference/m3e'/(variant+'.fatbin')).read_bytes()).hexdigest()
         config['cases'].append(dict(case_id=name,test_id=test_id,execution_kind=kind,application_id=None,
             parameters=parameters,artifact_requirements=artifacts,
-            tool_ids=['spirv-val'] if kind=='validator' or (corpus_case and corpus_case['expected_class']=='supported') else ['cuda-headers'] if name in ('arc.cuda.abi','arc.device_memory') else []))
+            tool_ids=['spirv-val'] if kind=='validator' or (corpus_case and corpus_case['expected_class']=='supported') else ['cuda-headers'] if name in ('arc.cuda.abi','arc.device_memory','arc.memory_queries') else []))
     return config
 
 

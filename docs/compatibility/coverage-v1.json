@@ -1547,6 +1547,78 @@
           "scripts/run_validation.py#arc.device_memory"
         ]
       }
+    },
+    {
+      "id": "driver.cuMemGetAddressRange_v2",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "range_current_context_only": true,
+        "pointer_attributes": [
+          8,
+          9,
+          11,
+          12
+        ],
+        "pointer_query": "unique live allocation metadata independent of current context",
+        "uva_context_and_memory_type": false,
+        "error_output": "unchanged",
+        "ambiguous_owner": "unsupported",
+        "raw_address_reuse": true
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [
+          "tests/cuda_reference_abi.cpp#main"
+        ],
+        "semantic": [
+          "crates/ct-core/src/lib.rs#allocation_lookup_distinguishes_adjacent_ranges_gaps_and_removed_entries",
+          "crates/ct-cuda/src/memory_queries.rs#metadata_rejects_ambiguous_poisoned_and_missing_allocations",
+          "crates/ct-cuda/src/memory_queries.rs#pointer_attribute_policy_distinguishes_known_unsupported_and_unknown"
+        ],
+        "native": [
+          "tests/p06q_query_app.c#main",
+          "scripts/run_validation.py#arc.memory_queries"
+        ]
+      }
+    },
+    {
+      "id": "driver.cuPointerGetAttribute",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "range_current_context_only": true,
+        "pointer_attributes": [
+          8,
+          9,
+          11,
+          12
+        ],
+        "pointer_query": "unique live allocation metadata independent of current context",
+        "uva_context_and_memory_type": false,
+        "error_output": "unchanged",
+        "ambiguous_owner": "unsupported",
+        "raw_address_reuse": true
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [
+          "tests/cuda_reference_abi.cpp#main"
+        ],
+        "semantic": [
+          "crates/ct-core/src/lib.rs#allocation_lookup_distinguishes_adjacent_ranges_gaps_and_removed_entries",
+          "crates/ct-cuda/src/memory_queries.rs#metadata_rejects_ambiguous_poisoned_and_missing_allocations",
+          "crates/ct-cuda/src/memory_queries.rs#pointer_attribute_policy_distinguishes_known_unsupported_and_unknown"
+        ],
+        "native": [
+          "tests/p06q_query_app.c#main",
+          "scripts/run_validation.py#arc.memory_queries"
+        ]
+      }
     }
   ],
   "test_catalog": [
@@ -1964,6 +2036,26 @@
     },
     {
       "id": "scripts/run_validation.py#arc.device_memory",
+      "kind": "native"
+    },
+    {
+      "id": "crates/ct-core/src/lib.rs#allocation_lookup_distinguishes_adjacent_ranges_gaps_and_removed_entries",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-cuda/src/memory_queries.rs#metadata_rejects_ambiguous_poisoned_and_missing_allocations",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-cuda/src/memory_queries.rs#pointer_attribute_policy_distinguishes_known_unsupported_and_unknown",
+      "kind": "semantic"
+    },
+    {
+      "id": "tests/p06q_query_app.c#main",
+      "kind": "native"
+    },
+    {
+      "id": "scripts/run_validation.py#arc.memory_queries",
       "kind": "native"
     }
   ]

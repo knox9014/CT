@@ -37,6 +37,8 @@ typedef struct CTstream *CUstream;
  X(cuCtxSynchronize, (void)) \
  X(cuMemAlloc_v2, (CUdeviceptr *pointer, size_t bytes)) \
  X(cuMemFree_v2, (CUdeviceptr pointer)) \
+ X(cuMemGetAddressRange_v2, (CUdeviceptr *base, size_t *size, CUdeviceptr pointer)) \
+ X(cuPointerGetAttribute, (void *data, int attribute, CUdeviceptr pointer)) \
  X(cuMemcpyHtoD_v2, (CUdeviceptr destination, const void *source, size_t bytes)) \
  X(cuMemcpyDtoH_v2, (void *destination, CUdeviceptr source, size_t bytes)) \
  X(cuMemcpyDtoD_v2, (CUdeviceptr destination, CUdeviceptr source, size_t bytes)) \

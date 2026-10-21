@@ -192,3 +192,44 @@ CUDA D2D and device memset can return without host synchronization; this slice
 does not establish CUDA timing, default-stream concurrency, asynchronous or
 per-thread stream equivalence. See [CUDA synchronization](https://docs.nvidia.com/cuda/archive/12.0.1/cuda-driver-api/api-sync-behavior.html).
 P06a pointer properties, UVA/managed/pinned/peer memory and2D/3D remain separate.
+
+## P06a allocation metadata query slice
+
+`cuMemGetAddressRange_v2` (lookup floor3020) and `cuPointerGetAttribute`
+(floor4000) bring the export count to38. Official contracts:
+[allocation range](https://docs.nvidia.com/cuda/archive/12.0.1/cuda-driver-api/group__CUDA__MEM.html),
+[pointer attributes](https://docs.nvidia.com/cuda/archive/12.0.1/cuda-driver-api/group__CUDA__UNIFIED.html).
+These are metadata-only operations; they submit no GPU commands and change no
+allocation, reference count, TLS state or memory contents.
+
+Address range requires a valid, nonpoisoned current context. It returns the
+entire live allocation containing the pointer, including interior and final-byte
+addresses. Each output is optional, including both null; input validation still
+runs. Unowned addresses return500, no current context201, destroyed current
+context709 and poisoned context999. Errors leave outputs unchanged. This500
+classification is CT's bounded policy, not verified NVIDIA error parity.
+
+Pointer query supports only the following attributes for unique live CT-owned
+device allocations, searching all live contexts independently of caller TLS:
+
+| Attribute | Output storage | Value |
+| --- | --- | --- |
+| IS_MANAGED=8 | unsigned int | 0: native device allocation |
+| DEVICE_ORDINAL=9 | int | owning backend device ordinal |
+| RANGE_START_ADDR=11 | CUdeviceptr | allocation base |
+| RANGE_SIZE=12 | size_t | allocation byte size |
+
+Known attributes1..20 outside this subset return801; unknown enum values return1.
+Null data returns1. Supported queries for unowned/null/freed/retired-context
+addresses return1; multiple live contexts matching the same address return801
+without choosing an owner. A uniquely matching poisoned owner returns999.
+All failures preserve output bytes. Storage must be valid, aligned and large
+enough for the requested type. Address range outputs must not overlap.
+
+CONTEXT=1 and MEMORY_TYPE=2 explicitly require UVA in the CUDA contract and
+remain unsupported. No unified addressing, host/device alias, peer access,
+managed allocation, plural query API or virtual-memory reservation is advertised.
+The supported four scalar metadata queries do not authorize cross-context memory
+access. No-current and stale-TLS pointer query behavior is a documented CT
+policy; exact NVIDIA parity remains unverified. Raw address reuse can identify a
+new allocation, and numeric boundaries may begin a different live allocation.

@@ -12,5 +12,6 @@ int main() {
     std::puts("query:0:1:2");
     std::puts("primary-errors:709");
     std::puts("flags:0:1:2:4:7:8:16:31");
+    std::puts("pointer-attributes:1:2:8:9:11:12:18:20");
     std::puts("attributes:1:2:3:4:5:6:7:20:0");
 }

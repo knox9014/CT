@@ -33,6 +33,11 @@ impl AllocationRanges {
                 address < base + bytes as u64 && end <= base + bytes as u64
             })
     }
+    /// The live allocation containing this address; one-past is excluded.
+    pub fn locate(&self, address: u64) -> Option<(u64, usize)> {
+        let (&base, &bytes) = self.0.range(..=address).next_back()?;
+        (address < base + bytes as u64).then_some((base, bytes))
+    }
     pub fn remove(&mut self, base: u64) -> bool {
         self.0.remove(&base).is_some()
     }
@@ -44,6 +49,20 @@ impl AllocationRanges {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn allocation_lookup_distinguishes_adjacent_ranges_gaps_and_removed_entries() {
+        let mut ranges = AllocationRanges::default();
+        assert!(ranges.insert(0x1000, 16));
+        assert!(ranges.insert(0x1010, 32));
+        assert_eq!(ranges.locate(0x100f), Some((0x1000, 16)));
+        assert_eq!(ranges.locate(0x1010), Some((0x1010, 32)));
+        for address in [0, 0xfff, 0x1030, u64::MAX] {
+            assert_eq!(ranges.locate(address), None);
+        }
+        assert!(ranges.remove(0x1000));
+        assert_eq!(ranges.locate(0x1000), None);
+        assert_eq!(ranges.locate(0x1011), Some((0x1010, 32)));
+    }
     #[test]
     fn accepts_only_owned_nonoverflowing_ranges_and_exact_bases_for_free() {
         let mut ranges = AllocationRanges::default();
