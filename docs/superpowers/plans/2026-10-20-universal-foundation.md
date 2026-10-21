@@ -369,8 +369,8 @@ P05/실제compiler공백/P10설계는첫묶음과병행가능한범위로분리�
 ## Execution record — 2026-10-21
 
 Tasks 1–6 completed as the first bounded foundation at clean candidate
-`54e7f1593faace0f041691d1eed17f6bafafd0a2`: all 26 required combined cases,
-85 normal Rust tests (87 with prepared ignored cases), and 58 Python tests passed.
+`2e2f56ee2fb0021320f99a2a3f347cc2329abdee`: all 26 required combined cases,
+85 normal Rust tests (87 with prepared ignored cases), and 59 Python tests passed.
 See [execution audit](../../CT-INTEGRATION-AUDIT.md) and
 [draft PR #19](https://github.com/knox9014/CT/pull/19). This completes the first
 foundation bundle, not universal CUDA compatibility or a release.
@@ -388,4 +388,5 @@ Recorded rulings and limits:
 - Historical negative-control baseline DLL source revisions remain unverified; their
   exact artifact hashes are bound to configuration. AMD/NVIDIA hardware, broad
   applications and hosted CI outcomes are separate evidence; hosted status is tracked on PR #19.
+- Original hook and SPIR-V assembly LF policies were restored and checked by a regression.
 - Original Cargo/README/LICENSE edits are preserved and excluded from the candidate.

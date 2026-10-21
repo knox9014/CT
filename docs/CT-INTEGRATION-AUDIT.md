@@ -28,9 +28,9 @@ claim general CUDA, Runtime, framework, AMD, or NVIDIA compatibility.
 
 ## Verified clean candidate
 
-Validated 2026-10-21 at `54e7f1593faace0f041691d1eed17f6bafafd0a2`, with a
+Validated 2026-10-21 at `2e2f56ee2fb0021320f99a2a3f347cc2329abdee`, with a
 clean managed checkout and execution-scope fingerprint
-`0ef0ca3ff27edfdf0603f84d1784d5989ff7498ec94f893257ac768b9d3d23a0`.
+`1906d33576b54e1515ead74cf6f249c16b478f8d51a7bb1e0955cec22c695ced`.
 The original report retains that commit; later documentation commits do not
 become directly GPU-tested commits.
 
@@ -39,14 +39,15 @@ become directly GPU-tested commits.
 | Required combined cases | 26/26 passed |
 | CPU Rust | 85 passed; two explicitly ignored cases excluded |
 | Rust including prepared ignored cases | 87 passed, including native smoke and real producer parity |
-| Python | 58 passed |
+| Python | 59 passed |
 | Official validator | Eight accepted fixtures, two corrupt controls rejected |
 | NVRTC | Five regenerated output hashes unchanged; two supported translation/validator cases, three expected unsupported controls |
 | M3k–M3o Arc regressions | 2,304 cases; 19,372,800 exact results; 295,200 guards |
 | Independent CUDA consumers | Official-PFN ABI calls and static/dynamic Driver consumers passed |
 | Original bundle audit | Source/config/environment/catalog/tool/input identities matched independent expectations |
 
-The fixed upstream vector-add producer output also translated and validated
+The fixed upstream vector-add producer output translated and validated unchanged
+at the preceding candidate `54e7f15`; its producer inputs and translation code are
 unchanged at this candidate. Capture-only results remain `not_run/capture_only`;
 the three unsupported controls are semantic diagnostics, not supported features.
 Raw candidate reports are preserved under ignored `results/local/`.
@@ -99,7 +100,9 @@ Review fixes include: public recipe paths; observed host platform; exact hashed
 NVRTC binding; capture-only status propagation; separate negative controls;
 producer translator build; independent required case sets; original lane bundle
 checks; independently supplied tool locks and Git cleanliness. Foundation
-reports explicitly reject release claims.
+reports explicitly reject release claims. The original hook and SPIR-V assembly
+LF policies are preserved alongside the corpus LF policy; a regression checks
+the actual Git attributes.
 
 ## Remaining evidence and scope limits
 
