@@ -26,12 +26,16 @@ int wmain(int argc, wchar_t **argv) {
     if (new_query("ct_missing", &function, 12000, 0, &status) || function || status != CU_GET_PROC_ADDRESS_SYMBOL_NOT_FOUND) return 1;
     auto retain = reinterpret_cast<PFN_cuDevicePrimaryCtxRetain_v7000>(GetProcAddress(dll, "cuDevicePrimaryCtxRetain"));
     auto release = reinterpret_cast<PFN_cuDevicePrimaryCtxRelease_v11000>(GetProcAddress(dll, "cuDevicePrimaryCtxRelease_v2"));
+    auto reset = reinterpret_cast<PFN_cuDevicePrimaryCtxReset_v11000>(GetProcAddress(dll, "cuDevicePrimaryCtxReset_v2"));
     auto state = reinterpret_cast<PFN_cuDevicePrimaryCtxGetState_v7000>(GetProcAddress(dll, "cuDevicePrimaryCtxGetState"));
-    if (!retain || !release || !state) return 1;
+    if (!retain || !release || !state || !reset) return 1;
     CUcontext primary = nullptr; unsigned int primary_flags = 0; int active = 0;
     if (retain(&primary, 0) != CUDA_ERROR_NOT_INITIALIZED ||
         state(0, &primary_flags, &active) != CUDA_ERROR_NOT_INITIALIZED ||
-        release(0) != CUDA_ERROR_NOT_INITIALIZED) return 1;
+        release(0) != CUDA_ERROR_NOT_INITIALIZED || reset(0) != CUDA_ERROR_NOT_INITIALIZED) return 1;
+    if (GetProcAddress(dll, "cuDevicePrimaryCtxReset")) return 1;
+    if (new_query("cuDevicePrimaryCtxReset", &function, 10999, 0, &status) || function || status != CU_GET_PROC_ADDRESS_VERSION_NOT_SUFFICIENT) return 1;
+    if (new_query("cuDevicePrimaryCtxReset", &function, 11000, 0, &status) || function != reinterpret_cast<void *>(reset) || status != CU_GET_PROC_ADDRESS_SUCCESS) return 1;
     if (new_query("cuDevicePrimaryCtxRelease", &function, 10999, 0, &status) || function || status != CU_GET_PROC_ADDRESS_VERSION_NOT_SUFFICIENT) return 1;
     if (new_query("cuDevicePrimaryCtxRelease", &function, 11000, 0, &status) || function != reinterpret_cast<void *>(release) || status != CU_GET_PROC_ADDRESS_SUCCESS) return 1;
     FreeLibrary(dll);

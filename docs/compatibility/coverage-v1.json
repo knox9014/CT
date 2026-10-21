@@ -1105,7 +1105,7 @@
       "limits": {
         "scope": "P05a default flags only; shared retains, final release, TLS independence",
         "stale_primary": 709,
-        "reset": false,
+        "reset": "v2 preserving retained usage; fresh CT generation",
         "set_flags": false,
         "legacy_release": false,
         "nvidia_parity": "unverified"
@@ -1118,14 +1118,19 @@
           "tests/cuda_reference_abi.cpp#main"
         ],
         "native": [
-          "tests/p05a_cuda_app.c#main"
+          "tests/p05a_cuda_app.c#main",
+          "tests/p05b_cuda_app.c#main"
         ],
         "semantic": [
           "crates/ct-cuda/src/primary_state.rs#retains_share_one_lazy_context_and_final_release_retires_it",
           "crates/ct-cuda/src/primary_state.rs#failed_creation_publishes_nothing_and_devices_are_independent",
           "crates/ct-cuda/src/primary_state.rs#reference_overflow_preserves_the_existing_context",
           "crates/ct-cuda/src/lib.rs#failed_cleanup_quarantines_once_and_never_retries_removed_resources",
-          "crates/ct-cuda/src/primary.rs#final_release_failure_is_inactive_tombstoned_and_never_retried"
+          "crates/ct-cuda/src/primary.rs#final_release_failure_is_inactive_tombstoned_and_never_retried",
+          "crates/ct-cuda/src/primary_state.rs#reset_preserves_usage_across_fresh_generation_and_repeated_reset",
+          "crates/ct-cuda/src/primary_state.rs#inactive_releases_and_device_isolation_do_not_create_resources",
+          "crates/ct-cuda/src/primary_state.rs#reactivation_failure_and_overflow_preserve_inactive_usage",
+          "crates/ct-cuda/src/primary.rs#reset_failure_preserves_usage_and_never_retries_quarantined_resources"
         ]
       }
     },
@@ -1327,6 +1332,33 @@
         ],
         "native": [
           "tests/p05a_cuda_app.c#main"
+        ]
+      }
+    },
+    {
+      "id": "driver.cuDevicePrimaryCtxReset_v2",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "contract": "P05b v2 default-flags reset preserves retained usage; legacy unavailable",
+        "behavior_gap": true,
+        "nvidia_identity_parity": "unverified"
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [
+          "tests/cuda_reference_abi.cpp#main"
+        ],
+        "native": [
+          "tests/p05b_cuda_app.c#main"
+        ],
+        "semantic": [
+          "crates/ct-cuda/src/primary_state.rs#reset_preserves_usage_across_fresh_generation_and_repeated_reset",
+          "crates/ct-cuda/src/primary_state.rs#inactive_releases_and_device_isolation_do_not_create_resources",
+          "crates/ct-cuda/src/primary_state.rs#reactivation_failure_and_overflow_preserve_inactive_usage",
+          "crates/ct-cuda/src/primary.rs#reset_failure_preserves_usage_and_never_retries_quarantined_resources"
         ]
       }
     }
@@ -1671,6 +1703,30 @@
     {
       "id": "crates/ct-cuda/src/primary.rs#final_release_failure_is_inactive_tombstoned_and_never_retried",
       "kind": "semantic"
+    },
+    {
+      "id": "tests/p05b_cuda_app.c#main",
+      "kind": "native"
+    },
+    {
+      "id": "crates/ct-cuda/src/primary_state.rs#reset_preserves_usage_across_fresh_generation_and_repeated_reset",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-cuda/src/primary_state.rs#inactive_releases_and_device_isolation_do_not_create_resources",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-cuda/src/primary_state.rs#reactivation_failure_and_overflow_preserve_inactive_usage",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-cuda/src/primary.rs#reset_failure_preserves_usage_and_never_retries_quarantined_resources",
+      "kind": "semantic"
+    },
+    {
+      "id": "scripts/run_validation.py#arc.reset",
+      "kind": "native"
     }
   ]
 }
