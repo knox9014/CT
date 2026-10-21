@@ -24,6 +24,16 @@ int wmain(int argc, wchar_t **argv) {
     if (new_query("cuGetErrorName", &function, 5999, 0, &status) || function || status != CU_GET_PROC_ADDRESS_VERSION_NOT_SUFFICIENT) return 1;
     if (old_query("ct_missing", &function, 12000, 0) != CUDA_ERROR_NOT_FOUND || function) return 1;
     if (new_query("ct_missing", &function, 12000, 0, &status) || function || status != CU_GET_PROC_ADDRESS_SYMBOL_NOT_FOUND) return 1;
+    auto retain = reinterpret_cast<PFN_cuDevicePrimaryCtxRetain_v7000>(GetProcAddress(dll, "cuDevicePrimaryCtxRetain"));
+    auto release = reinterpret_cast<PFN_cuDevicePrimaryCtxRelease_v11000>(GetProcAddress(dll, "cuDevicePrimaryCtxRelease_v2"));
+    auto state = reinterpret_cast<PFN_cuDevicePrimaryCtxGetState_v7000>(GetProcAddress(dll, "cuDevicePrimaryCtxGetState"));
+    if (!retain || !release || !state) return 1;
+    CUcontext primary = nullptr; unsigned int primary_flags = 0; int active = 0;
+    if (retain(&primary, 0) != CUDA_ERROR_NOT_INITIALIZED ||
+        state(0, &primary_flags, &active) != CUDA_ERROR_NOT_INITIALIZED ||
+        release(0) != CUDA_ERROR_NOT_INITIALIZED) return 1;
+    if (new_query("cuDevicePrimaryCtxRelease", &function, 10999, 0, &status) || function || status != CU_GET_PROC_ADDRESS_VERSION_NOT_SUFFICIENT) return 1;
+    if (new_query("cuDevicePrimaryCtxRelease", &function, 11000, 0, &status) || function != reinterpret_cast<void *>(release) || status != CU_GET_PROC_ADDRESS_SUCCESS) return 1;
     FreeLibrary(dll);
-    std::puts("Official PFN consumer: error mapping and both resolver ABI versions passed.");
+    std::puts("Official PFN consumer: error mapping, resolver ABI versions and primary calls passed.");
 }

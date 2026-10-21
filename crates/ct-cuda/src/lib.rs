@@ -34,13 +34,19 @@ struct OwnedFunction {
 mod entrypoints;
 mod images;
 mod modules;
+mod primary;
+mod primary_state;
 pub use entrypoints::{cuGetProcAddress, cuGetProcAddress_v2};
+pub use primary::{
+    cuDevicePrimaryCtxGetState, cuDevicePrimaryCtxRelease_v2, cuDevicePrimaryCtxRetain,
+};
 #[derive(Default)]
 struct Runtime {
     backend: Option<Backend>,
     contexts: BTreeMap<usize, OwnedContext>,
     next: usize,
     retired: Vec<OwnedContext>,
+    primary: primary_state::PrimaryContexts,
 }
 static RUNTIME: OnceLock<Mutex<Runtime>> = OnceLock::new();
 thread_local! {static CURRENT:RefCell<Vec<usize>>=const{RefCell::new(Vec::new())};}
@@ -61,11 +67,70 @@ fn backend(r: &Runtime) -> Result<&Backend, i32> {
 fn context_id(r: &Runtime) -> Result<usize, i32> {
     backend(r)?;
     let id = current().ok_or(INVALID_CONTEXT)?;
+    validate_context(r, id)?;
+    Ok(id)
+}
+fn validate_context(r: &Runtime, id: usize) -> CudaResult {
     if r.contexts.contains_key(&id) {
-        Ok(id)
+        Ok(())
+    } else if r.primary.retired(id) {
+        Err(709)
     } else {
         Err(INVALID_CONTEXT)
     }
+}
+
+fn create_owned_context(
+    b: &mut Backend,
+    contexts: &mut BTreeMap<usize, OwnedContext>,
+    next: &mut usize,
+    device: i32,
+) -> Result<usize, i32> {
+    let id = next.checked_add(1).ok_or(UNKNOWN)?;
+    let native = b.create_context(device as usize).map_err(native_error)?;
+    *next = id;
+    contexts.insert(
+        id,
+        OwnedContext {
+            native,
+            allocations: AllocationRanges::default(),
+            modules: BTreeMap::new(),
+            functions: BTreeMap::new(),
+        },
+    );
+    Ok(id)
+}
+
+// Removing the public handle precedes cleanup. An uncertain native cleanup is
+// quarantined, and this helper deliberately never touches any thread's stack.
+fn retire_context(r: &mut Runtime, id: usize) -> CudaResult {
+    let b = r.backend.as_ref().ok_or(NOT_INITIALIZED)?;
+    retire_owned(&mut r.contexts, &mut r.retired, id, |c| {
+        cleanup_context(b, c)
+    })
+}
+
+fn cleanup_context(b: &Backend, c: &mut OwnedContext) -> CudaResult {
+    for module in c.modules.values_mut() {
+        b.unload_module(&mut c.native, &mut module.native)
+            .map_err(native_error)?;
+    }
+    b.destroy_context(&mut c.native, &c.allocations.bases())
+        .map_err(native_error)
+}
+
+fn retire_owned<T>(
+    contexts: &mut BTreeMap<usize, T>,
+    retired: &mut Vec<T>,
+    id: usize,
+    cleanup: impl FnOnce(&mut T) -> CudaResult,
+) -> CudaResult {
+    let mut owned = contexts.remove(&id).ok_or(INVALID_CONTEXT)?;
+    let result = cleanup(&mut owned);
+    if result.is_err() {
+        retired.push(owned);
+    }
+    result
 }
 fn invoke(f: impl FnOnce(&mut Runtime) -> CudaResult) -> i32 {
     std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -207,18 +272,7 @@ pub unsafe extern "system" fn cuCtxCreate_v2(
         if device < 0 || device as usize >= b.devices.len() {
             return Err(INVALID_DEVICE);
         }
-        let next = r.next.checked_add(1).ok_or(UNKNOWN)?;
-        let native = b.create_context(device as usize).map_err(native_error)?;
-        r.next = next;
-        r.contexts.insert(
-            next,
-            OwnedContext {
-                native,
-                allocations: AllocationRanges::default(),
-                modules: BTreeMap::new(),
-                functions: BTreeMap::new(),
-            },
-        );
+        let next = create_owned_context(b, &mut r.contexts, &mut r.next, device)?;
         CURRENT.with(|s| s.borrow_mut().push(next));
         output.write(next as *mut c_void);
         Ok(())
@@ -229,21 +283,12 @@ pub extern "system" fn cuCtxDestroy_v2(context: *mut c_void) -> i32 {
     invoke(|r| {
         backend(r)?;
         let id = context as usize;
-        let mut c = r.contexts.remove(&id).ok_or(INVALID_CONTEXT)?;
-        CURRENT.with(|s| s.borrow_mut().retain(|&v| v != id));
-        let result = (|| {
-            let b = backend(r)?;
-            for module in c.modules.values_mut() {
-                b.unload_module(&mut c.native, &mut module.native)
-                    .map_err(native_error)?;
-            }
-            b.destroy_context(&mut c.native, &c.allocations.bases())
-                .map_err(native_error)
-        })();
-        if result.is_err() {
-            r.retired.push(c);
+        validate_context(r, id)?;
+        if r.primary.owns(id) {
+            return Err(INVALID_CONTEXT);
         }
-        result
+        CURRENT.with(|s| s.borrow_mut().retain(|&v| v != id));
+        retire_context(r, id)
     })
 }
 /// # Safety
@@ -257,9 +302,7 @@ pub unsafe extern "system" fn cuCtxGetCurrent(context: *mut *mut c_void) -> i32 
         }
         context.write(std::ptr::null_mut());
         if let Some(id) = current() {
-            if !r.contexts.contains_key(&id) {
-                return Err(INVALID_CONTEXT);
-            }
+            validate_context(r, id)?;
             context.write(id as *mut c_void);
         }
         Ok(())
@@ -270,8 +313,8 @@ pub extern "system" fn cuCtxSetCurrent(context: *mut c_void) -> i32 {
     invoke(|r| {
         backend(r)?;
         let id = context as usize;
-        if id != 0 && !r.contexts.contains_key(&id) {
-            return Err(INVALID_CONTEXT);
+        if id != 0 {
+            validate_context(r, id)?;
         }
         CURRENT.with(|s| {
             let mut v = s.borrow_mut();
@@ -288,9 +331,7 @@ pub extern "system" fn cuCtxPushCurrent_v2(context: *mut c_void) -> i32 {
     invoke(|r| {
         backend(r)?;
         let id = context as usize;
-        if !r.contexts.contains_key(&id) {
-            return Err(INVALID_CONTEXT);
-        }
+        validate_context(r, id)?;
         CURRENT.with(|s| s.borrow_mut().push(id));
         Ok(())
     })
@@ -437,6 +478,10 @@ fn error_text(code: i32) -> Option<(&'static std::ffi::CStr, &'static std::ffi::
             c"invalid, stale or foreign module/function handle",
         ),
         500 => (c"CUDA_ERROR_NOT_FOUND", c"entry point not found in module"),
+        709 => (
+            c"CUDA_ERROR_CONTEXT_IS_DESTROYED",
+            c"primary context has been released",
+        ),
         801 => (
             c"CUDA_ERROR_NOT_SUPPORTED",
             c"not implemented by this experimental CT subset",
@@ -479,6 +524,30 @@ pub unsafe extern "system" fn cuGetErrorString(code: i32, output: *mut *const c_
 #[cfg(test)]
 mod failure_mapping_tests {
     use super::*;
+    #[test]
+    fn failed_cleanup_quarantines_once_and_never_retries_removed_resources() {
+        let mut contexts = BTreeMap::from([(7, 42)]);
+        let mut retired = Vec::new();
+        let mut calls = 0;
+        assert_eq!(
+            retire_owned(&mut contexts, &mut retired, 7, |resource| {
+                calls += 1;
+                *resource = 43;
+                Err(999)
+            }),
+            Err(999)
+        );
+        assert!(contexts.is_empty());
+        assert_eq!(retired, vec![43]);
+        assert_eq!(
+            retire_owned(&mut contexts, &mut retired, 7, |_| {
+                calls += 1;
+                Ok(())
+            }),
+            Err(201)
+        );
+        assert_eq!(calls, 1);
+    }
     #[test]
     fn native_failures_never_map_to_success_and_oom_keeps_its_cuda_category() {
         for (native, cuda) in [

@@ -98,6 +98,54 @@
       ]
     },
     {
+      "symbol": "cuDevicePrimaryCtxRetain",
+      "signature_id": "cuDevicePrimaryCtxRetain:(CUcontext *context, CUdevice device)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuDevicePrimaryCtxRetain",
+          "minimum": 7000,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "Default-flags P05a: docs/compatibility/driver-api.md",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries",
+        "tests/p05a_cuda_app.c#main"
+      ]
+    },
+    {
+      "symbol": "cuDevicePrimaryCtxGetState",
+      "signature_id": "cuDevicePrimaryCtxGetState:(CUdevice device, unsigned int *flags, int *active)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuDevicePrimaryCtxGetState",
+          "minimum": 7000,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "Default-flags P05a: docs/compatibility/driver-api.md",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries",
+        "tests/p05a_cuda_app.c#main"
+      ]
+    },
+    {
+      "symbol": "cuDevicePrimaryCtxRelease_v2",
+      "signature_id": "cuDevicePrimaryCtxRelease_v2:(CUdevice device)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuDevicePrimaryCtxRelease",
+          "minimum": 11000,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "Default-flags P05a: docs/compatibility/driver-api.md",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries",
+        "tests/p05a_cuda_app.c#main"
+      ]
+    },
+    {
       "symbol": "cuCtxCreate_v2",
       "signature_id": "cuCtxCreate_v2:(CUcontext *context, unsigned int flags, CUdevice device)",
       "lookup_ranges": [

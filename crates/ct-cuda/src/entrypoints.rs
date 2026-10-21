@@ -12,7 +12,7 @@ struct Entry {
 
 // Version floors/signature transition verified against NVIDIA 12.0.107
 // cudaTypedefs.h. This is a lookup ceiling, not a CUDA driver version claim.
-fn entries() -> [Entry; 26] {
+fn entries() -> [Entry; 29] {
     macro_rules! e {
         ($name:literal, $function:path, $minimum:literal, $maximum:literal) => {
             Entry {
@@ -33,6 +33,17 @@ fn entries() -> [Entry; 26] {
         e!(b"cuDeviceGet", cuDeviceGet, 2000),
         e!(b"cuDeviceGetName", cuDeviceGetName, 2000),
         e!(b"cuDeviceGetAttribute", cuDeviceGetAttribute, 2000),
+        e!(b"cuDevicePrimaryCtxRetain", cuDevicePrimaryCtxRetain, 7000),
+        e!(
+            b"cuDevicePrimaryCtxGetState",
+            cuDevicePrimaryCtxGetState,
+            7000
+        ),
+        e!(
+            b"cuDevicePrimaryCtxRelease",
+            cuDevicePrimaryCtxRelease_v2,
+            11000
+        ),
         e!(b"cuCtxCreate", cuCtxCreate_v2, 3020, 11039),
         e!(b"cuCtxDestroy", cuCtxDestroy_v2, 4000),
         e!(b"cuCtxGetCurrent", cuCtxGetCurrent, 4000),

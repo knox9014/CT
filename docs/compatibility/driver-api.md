@@ -1,6 +1,31 @@
 # Experimental M1/M2 Driver API subset
 
-Windows x64, Arc B390 tested. Library: `ct_cuda.dll`, loaded by explicit absolute path in the independent C test. This is not nvcuda.dll replacement installation, complete CUDA ABI/version conformance or existing application compatibility. No other CUDA symbols are currently promised.
+## P05a primary context extension
+
+`cuDevicePrimaryCtxRetain`, `cuDevicePrimaryCtxGetState`, and
+`cuDevicePrimaryCtxRelease_v2` share one default-flags primary context per device.
+Retain does not select it; use set/push current explicitly. Nonfinal release
+preserves resources, while final release removes them without popping TLS.
+Inactive GetState is observational and returns flags=0/active=0. Over-release
+returns201. Retain counts are checked and serialized with other runtime calls.
+
+Released primary handles are tombstoned; stale current/explicit primary handles
+return709 (`CUDA_ERROR_CONTEXT_IS_DESTROYED`). Explicit SetCurrent(NULL) can pop
+the stale top. Re-retain obtains a fresh CT handle. Destroy(primary) returns201
+without changing state. These deterministic CT guards and post-release handle
+identity have not been compared to NVIDIA hardware. Cleanup errors preserve the
+original error and quarantine uncertain native resources without retry.
+
+Reset, set-flags, nondefault scheduling, pinned-memory APIs and legacy release
+remain unavailable. This is P05a, not complete primary-context or Runtime support.
+See the [design](../superpowers/specs/2026-10-21-primary-context-design.md).
+
+## Original M1/M2 scope
+
+Windows x64, Arc B390 tested. The original independent C test loads `ct_cuda.dll`
+by explicit path. Later M3 consumers use process-local `nvcuda.dll` bundles;
+the P05a extension above adds shared primary ownership. System driver replacement
+and complete CUDA ABI/version conformance remain outside the tested scope.
 
 Export calling convention: Windows CUDA `__stdcall` / Rust `extern "system"` (unified x64 ABI). `CUdevice` and `CUresult` are 32-bit signed int; `CUdeviceptr` is 64-bit unsigned; context is an opaque pointer-sized token, never dereferenced. Legacy `_v2` context create has three arguments; newer context-create variants are not exported.
 

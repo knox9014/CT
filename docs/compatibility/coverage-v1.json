@@ -1101,11 +1101,33 @@
     {
       "id": "context.primary",
       "category": "context",
-      "implementation": "missing",
+      "implementation": "partial",
       "limits": {
-        "scope": "Not implemented; no execution evidence declared."
+        "scope": "P05a default flags only; shared retains, final release, TLS independence",
+        "stale_primary": 709,
+        "reset": false,
+        "set_flags": false,
+        "legacy_release": false,
+        "nvidia_parity": "unverified"
       },
-      "test_ids": {}
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [
+          "tests/cuda_reference_abi.cpp#main"
+        ],
+        "native": [
+          "tests/p05a_cuda_app.c#main"
+        ],
+        "semantic": [
+          "crates/ct-cuda/src/primary_state.rs#retains_share_one_lazy_context_and_final_release_retires_it",
+          "crates/ct-cuda/src/primary_state.rs#failed_creation_publishes_nothing_and_devices_are_independent",
+          "crates/ct-cuda/src/primary_state.rs#reference_overflow_preserves_the_existing_context",
+          "crates/ct-cuda/src/lib.rs#failed_cleanup_quarantines_once_and_never_retries_removed_resources",
+          "crates/ct-cuda/src/primary.rs#final_release_failure_is_inactive_tombstoned_and_never_retried"
+        ]
+      }
     },
     {
       "id": "runtime.registration",
@@ -1245,6 +1267,66 @@
         ],
         "behavior": [
           "scripts/run_validation.py#arc.consumers"
+        ]
+      }
+    },
+    {
+      "id": "driver.cuDevicePrimaryCtxRetain",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Default-flags P05a; reset, set-flags and legacy release remain unavailable",
+        "behavior_gap": true
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [
+          "tests/cuda_reference_abi.cpp#main"
+        ],
+        "native": [
+          "tests/p05a_cuda_app.c#main"
+        ]
+      }
+    },
+    {
+      "id": "driver.cuDevicePrimaryCtxGetState",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Default-flags P05a; reset, set-flags and legacy release remain unavailable",
+        "behavior_gap": true
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [
+          "tests/cuda_reference_abi.cpp#main"
+        ],
+        "native": [
+          "tests/p05a_cuda_app.c#main"
+        ]
+      }
+    },
+    {
+      "id": "driver.cuDevicePrimaryCtxRelease_v2",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Default-flags P05a; reset, set-flags and legacy release remain unavailable",
+        "behavior_gap": true
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [
+          "tests/cuda_reference_abi.cpp#main"
+        ],
+        "native": [
+          "tests/p05a_cuda_app.c#main"
         ]
       }
     }
@@ -1556,6 +1638,38 @@
     },
     {
       "id": "scripts/run_compiler_corpus.py#run_case",
+      "kind": "semantic"
+    },
+    {
+      "id": "tests/cuda_reference_abi.cpp#main",
+      "kind": "abi"
+    },
+    {
+      "id": "tests/p05a_cuda_app.c#main",
+      "kind": "native"
+    },
+    {
+      "id": "crates/ct-cuda/src/primary_state.rs#retains_share_one_lazy_context_and_final_release_retires_it",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-cuda/src/primary_state.rs#failed_creation_publishes_nothing_and_devices_are_independent",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-cuda/src/primary_state.rs#reference_overflow_preserves_the_existing_context",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-cuda/src/lib.rs#failed_cleanup_quarantines_once_and_never_retries_removed_resources",
+      "kind": "semantic"
+    },
+    {
+      "id": "scripts/run_validation.py#arc.primary",
+      "kind": "native"
+    },
+    {
+      "id": "crates/ct-cuda/src/primary.rs#final_release_failure_is_inactive_tombstoned_and_never_retried",
       "kind": "semantic"
     }
   ]

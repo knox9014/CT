@@ -11,6 +11,9 @@ int main() {
     PROBE(cuDeviceGet, cuDeviceGet_v2000);
     PROBE(cuDeviceGetName, cuDeviceGetName_v2000);
     PROBE(cuDeviceGetAttribute, cuDeviceGetAttribute_v2000);
+    PROBE(cuDevicePrimaryCtxRetain, cuDevicePrimaryCtxRetain_v7000);
+    PROBE(cuDevicePrimaryCtxGetState, cuDevicePrimaryCtxGetState_v7000);
+    PROBE(cuDevicePrimaryCtxRelease_v2, cuDevicePrimaryCtxRelease_v11000);
     PROBE(cuCtxCreate_v2, cuCtxCreate_v3020);
     PROBE(cuCtxDestroy_v2, cuCtxDestroy_v4000);
     PROBE(cuCtxGetCurrent, cuCtxGetCurrent_v4000);
@@ -39,6 +42,7 @@ int main() {
         CUDA_ERROR_NOT_FOUND, CUDA_ERROR_NOT_SUPPORTED, CUDA_ERROR_UNKNOWN);
     std::printf("query:%d:%d:%d\n", CU_GET_PROC_ADDRESS_SUCCESS,
         CU_GET_PROC_ADDRESS_SYMBOL_NOT_FOUND, CU_GET_PROC_ADDRESS_VERSION_NOT_SUFFICIENT);
+    std::printf("primary-errors:%d\n", CUDA_ERROR_CONTEXT_IS_DESTROYED);
     std::printf("attributes:%d:%d:%d:%d:%d:%d:%d:%d:%d\n",
         CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK, CU_DEVICE_ATTRIBUTE_MAX_BLOCK_DIM_X,
         CU_DEVICE_ATTRIBUTE_MAX_BLOCK_DIM_Y, CU_DEVICE_ATTRIBUTE_MAX_BLOCK_DIM_Z,
