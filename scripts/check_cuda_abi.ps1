@@ -34,5 +34,5 @@ try {
     $taskDllPath = (Resolve-Path -LiteralPath $CtDll).Path
     & "$taskBuild/cuda_reference_consumer.exe" $taskDllPath
     if ($LASTEXITCODE -ne 0) { throw 'Official PFN consumer failed.' }
-    Write-Output 'CUDA ABI: 32 signatures, error/query/flag values and official-PFN consumer passed (Windows x64).'
+    Write-Output 'CUDA ABI: 36 signatures, error/query/flag values and official-PFN consumer passed (Windows x64).'
 } finally { Pop-Location }

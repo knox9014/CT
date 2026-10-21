@@ -39,6 +39,10 @@ typedef struct CTstream *CUstream;
  X(cuMemFree_v2, (CUdeviceptr pointer)) \
  X(cuMemcpyHtoD_v2, (CUdeviceptr destination, const void *source, size_t bytes)) \
  X(cuMemcpyDtoH_v2, (void *destination, CUdeviceptr source, size_t bytes)) \
+ X(cuMemcpyDtoD_v2, (CUdeviceptr destination, CUdeviceptr source, size_t bytes)) \
+ X(cuMemsetD8_v2, (CUdeviceptr destination, unsigned char value, size_t count)) \
+ X(cuMemsetD16_v2, (CUdeviceptr destination, unsigned short value, size_t count)) \
+ X(cuMemsetD32_v2, (CUdeviceptr destination, unsigned int value, size_t count)) \
  X(cuGetErrorName, (CUresult code, const char **name)) \
  X(cuGetErrorString, (CUresult code, const char **message)) \
  X(cuModuleLoadData, (CUmodule *module, const void *image)) \

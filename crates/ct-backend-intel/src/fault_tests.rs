@@ -64,6 +64,7 @@ impl Api {
             b"zeMemAllocDevice\0" => alloc_device as *const (),
             b"zeMemFree\0" => free as *const (),
             b"zeCommandListAppendMemoryCopy\0" => copy as *const (),
+            b"zeCommandListAppendMemoryFill\0" => fill as *const (),
             b"zeModuleCreate\0" => create_module as *const (),
             b"zeModuleBuildLogDestroy\0" => destroy_log as *const (),
             b"zeKernelCreate\0" => create_kernel as *const (),
@@ -137,6 +138,28 @@ unsafe extern "C" fn copy(
         let code = s.call("zeCommandListAppendMemoryCopy", list);
         if code == 0 {
             std::ptr::copy_nonoverlapping(src.cast::<u8>(), dst.cast::<u8>(), size);
+        }
+        code
+    })
+}
+unsafe extern "C" fn fill(
+    list: Handle,
+    dst: Handle,
+    pattern: *const c_void,
+    width: usize,
+    size: usize,
+    _: Handle,
+    _: u32,
+    _: *mut Handle,
+) -> u32 {
+    state(|s| {
+        let code = s.call("zeCommandListAppendMemoryFill", list);
+        if code == 0 {
+            for offset in 0..size {
+                dst.cast::<u8>()
+                    .add(offset)
+                    .write(pattern.cast::<u8>().add(offset % width).read());
+            }
         }
         code
     })
@@ -215,6 +238,8 @@ fn context(id: usize) -> Context {
     Context {
         native: id,
         list: id + 10,
+        max_fill_pattern: 4,
+        retained_patterns: Vec::new(),
         device: 0,
         poisoned: false,
         staging: Vec::new(),
@@ -533,4 +558,52 @@ fn context_free_failure_after_one_success_does_not_retry_either_allocation() {
     assert!(b.destroy_context(&mut c, &[a, d]).is_err());
     assert_eq!(count("zeMemFree"), 2);
     assert_eq!(count("zeContextDestroy"), 0);
+}
+
+#[test]
+fn direct_device_commands_poison_on_failure_and_never_submit_again() {
+    for fill in [false, true] {
+        let (b, mut c) = fixture();
+        let source = b.allocate(&mut c, 16).unwrap();
+        let destination = b.allocate(&mut c, 16).unwrap();
+        let command = if fill {
+            "zeCommandListAppendMemoryFill"
+        } else {
+            "zeCommandListAppendMemoryCopy"
+        };
+        arm(command, 1, LOST);
+        let result = if fill {
+            b.fill_device(&mut c, destination, 0xaabbccdd, 4, 16)
+        } else {
+            b.copy_device(&mut c, destination, source, 16)
+        };
+        assert_eq!(result, Err(LOST));
+        assert!(c.poisoned && b.api.keep_loaded.get());
+        assert_eq!(c.retained_patterns.len(), usize::from(fill));
+        let before = state(|s| s.calls.len());
+        assert!(b.copy_device(&mut c, destination, source, 0).is_err());
+        assert!(b.fill_device(&mut c, destination, 0, 1, 0).is_err());
+        assert!(b.destroy_context(&mut c, &[source, destination]).is_err());
+        assert_eq!(state(|s| s.calls.len()), before);
+        assert_eq!(count("zeMemFree"), 0);
+    }
+}
+
+#[test]
+fn device_fill_respects_selected_queue_pattern_limit_without_poisoning() {
+    let (b, mut c) = fixture();
+    let address = b.allocate(&mut c, 16).unwrap();
+    c.max_fill_pattern = 1;
+    let before = state(|s| s.calls.len());
+    assert_eq!(
+        b.fill_device(&mut c, address, 0x12345678, 4, 16),
+        Err(0x78000003)
+    );
+    assert_eq!(b.fill_device(&mut c, address, 0, 2, 16), Err(0x78000003));
+    assert_eq!(state(|s| s.calls.len()), before);
+    assert!(!c.poisoned && !b.api.keep_loaded.get());
+    assert_eq!(b.fill_device(&mut c, address, 0x78, 1, 16), Ok(()));
+    assert_eq!(count("zeCommandListAppendMemoryFill"), 1);
+    assert!(c.retained_patterns.is_empty());
+    assert_eq!(b.free(&mut c, address), Ok(()));
 }

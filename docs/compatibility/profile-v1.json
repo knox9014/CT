@@ -492,6 +492,70 @@
         "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries",
         "tests/p05c_host.c#main"
       ]
+    },
+    {
+      "symbol": "cuMemcpyDtoD_v2",
+      "signature_id": "cuMemcpyDtoD_v2:(CUdeviceptr destination, CUdeviceptr source, size_t bytes)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuMemcpyDtoD",
+          "minimum": 3020,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "Eager serialized current-context memory subset: docs/compatibility/driver-api.md",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries",
+        "tests/p06a_memory_app.c#main"
+      ]
+    },
+    {
+      "symbol": "cuMemsetD8_v2",
+      "signature_id": "cuMemsetD8_v2:(CUdeviceptr destination, unsigned char value, size_t count)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuMemsetD8",
+          "minimum": 3020,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "Eager serialized current-context memory subset: docs/compatibility/driver-api.md",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries",
+        "tests/p06a_memory_app.c#main"
+      ]
+    },
+    {
+      "symbol": "cuMemsetD16_v2",
+      "signature_id": "cuMemsetD16_v2:(CUdeviceptr destination, unsigned short value, size_t count)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuMemsetD16",
+          "minimum": 3020,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "Eager serialized current-context memory subset: docs/compatibility/driver-api.md",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries",
+        "tests/p06a_memory_app.c#main"
+      ]
+    },
+    {
+      "symbol": "cuMemsetD32_v2",
+      "signature_id": "cuMemsetD32_v2:(CUdeviceptr destination, unsigned int value, size_t count)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuMemsetD32",
+          "minimum": 3020,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "Eager serialized current-context memory subset: docs/compatibility/driver-api.md",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries",
+        "tests/p06a_memory_app.c#main"
+      ]
     }
   ],
   "features": [

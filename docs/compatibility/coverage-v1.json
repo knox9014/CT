@@ -1419,6 +1419,134 @@
           "tests/p05c_host.c#main"
         ]
       }
+    },
+    {
+      "id": "driver.cuMemcpyDtoD_v2",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "current_context_only": true,
+        "eager_completion": true,
+        "zero_policy": "owned interior address only",
+        "overlap": "positive D2D overlap rejected",
+        "typed_alignment": true,
+        "queue_pattern_capability_checked": true,
+        "async_peer_pointer_properties": false
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [
+          "tests/cuda_reference_abi.cpp#main"
+        ],
+        "semantic": [
+          "crates/ct-cuda/src/memory.rs#device_copy_checks_both_ranges_and_excludes_positive_overlap",
+          "crates/ct-cuda/src/memory.rs#typed_fill_checks_count_overflow_alignment_and_zero_address_policy",
+          "crates/ct-backend-intel/src/fault_tests.rs#direct_device_commands_poison_on_failure_and_never_submit_again",
+          "crates/ct-backend-intel/src/fault_tests.rs#device_fill_respects_selected_queue_pattern_limit_without_poisoning"
+        ],
+        "native": [
+          "tests/p06a_memory_app.c#main",
+          "scripts/run_validation.py#arc.device_memory"
+        ]
+      }
+    },
+    {
+      "id": "driver.cuMemsetD8_v2",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "current_context_only": true,
+        "eager_completion": true,
+        "zero_policy": "owned interior address only",
+        "overlap": "positive D2D overlap rejected",
+        "typed_alignment": true,
+        "queue_pattern_capability_checked": true,
+        "async_peer_pointer_properties": false
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [
+          "tests/cuda_reference_abi.cpp#main"
+        ],
+        "semantic": [
+          "crates/ct-cuda/src/memory.rs#device_copy_checks_both_ranges_and_excludes_positive_overlap",
+          "crates/ct-cuda/src/memory.rs#typed_fill_checks_count_overflow_alignment_and_zero_address_policy",
+          "crates/ct-backend-intel/src/fault_tests.rs#direct_device_commands_poison_on_failure_and_never_submit_again",
+          "crates/ct-backend-intel/src/fault_tests.rs#device_fill_respects_selected_queue_pattern_limit_without_poisoning"
+        ],
+        "native": [
+          "tests/p06a_memory_app.c#main",
+          "scripts/run_validation.py#arc.device_memory"
+        ]
+      }
+    },
+    {
+      "id": "driver.cuMemsetD16_v2",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "current_context_only": true,
+        "eager_completion": true,
+        "zero_policy": "owned interior address only",
+        "overlap": "positive D2D overlap rejected",
+        "typed_alignment": true,
+        "queue_pattern_capability_checked": true,
+        "async_peer_pointer_properties": false
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [
+          "tests/cuda_reference_abi.cpp#main"
+        ],
+        "semantic": [
+          "crates/ct-cuda/src/memory.rs#device_copy_checks_both_ranges_and_excludes_positive_overlap",
+          "crates/ct-cuda/src/memory.rs#typed_fill_checks_count_overflow_alignment_and_zero_address_policy",
+          "crates/ct-backend-intel/src/fault_tests.rs#direct_device_commands_poison_on_failure_and_never_submit_again",
+          "crates/ct-backend-intel/src/fault_tests.rs#device_fill_respects_selected_queue_pattern_limit_without_poisoning"
+        ],
+        "native": [
+          "tests/p06a_memory_app.c#main",
+          "scripts/run_validation.py#arc.device_memory"
+        ]
+      }
+    },
+    {
+      "id": "driver.cuMemsetD32_v2",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "current_context_only": true,
+        "eager_completion": true,
+        "zero_policy": "owned interior address only",
+        "overlap": "positive D2D overlap rejected",
+        "typed_alignment": true,
+        "queue_pattern_capability_checked": true,
+        "async_peer_pointer_properties": false
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [
+          "tests/cuda_reference_abi.cpp#main"
+        ],
+        "semantic": [
+          "crates/ct-cuda/src/memory.rs#device_copy_checks_both_ranges_and_excludes_positive_overlap",
+          "crates/ct-cuda/src/memory.rs#typed_fill_checks_count_overflow_alignment_and_zero_address_policy",
+          "crates/ct-backend-intel/src/fault_tests.rs#direct_device_commands_poison_on_failure_and_never_submit_again",
+          "crates/ct-backend-intel/src/fault_tests.rs#device_fill_respects_selected_queue_pattern_limit_without_poisoning"
+        ],
+        "native": [
+          "tests/p06a_memory_app.c#main",
+          "scripts/run_validation.py#arc.device_memory"
+        ]
+      }
     }
   ],
   "test_catalog": [
@@ -1812,6 +1940,30 @@
     },
     {
       "id": "scripts/run_validation.py#arc.context_destroy",
+      "kind": "native"
+    },
+    {
+      "id": "crates/ct-cuda/src/memory.rs#device_copy_checks_both_ranges_and_excludes_positive_overlap",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-cuda/src/memory.rs#typed_fill_checks_count_overflow_alignment_and_zero_address_policy",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-backend-intel/src/fault_tests.rs#direct_device_commands_poison_on_failure_and_never_submit_again",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-backend-intel/src/fault_tests.rs#device_fill_respects_selected_queue_pattern_limit_without_poisoning",
+      "kind": "semantic"
+    },
+    {
+      "id": "tests/p06a_memory_app.c#main",
+      "kind": "native"
+    },
+    {
+      "id": "scripts/run_validation.py#arc.device_memory",
       "kind": "native"
     }
   ]
