@@ -11,7 +11,7 @@ def expected_exports(root: Path) -> dict:
     source = (root / 'crates/ct-cuda/src/entrypoints.rs').read_text(encoding='utf-8')
     ranges = {}
     for canonical, name, minimum, maximum in re.findall(
-            r'e!\(b"([^"]+)",\s*(?:modules::)?(\w+),\s*(\d+)(?:,\s*(\d+))?\)', source):
+            r'e!\(\s*b"([^"]+)",\s*(?:modules::)?(\w+),\s*(\d+)(?:,\s*(\d+))?\s*,?\s*\)', source):
         ranges.setdefault(name, []).append(dict(symbol=canonical, minimum=int(minimum), maximum=int(maximum or 12000)))
     return {name: dict(signature_id=sig, lookup_ranges=ranges.get(name, [])) for name, sig in signatures.items()}
 

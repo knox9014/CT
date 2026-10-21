@@ -133,6 +133,8 @@ def steps(lane, validator, lock):
     for name in ('m3k_memory','m3l_arithmetic','m3m_predicates','m3n_minmax','m3o_immediates'):
         arc.append(('arc.'+name,'native',[py,'tests/'+name+'_check.py']))
     arc.append(('arc.consumers','behavior',['pwsh','-NoProfile','-File','scripts/run_m3_smoke.ps1']))
+    # Catalog marker: arc.primary
+    arc.append(('arc.primary','native',['pwsh','-NoProfile','-File','scripts/run_p05a_smoke.ps1']))
     combined=cpu+validator_steps+producer+arc+[
         ('combined.all','semantic',['cargo','test','--workspace','--','--include-ignored'])]
     return {'cpu':cpu,'validator':validator_steps,'producer':producer,'arc':arc,'combined':combined}[lane]

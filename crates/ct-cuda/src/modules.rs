@@ -15,11 +15,13 @@ pub unsafe extern "system" fn cuModuleLoadData(
     image: *const c_void,
 ) -> i32 {
     invoke(|r| {
+        if !output.is_null() {
+            output.write(std::ptr::null_mut());
+        }
         let id = context_id(r)?;
         if output.is_null() {
             return Err(INVALID);
         }
-        output.write(std::ptr::null_mut());
         let compiled = crate::images::compile_candidates(crate::images::read_candidates(image)?)?;
         let module_id = token(r)?;
         let b = r.backend.as_ref().ok_or(NOT_INITIALIZED)?;
@@ -48,11 +50,13 @@ pub unsafe extern "system" fn cuModuleGetFunction(
     name: *const c_char,
 ) -> i32 {
     invoke(|r| {
+        if !output.is_null() {
+            output.write(std::ptr::null_mut());
+        }
         let id = context_id(r)?;
         if output.is_null() || name.is_null() {
             return Err(INVALID);
         }
-        output.write(std::ptr::null_mut());
         let c = r.contexts.get(&id).ok_or(INVALID_CONTEXT)?;
         let m = c.modules.get(&(module as usize)).ok_or(INVALID_HANDLE)?;
         let entry = m

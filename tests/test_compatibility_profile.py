@@ -7,16 +7,24 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
-from check_compatibility_profile import validate_profile
+from check_compatibility_profile import validate_profile, expected_exports
 
 
 class ProfileTests(unittest.TestCase):
+    def test_multiline_resolver_entries_preserve_primary_version_ranges(self):
+        expected = expected_exports(ROOT)
+        for name, canonical, minimum in (
+                ('cuDevicePrimaryCtxGetState', 'cuDevicePrimaryCtxGetState', 7000),
+                ('cuDevicePrimaryCtxRelease_v2', 'cuDevicePrimaryCtxRelease', 11000)):
+            self.assertEqual(expected[name]['lookup_ranges'], [
+                dict(symbol=canonical, minimum=minimum, maximum=12000)])
+
     def setUp(self):
         self.data = json.loads((ROOT / 'docs/compatibility/profile-v1.json').read_text(encoding='utf-8'))
 
     def test_current_profile_is_explicitly_bounded(self):
         self.assertEqual(validate_profile(self.data, ROOT), [])
-        self.assertEqual(len(self.data['exports']), 26)
+        self.assertEqual(len(self.data['exports']), 29)
         self.assertEqual(next(e for e in self.data['exports'] if e['symbol']=='cuDriverGetVersion')['behavior'], 'NOT_SUPPORTED')
         self.assertTrue(all(f['state'] in ('experimental','unsupported') for f in self.data['features']))
 
