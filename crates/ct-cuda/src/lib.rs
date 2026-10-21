@@ -35,6 +35,8 @@ mod context_stack;
 mod entrypoints;
 mod images;
 mod memory;
+mod memory_queries;
+pub use memory_queries::{cuMemGetAddressRange_v2, cuPointerGetAttribute};
 mod modules;
 pub use memory::{cuMemcpyDtoD_v2, cuMemsetD16_v2, cuMemsetD32_v2, cuMemsetD8_v2};
 mod primary;

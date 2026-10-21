@@ -27,6 +27,8 @@ int main() {
     PROBE(cuCtxSynchronize, cuCtxSynchronize_v2000);
     PROBE(cuMemAlloc_v2, cuMemAlloc_v3020);
     PROBE(cuMemFree_v2, cuMemFree_v3020);
+    PROBE(cuMemGetAddressRange_v2, cuMemGetAddressRange_v3020);
+    PROBE(cuPointerGetAttribute, cuPointerGetAttribute_v4000);
     PROBE(cuMemcpyHtoD_v2, cuMemcpyHtoD_v3020);
     PROBE(cuMemcpyDtoH_v2, cuMemcpyDtoH_v3020);
     PROBE(cuMemcpyDtoD_v2, cuMemcpyDtoD_v3020);
@@ -53,6 +55,7 @@ int main() {
     std::printf("flags:%u:%u:%u:%u:%u:%u:%u:%u\n", CU_CTX_SCHED_AUTO,
         CU_CTX_SCHED_SPIN, CU_CTX_SCHED_YIELD, CU_CTX_SCHED_BLOCKING_SYNC,
         CU_CTX_SCHED_MASK, CU_CTX_MAP_HOST, CU_CTX_LMEM_RESIZE_TO_MAX, CU_CTX_FLAGS_MASK);
+    std::printf("pointer-attributes:%d:%d:%d:%d:%d:%d:%d:%d\n", CU_POINTER_ATTRIBUTE_CONTEXT, CU_POINTER_ATTRIBUTE_MEMORY_TYPE, CU_POINTER_ATTRIBUTE_IS_MANAGED, CU_POINTER_ATTRIBUTE_DEVICE_ORDINAL, CU_POINTER_ATTRIBUTE_RANGE_START_ADDR, CU_POINTER_ATTRIBUTE_RANGE_SIZE, CU_POINTER_ATTRIBUTE_MAPPING_SIZE, CU_POINTER_ATTRIBUTE_MEMORY_BLOCK_ID);
     std::printf("attributes:%d:%d:%d:%d:%d:%d:%d:%d:%d\n",
         CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK, CU_DEVICE_ATTRIBUTE_MAX_BLOCK_DIM_X,
         CU_DEVICE_ATTRIBUTE_MAX_BLOCK_DIM_Y, CU_DEVICE_ATTRIBUTE_MAX_BLOCK_DIM_Z,

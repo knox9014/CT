@@ -556,6 +556,38 @@
         "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries",
         "tests/p06a_memory_app.c#main"
       ]
+    },
+    {
+      "symbol": "cuMemGetAddressRange_v2",
+      "signature_id": "cuMemGetAddressRange_v2:(CUdeviceptr *base, size_t *size, CUdeviceptr pointer)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuMemGetAddressRange",
+          "minimum": 3020,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "Restricted allocation metadata: docs/compatibility/driver-api.md",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries",
+        "tests/p06q_query_app.c#main"
+      ]
+    },
+    {
+      "symbol": "cuPointerGetAttribute",
+      "signature_id": "cuPointerGetAttribute:(void *data, int attribute, CUdeviceptr pointer)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuPointerGetAttribute",
+          "minimum": 4000,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "Restricted allocation metadata: docs/compatibility/driver-api.md",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries",
+        "tests/p06q_query_app.c#main"
+      ]
     }
   ],
   "features": [

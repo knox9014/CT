@@ -55,6 +55,11 @@ int wmain(int argc, wchar_t **argv) {
         fill8(0, 0x78, 0) != CUDA_ERROR_NOT_INITIALIZED ||
         fill16(0, 0x5678, 0) != CUDA_ERROR_NOT_INITIALIZED ||
         fill32(0, 0x12345678, 0) != CUDA_ERROR_NOT_INITIALIZED) return 1;
+    auto range = reinterpret_cast<PFN_cuMemGetAddressRange_v3020>(GetProcAddress(dll, "cuMemGetAddressRange_v2"));
+    auto attribute = reinterpret_cast<PFN_cuPointerGetAttribute_v4000>(GetProcAddress(dll, "cuPointerGetAttribute"));
+    unsigned int managed = 99;
+    if (!range || !attribute || range(nullptr, nullptr, 0) != CUDA_ERROR_NOT_INITIALIZED ||
+        attribute(&managed, CU_POINTER_ATTRIBUTE_IS_MANAGED, 0) != CUDA_ERROR_NOT_INITIALIZED || managed != 99) return 1;
     FreeLibrary(dll);
     std::puts("Official PFN consumer: error mapping, resolver ABI versions and primary calls passed.");
 }

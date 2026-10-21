@@ -38,7 +38,7 @@ class ProfileTests(unittest.TestCase):
 
     def test_current_profile_is_explicitly_bounded(self):
         self.assertEqual(validate_profile(self.data, ROOT), [])
-        self.assertEqual(len(self.data['exports']), 36)
+        self.assertEqual(len(self.data['exports']), 38)
         self.assertEqual(next(e for e in self.data['exports'] if e['symbol']=='cuDriverGetVersion')['behavior'], 'NOT_SUPPORTED')
         self.assertTrue(all(f['state'] in ('experimental','unsupported') for f in self.data['features']))
 
