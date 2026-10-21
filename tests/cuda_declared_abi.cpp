@@ -11,5 +11,6 @@ int main() {
     std::puts("enums:0:1:2:3:100:101:201:218:400:500:801:999");
     std::puts("query:0:1:2");
     std::puts("primary-errors:709");
+    std::puts("flags:0:1:2:4:7:8:16:31");
     std::puts("attributes:1:2:3:4:5:6:7:20:0");
 }

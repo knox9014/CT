@@ -460,6 +460,38 @@
       "test_ids": [
         "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
       ]
+    },
+    {
+      "symbol": "cuDevicePrimaryCtxSetFlags_v2",
+      "signature_id": "cuDevicePrimaryCtxSetFlags_v2:(CUdevice device, unsigned int flags)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuDevicePrimaryCtxSetFlags",
+          "minimum": 11000,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "P05c default flags0 only; valid nonzero801/malformed1; current/stale context query",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries",
+        "tests/p05c_host.c#main"
+      ]
+    },
+    {
+      "symbol": "cuCtxGetFlags",
+      "signature_id": "cuCtxGetFlags:(unsigned int *flags)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuCtxGetFlags",
+          "minimum": 7000,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "P05c default flags0 only; valid nonzero801/malformed1; current/stale context query",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries",
+        "tests/p05c_host.c#main"
+      ]
     }
   ],
   "features": [

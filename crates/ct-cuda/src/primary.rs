@@ -9,6 +9,40 @@ fn device(r: &Runtime, device: i32) -> CudaResult {
     Ok(())
 }
 
+fn validate_primary_flags(flags: u32) -> CudaResult {
+    if flags & !0x1f != 0 || !matches!(flags & 7, 0 | 1 | 2 | 4) {
+        return Err(INVALID);
+    }
+    if flags != 0 {
+        return Err(UNSUPPORTED);
+    }
+    Ok(())
+}
+
+/// Only CT's existing default execution policy is supported; no activation or TLS changes.
+#[no_mangle]
+pub extern "system" fn cuDevicePrimaryCtxSetFlags_v2(ordinal: i32, flags: u32) -> i32 {
+    invoke(|r| {
+        device(r, ordinal)?;
+        validate_primary_flags(flags)
+    })
+}
+
+/// # Safety
+/// flags must be writable for one unsigned C int.
+#[no_mangle]
+pub unsafe extern "system" fn cuCtxGetFlags(flags: *mut u32) -> i32 {
+    invoke(|r| {
+        backend(r)?;
+        if flags.is_null() {
+            return Err(INVALID);
+        }
+        flags.write(0);
+        context_id(r)?;
+        Ok(())
+    })
+}
+
 /// # Safety
 /// output must be writable for one context handle.
 #[no_mangle]
@@ -122,6 +156,21 @@ fn release_primary<T>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn primary_flags_reject_malformed_and_unimplemented_modes_distinctly() {
+        assert_eq!(validate_primary_flags(0), Ok(()));
+        for flags in [1, 2, 4, 8, 9, 10, 12, 16, 17, 18, 20, 24, 25, 26, 28] {
+            assert_eq!(validate_primary_flags(flags), Err(801), "flags={flags}");
+        }
+        for flags in [
+            3, 5, 6, 7, 11, 13, 14, 15, 19, 21, 22, 23, 27, 29, 30, 31, 32,
+        ] {
+            assert_eq!(validate_primary_flags(flags), Err(1), "flags={flags}");
+        }
+        assert_eq!(validate_primary_flags(u32::MAX), Err(1));
+        assert_eq!(validate_primary_flags(0x80000000), Err(1));
+    }
 
     #[test]
     fn reset_failure_preserves_usage_and_never_retries_quarantined_resources() {

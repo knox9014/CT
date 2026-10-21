@@ -16,7 +16,7 @@ without changing state. These deterministic CT guards and post-release handle
 identity have not been compared to NVIDIA hardware. Cleanup errors preserve the
 original error and quarantine uncertain native resources without retry.
 
-Set-flags, nondefault scheduling, pinned-memory APIs and legacy release/reset
+Nondefault scheduling, pinned-memory APIs and legacy release/reset/set-flags
 remain unavailable. This is not complete primary-context or Runtime support.
 See the [design](../superpowers/specs/2026-10-21-primary-context-design.md).
 
@@ -35,6 +35,22 @@ CUcontext reuse and GetCurrent parity after reset are NVIDIA-unverified; consume
 must explicitly reacquire/select after reset in this profile. Stale raw native
 device pointer addresses may be reused after deallocation; generation safety for
 them is not claimed. See the [reset design](../superpowers/specs/2026-10-21-primary-reset-design.md).
+
+### P05c default flags and library consumers
+
+`cuDevicePrimaryCtxSetFlags_v2` supports flags0 for an initialized valid device,
+inactive or active, without activation or reference/resource/TLS changes.
+Unknown bits outside0x1f or scheduling bits3/5/6/7 return1; recognized nonzero flags
+return801 without effects. `cuCtxGetFlags` reports0 for supported current ordinary/
+primary contexts; no current201, stale primary709, null output1. Valid output is
+cleared after initialization before validating current state.
+
+Flags0 selects CT's existing default policy; NVIDIA AUTO heuristic equivalence
+and nondefault wait scheduling are unverified/unimplemented. Deprecated MAP_HOST
+and LMEM bits are conservatively unsupported too. Independent official-header
+producer/consumer DLLs test shared resources across explicit release and producer
+unload. Test-only dependency copying is not automatic public-loader packaging.
+See the [consumer design](../superpowers/specs/2026-10-21-primary-consumers-design.md).
 
 ## Original M1/M2 scope
 
