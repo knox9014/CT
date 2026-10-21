@@ -12,6 +12,8 @@ int main() {
     PROBE(cuDeviceGetName, cuDeviceGetName_v2000);
     PROBE(cuDeviceGetAttribute, cuDeviceGetAttribute_v2000);
     PROBE(cuDevicePrimaryCtxRetain, cuDevicePrimaryCtxRetain_v7000);
+    PROBE(cuDevicePrimaryCtxSetFlags_v2, cuDevicePrimaryCtxSetFlags_v11000);
+    PROBE(cuCtxGetFlags, cuCtxGetFlags_v7000);
     PROBE(cuDevicePrimaryCtxReset_v2, cuDevicePrimaryCtxReset_v11000);
     PROBE(cuDevicePrimaryCtxGetState, cuDevicePrimaryCtxGetState_v7000);
     PROBE(cuDevicePrimaryCtxRelease_v2, cuDevicePrimaryCtxRelease_v11000);
@@ -44,6 +46,9 @@ int main() {
     std::printf("query:%d:%d:%d\n", CU_GET_PROC_ADDRESS_SUCCESS,
         CU_GET_PROC_ADDRESS_SYMBOL_NOT_FOUND, CU_GET_PROC_ADDRESS_VERSION_NOT_SUFFICIENT);
     std::printf("primary-errors:%d\n", CUDA_ERROR_CONTEXT_IS_DESTROYED);
+    std::printf("flags:%u:%u:%u:%u:%u:%u:%u:%u\n", CU_CTX_SCHED_AUTO,
+        CU_CTX_SCHED_SPIN, CU_CTX_SCHED_YIELD, CU_CTX_SCHED_BLOCKING_SYNC,
+        CU_CTX_SCHED_MASK, CU_CTX_MAP_HOST, CU_CTX_LMEM_RESIZE_TO_MAX, CU_CTX_FLAGS_MASK);
     std::printf("attributes:%d:%d:%d:%d:%d:%d:%d:%d:%d\n",
         CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK, CU_DEVICE_ATTRIBUTE_MAX_BLOCK_DIM_X,
         CU_DEVICE_ATTRIBUTE_MAX_BLOCK_DIM_Y, CU_DEVICE_ATTRIBUTE_MAX_BLOCK_DIM_Z,

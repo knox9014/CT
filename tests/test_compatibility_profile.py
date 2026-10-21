@@ -28,9 +28,17 @@ class ProfileTests(unittest.TestCase):
     def setUp(self):
         self.data = json.loads((ROOT / 'docs/compatibility/profile-v1.json').read_text(encoding='utf-8'))
 
+    def test_flag_apis_keep_distinct_verified_floors(self):
+        expected = expected_exports(ROOT)
+        for name, canonical, minimum in [('cuCtxGetFlags','cuCtxGetFlags',7000),
+                ('cuDevicePrimaryCtxSetFlags_v2','cuDevicePrimaryCtxSetFlags',11000)]:
+            self.assertEqual(expected[name]['lookup_ranges'], [
+                dict(symbol=canonical,minimum=minimum,maximum=12000)])
+        self.assertNotIn('cuDevicePrimaryCtxSetFlags',expected)
+
     def test_current_profile_is_explicitly_bounded(self):
         self.assertEqual(validate_profile(self.data, ROOT), [])
-        self.assertEqual(len(self.data['exports']), 30)
+        self.assertEqual(len(self.data['exports']), 32)
         self.assertEqual(next(e for e in self.data['exports'] if e['symbol']=='cuDriverGetVersion')['behavior'], 'NOT_SUPPORTED')
         self.assertTrue(all(f['state'] in ('experimental','unsupported') for f in self.data['features']))
 

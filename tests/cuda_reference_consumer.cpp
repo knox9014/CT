@@ -28,6 +28,14 @@ int wmain(int argc, wchar_t **argv) {
     auto release = reinterpret_cast<PFN_cuDevicePrimaryCtxRelease_v11000>(GetProcAddress(dll, "cuDevicePrimaryCtxRelease_v2"));
     auto reset = reinterpret_cast<PFN_cuDevicePrimaryCtxReset_v11000>(GetProcAddress(dll, "cuDevicePrimaryCtxReset_v2"));
     auto state = reinterpret_cast<PFN_cuDevicePrimaryCtxGetState_v7000>(GetProcAddress(dll, "cuDevicePrimaryCtxGetState"));
+    auto set_flags = reinterpret_cast<PFN_cuDevicePrimaryCtxSetFlags_v11000>(GetProcAddress(dll, "cuDevicePrimaryCtxSetFlags_v2"));
+    auto get_flags = reinterpret_cast<PFN_cuCtxGetFlags_v7000>(GetProcAddress(dll, "cuCtxGetFlags"));
+    if (!set_flags || !get_flags || GetProcAddress(dll, "cuDevicePrimaryCtxSetFlags")) return 1;
+    unsigned int context_flags = 9;
+    if (set_flags(0, 0) != CUDA_ERROR_NOT_INITIALIZED || get_flags(&context_flags) != CUDA_ERROR_NOT_INITIALIZED) return 1;
+    if (new_query("cuDevicePrimaryCtxSetFlags", &function, 10999, 0, &status) || function || status != CU_GET_PROC_ADDRESS_VERSION_NOT_SUFFICIENT) return 1;
+    if (new_query("cuDevicePrimaryCtxSetFlags", &function, 11000, 0, &status) || function != reinterpret_cast<void *>(set_flags)) return 1;
+    if (new_query("cuCtxGetFlags", &function, 7000, 0, &status) || function != reinterpret_cast<void *>(get_flags)) return 1;
     if (!retain || !release || !state || !reset) return 1;
     CUcontext primary = nullptr; unsigned int primary_flags = 0; int active = 0;
     if (retain(&primary, 0) != CUDA_ERROR_NOT_INITIALIZED ||

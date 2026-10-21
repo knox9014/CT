@@ -1106,9 +1106,10 @@
         "scope": "P05a default flags only; shared retains, final release, TLS independence",
         "stale_primary": 709,
         "reset": "v2 preserving retained usage; fresh CT generation",
-        "set_flags": false,
+        "set_flags": "v2 flags0 only; nonzero unsupported",
         "legacy_release": false,
-        "nvidia_parity": "unverified"
+        "nvidia_parity": "unverified",
+        "library_consumers": "CT-owned official-header producer/static and consumer/dynamic DLLs; no third-party library claim"
       },
       "test_ids": {
         "resolver": [
@@ -1119,7 +1120,8 @@
         ],
         "native": [
           "tests/p05a_cuda_app.c#main",
-          "tests/p05b_cuda_app.c#main"
+          "tests/p05b_cuda_app.c#main",
+          "tests/p05c_host.c#main"
         ],
         "semantic": [
           "crates/ct-cuda/src/primary_state.rs#retains_share_one_lazy_context_and_final_release_retires_it",
@@ -1130,7 +1132,8 @@
           "crates/ct-cuda/src/primary_state.rs#reset_preserves_usage_across_fresh_generation_and_repeated_reset",
           "crates/ct-cuda/src/primary_state.rs#inactive_releases_and_device_isolation_do_not_create_resources",
           "crates/ct-cuda/src/primary_state.rs#reactivation_failure_and_overflow_preserve_inactive_usage",
-          "crates/ct-cuda/src/primary.rs#reset_failure_preserves_usage_and_never_retries_quarantined_resources"
+          "crates/ct-cuda/src/primary.rs#reset_failure_preserves_usage_and_never_retries_quarantined_resources",
+          "crates/ct-cuda/src/primary.rs#primary_flags_reject_malformed_and_unimplemented_modes_distinctly"
         ]
       }
     },
@@ -1359,6 +1362,52 @@
           "crates/ct-cuda/src/primary_state.rs#inactive_releases_and_device_isolation_do_not_create_resources",
           "crates/ct-cuda/src/primary_state.rs#reactivation_failure_and_overflow_preserve_inactive_usage",
           "crates/ct-cuda/src/primary.rs#reset_failure_preserves_usage_and_never_retries_quarantined_resources"
+        ]
+      }
+    },
+    {
+      "id": "driver.cuDevicePrimaryCtxSetFlags_v2",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "contract": "P05c flags0 only; nondefault scheduling unsupported; no AUTO heuristic parity",
+        "behavior_gap": true
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [
+          "tests/cuda_reference_abi.cpp#main"
+        ],
+        "semantic": [
+          "crates/ct-cuda/src/primary.rs#primary_flags_reject_malformed_and_unimplemented_modes_distinctly"
+        ],
+        "native": [
+          "tests/p05c_host.c#main"
+        ]
+      }
+    },
+    {
+      "id": "driver.cuCtxGetFlags",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "contract": "P05c flags0 only; nondefault scheduling unsupported; no AUTO heuristic parity",
+        "behavior_gap": true
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [
+          "tests/cuda_reference_abi.cpp#main"
+        ],
+        "semantic": [
+          "crates/ct-cuda/src/primary.rs#primary_flags_reject_malformed_and_unimplemented_modes_distinctly"
+        ],
+        "native": [
+          "tests/p05c_host.c#main"
         ]
       }
     }
@@ -1726,6 +1775,18 @@
     },
     {
       "id": "scripts/run_validation.py#arc.reset",
+      "kind": "native"
+    },
+    {
+      "id": "crates/ct-cuda/src/primary.rs#primary_flags_reject_malformed_and_unimplemented_modes_distinctly",
+      "kind": "semantic"
+    },
+    {
+      "id": "tests/p05c_host.c#main",
+      "kind": "native"
+    },
+    {
+      "id": "scripts/run_validation.py#arc.libraries",
       "kind": "native"
     }
   ]

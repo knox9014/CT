@@ -22,6 +22,8 @@ typedef struct CTstream *CUstream;
  X(cuDeviceGetName, (char *name, int length, CUdevice device)) \
  X(cuDeviceGetAttribute, (int *value, int attribute, CUdevice device)) \
  X(cuDevicePrimaryCtxRetain, (CUcontext *context, CUdevice device)) \
+ X(cuDevicePrimaryCtxSetFlags_v2, (CUdevice device, unsigned int flags)) \
+ X(cuCtxGetFlags, (unsigned int *flags)) \
  X(cuDevicePrimaryCtxReset_v2, (CUdevice device)) \
  X(cuDevicePrimaryCtxGetState, (CUdevice device, unsigned int *flags, int *active)) \
  X(cuDevicePrimaryCtxRelease_v2, (CUdevice device)) \

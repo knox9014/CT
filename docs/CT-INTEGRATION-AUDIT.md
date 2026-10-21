@@ -135,8 +135,9 @@ subsequently passed the independent clean-checkout run recorded above.
 
 P05a retain/release, state, TLS and shared resources are implemented and verified
 separately in [P05a results](P05a-RESULTS.md). [P05b reset](P05b-RESULTS.md) now
-records reference-preserving resource invalidation. P05c additional flags and
-library consumers still need their own contracts and execution evidence.
+records reference-preserving resource invalidation. [P05c](P05c-RESULTS.md) records
+default-flags APIs and independent CT-owned library consumers. Nondefault wait
+scheduling and real external libraries still need contracts and execution evidence.
 P03/P04 should use the preserved scalar/multi-entry producer failures to improve
 typed ABI/address analysis without source rewriting. P10 shared/barrier design
 must define block participation and failure behavior before promoting the
