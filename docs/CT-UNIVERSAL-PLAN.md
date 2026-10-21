@@ -10,8 +10,10 @@
 [P05a primary context](P05a-RESULTS.md)를 구현·검증했다. Driver export는29개이며,
 기본 플래그의 retain/GetState/release와 두 스레드의 자원 공유를 검증했다.
 이어 [P05b reset](P05b-RESULTS.md)에서 참조를 보존하는 v2 reset과 두 스레드의
-자원 무효화를 검증했다. 현재 export는30개다. 추가 플래그·독립 라이브러리 소비자는
-P05c이며, 구형 ABI와 NVIDIA reset 후 핸들 재사용 대조도 남아 있다. 범용 CUDA 완성을 뜻하지 않는다.
+자원 무효화를 검증했다. 이때 export는30개였다. 추가 플래그·독립 라이브러리 소비자는
+P05c 범위다. 이어 [P05c 기본 플래그·독립 DLL 공유](P05c-RESULTS.md)를 검증해
+현재 export는32개다. 추가 스케줄링·구형 ABI·NVIDIA reset 후 핸들 재사용 대조와
+실제 외부 라이브러리 검증은 남아 있다. 범용 CUDA 완성을 뜻하지 않는다.
 
 ## 1. 제품 목표와 성공의 정의
 

@@ -42,4 +42,14 @@ validation runner and test catalog.
 - [x] Build independent libraries and host; verify old DLL rejection and unchanged bytes.
 - [x] Check flags and cross-library resource lifetime, producer unload, final release and fresh activation on Arc.
 - [x] Obtain independent review and fix material findings with regression tests.
-- [ ] Run clean full combined validation, publication scans and user-file preservation; preserve reports and publish a stacked draft.
+- [x] Run clean full combined validation, publication scans and user-file preservation; preserve reports and finish through a stacked draft.
+
+## Execution record
+
+Clean `cf695064331f091be35cf0363d0a4029501e501b` passed29/29 required cases,
+Rust95/97 and Python62. New official-header DLL consumers passed514 results/
+128 guards; the skipped-second-launch control was rejected. Review gap on stale
+outputs was reproduced and corrected; focused re-review clear. Original bundle
+identities matched observed clean source and independently approved configuration.
+All11 user files preserved. [Full results](../../P05c-RESULTS.md); hosted CI is
+tracked separately on the draft PR. Nondefault scheduling is still deferred.
