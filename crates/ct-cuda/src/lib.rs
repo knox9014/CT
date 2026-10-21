@@ -6,7 +6,7 @@ use ct_backend_intel::{Backend, Context, Module};
 use ct_core::AllocationRanges;
 use ct_ptx::ParamKind;
 use std::cell::RefCell;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::{c_char, c_void};
 use std::sync::{Mutex, OnceLock};
 
@@ -31,6 +31,7 @@ struct OwnedFunction {
     module: usize,
     entry: usize,
 }
+mod context_stack;
 mod entrypoints;
 mod images;
 mod modules;
@@ -48,6 +49,7 @@ struct Runtime {
     next: usize,
     retired: Vec<OwnedContext>,
     primary: primary_state::PrimaryContexts,
+    destroyed: BTreeSet<usize>,
 }
 static RUNTIME: OnceLock<Mutex<Runtime>> = OnceLock::new();
 thread_local! {static CURRENT:RefCell<Vec<usize>>=const{RefCell::new(Vec::new())};}
@@ -74,7 +76,7 @@ fn context_id(r: &Runtime) -> Result<usize, i32> {
 fn validate_context(r: &Runtime, id: usize) -> CudaResult {
     if r.contexts.contains_key(&id) {
         Ok(())
-    } else if r.primary.retired(id) {
+    } else if r.primary.retired(id) || r.destroyed.contains(&id) {
         Err(709)
     } else {
         Err(INVALID_CONTEXT)
@@ -288,7 +290,8 @@ pub extern "system" fn cuCtxDestroy_v2(context: *mut c_void) -> i32 {
         if r.primary.owns(id) {
             return Err(INVALID_CONTEXT);
         }
-        CURRENT.with(|s| s.borrow_mut().retain(|&v| v != id));
+        r.destroyed.insert(id);
+        CURRENT.with(|s| context_stack::pop_destroyed_current(&mut s.borrow_mut(), id));
         retire_context(r, id)
     })
 }
@@ -481,7 +484,7 @@ fn error_text(code: i32) -> Option<(&'static std::ffi::CStr, &'static std::ffi::
         500 => (c"CUDA_ERROR_NOT_FOUND", c"entry point not found in module"),
         709 => (
             c"CUDA_ERROR_CONTEXT_IS_DESTROYED",
-            c"primary context has been released",
+            c"context has been destroyed or primary context released",
         ),
         801 => (
             c"CUDA_ERROR_NOT_SUPPORTED",
@@ -525,6 +528,14 @@ pub unsafe extern "system" fn cuGetErrorString(code: i32, output: *mut *const c_
 #[cfg(test)]
 mod failure_mapping_tests {
     use super::*;
+    #[test]
+    fn ordinary_destroyed_handles_stay_distinct_from_unknown_handles() {
+        let mut runtime = Runtime::default();
+        runtime.destroyed.insert(42);
+        assert_eq!(validate_context(&runtime, 42), Err(709));
+        assert_eq!(validate_context(&runtime, 43), Err(201));
+        assert_eq!(validate_context(&runtime, 0), Err(201));
+    }
     #[test]
     fn failed_cleanup_quarantines_once_and_never_retries_removed_resources() {
         let mut contexts = BTreeMap::from([(7, 42)]);

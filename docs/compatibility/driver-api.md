@@ -52,6 +52,20 @@ producer/consumer DLLs test shared resources across explicit release and produce
 unload. Test-only dependency copying is not automatic public-loader packaging.
 See the [consumer design](../superpowers/specs/2026-10-21-primary-consumers-design.md).
 
+## Ordinary context destruction correction
+
+Destroy now pops exactly one caller stack entry only when the target is current.
+Buried entries and other threads' stacks are unchanged. Destroyed ordinary IDs
+are tombstoned before cleanup: later current-context operations report709, while
+unknown IDs/no current remain201. GetCurrent clears output and reports709 for a
+stale ordinary top under CT's deterministic query policy. SetCurrent(NULL) can
+explicitly remove one stale top. Primary Destroy remains rejected without stack
+edits. Cleanup failures retain the existing quarantine/no-retry behavior.
+
+This matches the documented top-pop/cross-thread access rules; exact GetCurrent
+and arbitrary post-destroy-handle error parity with NVIDIA is not established.
+Tombstones consume process-lifetime metadata. No exports or ABI floors change.
+
 ## Original M1/M2 scope
 
 Windows x64, Arc B390 tested. The original independent C test loads `ct_cuda.dll`

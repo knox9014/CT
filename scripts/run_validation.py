@@ -139,6 +139,8 @@ def steps(lane, validator, lock):
     arc.append(('arc.reset','native',['pwsh','-NoProfile','-File','scripts/run_p05b_smoke.ps1']))
     # Catalog marker: arc.libraries
     arc.append(('arc.libraries','native',['pwsh','-NoProfile','-File','scripts/run_p05c_smoke.ps1']))
+    # Catalog marker: arc.context_destroy
+    arc.append(('arc.context_destroy','native',['pwsh','-NoProfile','-File','scripts/run_p05d_smoke.ps1']))
     combined=cpu+validator_steps+producer+arc+[
         ('combined.all','semantic',['cargo','test','--workspace','--','--include-ignored'])]
     return {'cpu':cpu,'validator':validator_steps,'producer':producer,'arc':arc,'combined':combined}[lane]
