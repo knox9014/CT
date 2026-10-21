@@ -48,4 +48,13 @@ results and progress documentation.
 - [x] Exercise two-thread reset, pre/post-reset kernels, stale state, outstanding
   releases and ordinary context isolation on Arc with unchanged consumer/PTX bytes.
 - [x] Obtain independent review and fix material issues with regression tests.
-- [ ] Validate clean full combined candidate, preserve reports/user hashes and run publication scans.
+- [x] Validate clean full combined candidate, preserve reports/user hashes and run publication scans.
+
+## Execution record
+
+Clean candidate `f6d41cdc4fe6dea3ca02b89f90f6147261bbe1c4` passed28/28 required
+cases, Rust94/96 and Python61. Static/dynamic two-thread reset consumers passed
+on Arc; actual source and independently approved original bundle identities
+matched. Independent reviews reported no actionable material finding. All11
+user files remain preserved; raw reports stay ignored. [Full results](../../P05b-RESULTS.md).
+Hosted CI is tracked separately on the stacked draft PR.

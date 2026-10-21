@@ -9,7 +9,9 @@
 2026-10-21 진행 기록: [공통 검증 기반](CT-INTEGRATION-AUDIT.md)에 이어
 [P05a primary context](P05a-RESULTS.md)를 구현·검증했다. Driver export는29개이며,
 기본 플래그의 retain/GetState/release와 두 스레드의 자원 공유를 검증했다.
-reset·추가 플래그·구형 release ABI는 후속 P05b/P05c이고 범용 CUDA 완성을 뜻하지 않는다.
+이어 [P05b reset](P05b-RESULTS.md)에서 참조를 보존하는 v2 reset과 두 스레드의
+자원 무효화를 검증했다. 현재 export는30개다. 추가 플래그·독립 라이브러리 소비자는
+P05c이며, 구형 ABI와 NVIDIA reset 후 핸들 재사용 대조도 남아 있다. 범용 CUDA 완성을 뜻하지 않는다.
 
 ## 1. 제품 목표와 성공의 정의
 
