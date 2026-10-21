@@ -133,9 +133,9 @@ subsequently passed the independent clean-checkout run recorded above.
 
 ## Next implementation inputs
 
-P05 primary-context design can proceed alongside this foundation: retain/release,
-active/current context behavior, reset, TLS stacks, shared device state, and
-resource invalidation need one common contract plus independent consumers.
+P05a retain/release, state, TLS and shared resources are implemented and verified
+separately in [P05a results](P05a-RESULTS.md). P05b reset and P05c additional flags
+and library consumers still need their own contracts and execution evidence.
 P03/P04 should use the preserved scalar/multi-entry producer failures to improve
 typed ABI/address analysis without source rewriting. P10 shared/barrier design
 must define block participation and failure behavior before promoting the

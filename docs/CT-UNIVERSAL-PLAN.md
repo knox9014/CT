@@ -1,10 +1,15 @@
 # CT 범용 CUDA 호환 계층 개발 명세와 전체 실행 계획
 
-작성: 2026-10-20. 현재 구현 기준: M3o / d86d916.
+작성: 2026-10-20. 계획 작성 당시 구현 기준: M3o / d86d916.
 상태: 사용자 목표 재확인에 따른 검토용 계획. 이번 문서 작성은 기능 구현·병합·릴리스가 아니다.
 이 명세는 [전체 목표 G0~G14](CT-COMPLETION-GOALS.md)를 보존하며,
 [P00~P25](CT-EXECUTION-ROADMAP.md)의 기능 목록을 삭제하지 않고 우선순위·증거·통과 조건을 구체화한다.
 [중간 검토](CT-REVIEW-2026-10-20.md)의 앱 중심 제안은 아래의 **의미 coverage + 다양한 앱** 원칙으로 보완한다.
+
+2026-10-21 진행 기록: [공통 검증 기반](CT-INTEGRATION-AUDIT.md)에 이어
+[P05a primary context](P05a-RESULTS.md)를 구현·검증했다. Driver export는29개이며,
+기본 플래그의 retain/GetState/release와 두 스레드의 자원 공유를 검증했다.
+reset·추가 플래그·구형 release ABI는 후속 P05b/P05c이고 범용 CUDA 완성을 뜻하지 않는다.
 
 ## 1. 제품 목표와 성공의 정의
 
@@ -29,7 +34,7 @@
 8. .gitignore와 공개 artifact/히스토리/신원 검사를 유지한다. 개인정보·키·개인 경로·raw log·vendor/generated binary를 공개하지 않는다.
 9. 기존 미커밋 LICENSE/Cargo/README 수정은 이번 계획·기능 커밋과 섞거나 변경하지 않는다.
 
-## 2. 현재 출발점
+## 2. 계획 작성 당시 출발점
 
 | 영역 | 현재 증거 | 아직 없는 핵심 |
 | --- | --- | --- |

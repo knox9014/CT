@@ -49,5 +49,14 @@ Files: `tests/p05a_cuda_app.c`, `tests/p05a_primary_check.py`,
   stale context/module/function handles, fresh activation and ordinary isolation.
 - [x] Add the native case to Arc/combined lanes; keep hosted CPU free of GPU work.
 - [x] Obtain independent whole-change review; fix material findings with regression tests.
-- [ ] Validate a clean candidate with all required lanes, scan publication, preserve
-  user hashes, and publish a stacked draft PR with actual evidence and remaining limits.
+- [x] Validate a clean candidate with all required lanes, scan publication, and preserve
+  user hashes. Finish through a stacked draft PR with actual evidence and remaining limits.
+
+## Execution record
+
+Clean candidate `c783cbaaf42c4e61b62179cada8f6f6cc9fbf9aa` passed27/27 required
+cases, Rust90/92 and Python60. Both independent native consumers passed on Arc.
+Independent review fixes include multiline resolver extraction and stale module
+output clearing, each reproduced before correction. Integrated cleanup-failure
+injection passed; focused re-review clear. Full evidence and remaining scope:
+[P05a results](../../P05a-RESULTS.md). Hosted CI is tracked separately on the PR.
