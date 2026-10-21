@@ -138,6 +138,9 @@ separately in [P05a results](P05a-RESULTS.md). [P05b reset](P05b-RESULTS.md) now
 records reference-preserving resource invalidation. [P05c](P05c-RESULTS.md) records
 default-flags APIs and independent CT-owned library consumers. Nondefault wait
 scheduling and real external libraries still need contracts and execution evidence.
+The separate [ordinary Destroy correction](CONTEXT-DESTROY-RESULTS.md) now records
+top-only stack mutation and coordinated other-thread stale-handle validation.
+P06a D2D/memset/property contracts are the next implementation input.
 P03/P04 should use the preserved scalar/multi-entry producer failures to improve
 typed ABI/address analysis without source rewriting. P10 shared/barrier design
 must define block participation and failure behavior before promoting the

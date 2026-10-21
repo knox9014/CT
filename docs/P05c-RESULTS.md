@@ -68,6 +68,8 @@ packaging or third-party CUDA library/framework support.
 
 P05b fresh-context generation, stale709 and native raw-address reuse limits remain.
 The preexisting ordinary Destroy stack policy still needs a separate correction.
+That historical gap is subsequently addressed in the separate
+[context destruction result](CONTEXT-DESTROY-RESULTS.md).
 Next work can address that context conformance gap and P06a D2D/memset/property
 APIs; nondefault waits belong with the later execution-model work. AMD/NVIDIA
 hardware execution and broader Runtime/library compatibility remain unverified.
