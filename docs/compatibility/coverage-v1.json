@@ -126,7 +126,9 @@
       "implementation": "partial",
       "limits": {
         "contract": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
-        "behavior_gap": false
+        "behavior_gap": false,
+        "stack": "Pop one only if current; preserve buried and other-thread entries",
+        "stale_ordinary": 709
       },
       "test_ids": {
         "resolver": [
@@ -135,6 +137,13 @@
         "abi": [],
         "behavior": [
           "tests/m3_cuda_app.c#main"
+        ],
+        "semantic": [
+          "crates/ct-cuda/src/context_stack.rs#destroy_pops_one_current_entry_and_preserves_buried_duplicates",
+          "crates/ct-cuda/src/lib.rs#ordinary_destroyed_handles_stay_distinct_from_unknown_handles"
+        ],
+        "native": [
+          "tests/p05d_context_app.c#main"
         ]
       }
     },
@@ -1787,6 +1796,22 @@
     },
     {
       "id": "scripts/run_validation.py#arc.libraries",
+      "kind": "native"
+    },
+    {
+      "id": "crates/ct-cuda/src/context_stack.rs#destroy_pops_one_current_entry_and_preserves_buried_duplicates",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-cuda/src/lib.rs#ordinary_destroyed_handles_stay_distinct_from_unknown_handles",
+      "kind": "semantic"
+    },
+    {
+      "id": "tests/p05d_context_app.c#main",
+      "kind": "native"
+    },
+    {
+      "id": "scripts/run_validation.py#arc.context_destroy",
       "kind": "native"
     }
   ]
