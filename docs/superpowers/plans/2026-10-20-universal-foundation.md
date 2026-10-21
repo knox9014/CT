@@ -121,6 +121,7 @@ class RegistryContext:
     applications: dict[str, dict]
     toolchain: dict[str, dict]
     required_cases: frozenset[str]
+    expected_lane: str = 'cpu'
 ```
 
 expected_commit은실제실행한40자리commit이다. 정적검사는report의교차참조·일관성을검사하며
@@ -154,24 +155,24 @@ validate_configuration(data: dict, *, test_catalog: dict) -> list[str]
 validate_report(data: dict, *, context: RegistryContext) -> list[str]
 ```
 
-- [ ] RED: `python -m unittest discover -s tests -p test_coverage_registry.py`.
+- [x] RED: `python -m unittest discover -s tests -p test_coverage_registry.py`.
   시험은 duplicate ID, path escape, resolver-only의behavior분류, 알 수 없는feature/test 참조,
   static pass 필드, candidate artifact의실행pass, 다른commit report를 거부한다.
   같은commit/profile이더라도driver/환경ID·seed/옵션config·lock/catalog hash가다른결과,
   duplicate/missing case_id와구성에없는case도거부한다.
   정상 missing/partial declaration은 허용한다. Expected: 필요한검증함수부재 또는 실제잘못된입력수락으로 FAIL.
-- [ ] GREEN: 닫힌schema와 기존checker의안전한경로검사방식을 재사용하여 함수/CLI를 구현한다.
+- [x] GREEN: 닫힌schema와 기존checker의안전한경로검사방식을 재사용하여 함수/CLI를 구현한다.
   kind를 임의로 behavior로 바꾼 참조를 막기 위해 test_catalog에 ID당kind를한번정의하고
   기능이 요구하는 evidence kind와 실제catalog kind를 대조한다. report는context의application상태/
   role별artifact hash/tool pin/required case/expectedprofile/실행종류를대조한다.
   이름만있다고실행성공으로세지않는다.
-- [ ] 기존26 export와 모든feature를 기록하고 아직없는 핵심기능도 명시적으로 missing/research로 등록한다.
+- [x] 기존26 export와 모든feature를 기록하고 아직없는 핵심기능도 명시적으로 missing/research로 등록한다.
   기존resolver시험은resolver에만 연결하고 nativeharness의실제API호출지점을 behavior 참조로구분한다.
-- [ ] applications에는 여섯경로의 조사카드를 만든다. 기존 vectorAddDrv만 출처·기존증거에맞게
+- [x] applications에는 여섯경로의 조사카드를 만든다. 기존 vectorAddDrv만 출처·기존증거에맞게
   upstream_adjusted_build로 등록한다. 새Runtime/독립앱은 candidate이며성공·hash를만들어내지않는다.
-- [ ] verify: 위unittest PASS, `python scripts/check_coverage.py`와 기존
+- [x] verify: 위unittest PASS, `python scripts/check_coverage.py`와 기존
   `python scripts/check_compatibility_profile.py` 모두 exit0. 출력은 정적검사임을명시.
-- [ ] commit: registry/code/tests만선택stage, publication검사후커밋.
+- [x] commit: registry/code/tests만선택stage, publication검사후커밋.
 
 ## Task 2: tool lock과 공식 header ABI provenance
 
@@ -189,11 +190,11 @@ validate_tool_execution(entry: dict, *, observed_platform: str,
 정적함수는unresolved를합법인미준비선언으로허용한다. 실행함수/runner가실제platform/hash와
 required 여부를검사해필수미준비를실패시키고선택미준비를skipped로기록한다.
 
-- [ ] RED: 정적시험은pinned의없는version/source/hash·잘못된sha256을거부하고unresolved는허용한다.
+- [x] RED: 정적시험은pinned의없는version/source/hash·잘못된sha256을거부하고unresolved는허용한다.
   별도실행시험은다른platform, required unresolvedtool과headerhash mismatch를실패시킨다.
-- [ ] GREEN: 위고정toolchain schema로lock을만들고원본archive와실제사용files의hash를구분한다.
+- [x] GREEN: 위고정toolchain schema로lock을만들고원본archive와실제사용files의hash를구분한다.
   pin_state는 unresolved/pinned이고 pinned만실행한다. unresolved에는가짜hash를채우지않고null을허용한다.
-- [ ] 기존12.0.107의실제cuda.h/cudaTypedefs.h와준비package를 대조해 각hash와출처를기록한다.
+- [x] 기존12.0.107의실제cuda.h/cudaTypedefs.h와준비package를 대조해 각hash와출처를기록한다.
   원본헤더를공개커밋하지않는다. 공식헤더만포함한reference TU와CT헤더만포함한declared TU를
   독립컴파일하고공유CT소유probe로정규화한ABI표현을비교한다. enum과int,서로다른opaque struct이름의
   명목타입일치를ABI일치조건으로삼지않는다. return/인자순서·개수·폭·정렬·pointer형태·calling convention,
@@ -201,11 +202,11 @@ required 여부를검사해필수미준비를실패시키고선택미준비를sk
   cuGetProcAddress는공식PFN_v11030의4인자,CT_v2는PFN_v12000의5인자로명시매핑한다.
   최신header alias macro를따라구형export까지5인자로비교하지않는다. 정규화표비교와별도로
   공식PFN으로컴파일한독립소비자의실제호출/출력·resolver경계도검증한다.
-- [ ] SPIRV-Tools는공식source/release의고정revision을선정해아티팩트hash와빌드recipe를기록한다.
+- [x] SPIRV-Tools는공식source/release의고정revision을선정해아티팩트hash와빌드recipe를기록한다.
   이선정단계에서필요한host버전만선택하며 rolling latest를lock에쓰지않는다. 사용할수없으면unresolved로남기고필수lane은실패한다.
-- [ ] verify: schema unittest PASS, `./scripts/check_cuda_abi.ps1` 실제고정헤더probe PASS.
+- [x] verify: schema unittest PASS, `./scripts/check_cuda_abi.ps1` 실제고정헤더probe PASS.
   헤더/툴미확보는검사하지않은상태로기록하며 이Task의실행완료로세지않는다.
-- [ ] commit: publiclock/probe/검사코드만stage. tool/header/binary는ignoredcache에남긴다.
+- [x] commit: publiclock/probe/검사코드만stage. tool/header/binary는ignoredcache에남긴다.
 
 ## Task 3: module exporter와 실제 SPIR-V validator
 
@@ -219,24 +220,24 @@ run_validator(module: Path, tool_path: Path, lock: dict,
               *, required: bool, timeout_s: int = 30) -> dict
 ```
 
-- [ ] RED: module_export의two-entry입력은두entry와서로다른인자ABI를보존해야한다.
+- [x] RED: module_export의two-entry입력은두entry와서로다른인자ABI를보존해야한다.
   Python시험은hash mismatch/도구없음/nonzero/timeout/exit0을분리하고, missing필수도구가pass되는것을거부한다.
-- [ ] GREEN: 개발용 CLI `cargo run -p ct-codegen-spirv --example translate_module -- INPUT OUTPUT`를만든다.
+- [x] GREEN: 개발용 CLI `cargo run -p ct-codegen-spirv --example translate_module -- INPUT OUTPUT`를만든다.
   기존singleentryexample은유지한다. 입력실패시정상output으로오인할stale파일이남지않도록실패계약을고정한다.
   exporter는exit0=성공,3=명시적unsupported,1=invalid translation,2=usage/I/O로분리하고
   line/category만출력한다. 원본PTX·개인경로는출력하지않는다. corpus의unsupported기대는exit3만만족하며
   IO오류·손상입력·validator거부로대체될수없다.
-- [ ] run_validator는subprocess argv list와timeout을사용하고 shell=True를쓰지않는다.
+- [x] run_validator는subprocess argv list와timeout을사용하고 shell=True를쓰지않는다.
   reason은 passed/tool_unavailable/tool_hash_mismatch/tool_timeout/validation_rejected로제한한다.
   required=True의도구부재는status fail, 선택lane부재는skipped이며원인을남긴다.
-- [ ] target_env는 emitter의SPIR-V1.0 Kernel/OpenCL/Physical64에맞는 `opencl1.2` 후보로고정검증한다.
+- [x] target_env는 emitter의SPIR-V1.0 Kernel/OpenCL/Physical64에맞는 `opencl1.2` 후보로고정검증한다.
   known-goodmodule과공식규칙을대조해환경이맞는지증명한다. 현재출력이위반하면원인을수정하거나
   명세근거로환경선택을변경하는기록을남긴다. 오류를피하려고Vulkan/느슨한flag로바꾸지않는다.
-- [ ] 실제고정spirv-val로singleentry, multi-entry, signed64, branchloop, typedmemory 출력의정상검증과
+- [x] 실제고정spirv-val로singleentry, multi-entry, signed64, branchloop, typedmemory 출력의정상검증과
   잘린binary/잘못된type-ID 출력의실패를확인한다. mock runner unittest만으로이단계를통과시키지않는다.
-- [ ] verify: `cargo test -p ct-codegen-spirv`와 `python -m unittest discover -s tests -p test_spirv_validation.py` PASS;
+- [x] verify: `cargo test -p ct-codegen-spirv`와 `python -m unittest discover -s tests -p test_spirv_validation.py` PASS;
   실제validator정상5종pass/손상2종reject, 도구hash·환경·커밋을localreport에기록.
-- [ ] commit: Rust/Python/tests/공개요약만. 생성SPV와rawdiagnostic은ignored.
+- [x] commit: Rust/Python/tests/공개요약만. 생성SPV와rawdiagnostic은ignored.
 
 ## Task 4: immutable compiler corpus와 일반화 probe
 
@@ -262,11 +263,11 @@ class CorpusContext:
 run_case(case: dict, *, mode: str, required: bool, context: CorpusContext) -> dict
 ```
 
-- [ ] RED: source/producer/options/output hash누락·PTX한byte변경·지원분류불일치·candidate pass를거부한다.
+- [x] RED: source/producer/options/output hash누락·PTX한byte변경·지원분류불일치·candidate pass를거부한다.
   capture/replay mode외입력도거부한다. expected분류unsupported인실제거부는특정negativecase성공이지만
   feature지원pass로합산되지않는것을검사한다.
   source/recipe 경로이탈·미존재·recipe hash변경·replay cache부재도검사한다.
-- [ ] GREEN: root는schema_version/source_baseline/cases이며각case에
+- [x] GREEN: root는schema_version/source_baseline/cases이며각case에
   id/source_ref/source_sha256/recipe_ref/recipe_sha256/tool_id/options/output_sha256/capture_state/
   expected_class/expected_rejection/required_features/evidence_tier를기록한다. source_ref/recipe_ref는public repo상대파일이며
   resolve 후root내부와hash를확인한다. capture_state는pending/captured, expected_class는supported/unsupported다.
@@ -275,23 +276,23 @@ run_case(case: dict, *, mode: str, required: bool, context: CorpusContext) -> di
   captured라도expected_class가null이면required replay는실패한다. expected_rejection은supported면null,
   unsupported면stage=translation/category=unsupported다. 기대를통과시키려고관측후자동재분류하지않는다.
   recipe는schema_version/source_ref/tool_id/options를갖는다. case와tool/options/source가일치해야한다.
-- [ ] 생성물은cache_root/sha256/<output_sha256>.ptx에내용주소로저장한다. capture는바로관측한bytes/hash를
+- [x] 생성물은cache_root/sha256/<output_sha256>.ptx에내용주소로저장한다. capture는바로관측한bytes/hash를
   기록하고replay는정확한hash경로만읽는다. cache miss는명시적실패/선택skip이며자동재생성하지않는다.
   capture만compiler실행을허용하며그경로도tool_bindings를통해명시적으로받고lock의실제files hash를검사한다.
   clean checkout은public source/recipe로capture한뒤hash를확정하고별도replay한다.
   기존output hash와다르면재현불일치로남기고baseline을자동갱신하지않는다.
-- [ ] 위네 source family를실제고정compiler로생성해 localPTX bytes와hash를보존한다.
+- [x] 위네 source family를실제고정compiler로생성해 localPTX bytes와hash를보존한다.
   scalar는폭·부호경계, multi_entry는entry별ABI, address_control은주소/loop/인자,
   block_candidate는shared/barrier를사용한다. 마지막은미지원이어도진단coverage로남긴다.
-- [ ] PTX를수정해지원문법으로맞추지않는다. 원래출력이미지원이면원래hash와최초실패feature를기록한다.
+- [x] PTX를수정해지원문법으로맞추지않는다. 원래출력이미지원이면원래hash와최초실패feature를기록한다.
   기존compiler_profile.rs의문자열수정시험은 synthetic/변형시험으로유지하고immutableproducer로재분류하지않는다.
-- [ ] 원본출력이모두unsupported여도진단조사는성립하지만compiler호환성증가/positive coverage로세지않는다.
+- [x] 원본출력이모두unsupported여도진단조사는성립하지만compiler호환성증가/positive coverage로세지않는다.
   기존고정NVRTC의vectorAdd원본출력을별도positive기준으로재현해지원·validator통과를확인한다.
-- [ ] 재배포검토없는generatedPTX/header/binary는local에둔다. 공개에는CT소유source·recipe·hash·분류만둔다.
-- [ ] verify: corpus unittest PASS, 네familycapture+replay결과가실제상태와일치, outputtamper검사fail,
+- [x] 재배포검토없는generatedPTX/header/binary는local에둔다. 공개에는CT소유source·recipe·hash·분류만둔다.
+- [x] verify: corpus unittest PASS, 네familycapture+replay결과가실제상태와일치, outputtamper검사fail,
   별도기존producer positive기준통과, 지원output은Task3validator실행.
   unsupportedcase성공은호환기능증가로세지않는다.
-- [ ] commit: source/manifests/harness/공개요약만. 새producer지원기능은이Task에추가하지않는다.
+- [x] commit: source/manifests/harness/공개요약만. 새producer지원기능은이Task에추가하지않는다.
 
 ## Task 5: 실행 lane·통합 후보·CPU CI
 
@@ -305,30 +306,30 @@ validate_stack(data: dict) -> list[str]
 validate_integration_report(report: dict, stack: dict) -> list[str]
 ```
 
-- [ ] RED: stale head, unknownbase, cycle, 다른commit결과, native not_run을pass로합산,
+- [x] RED: stale head, unknownbase, cycle, 다른commit결과, native not_run을pass로합산,
   requiredvalidator미실행, dirtycandidate를release검증으로표기하는사례를거부한다.
-- [ ] GREEN: lane값cpu/validator/producer/arc/combined를허용하는인터페이스를구현한다.
+- [x] GREEN: lane값cpu/validator/producer/arc/combined를허용하는인터페이스를구현한다.
   실행예: `./scripts/run_validation.ps1 -Lane cpu -Required -OutputDirectory results/local/cpu`.
   파일경로/원시로그는local, 공개요약은커밋·toolID·caseID·status·hash만쓴다.
-- [ ] cpu lane: Windows x64cargo fmt/check, Clippy, Rust의pure/ABIresolver시험, Pythonregistry/publication시험.
+- [x] cpu lane: Windows x64cargo fmt/check, Clippy, Rust의pure/ABIresolver시험, Pythonregistry/publication시험.
   ignorednative/producer시험을실행한것으로세지않는다. timeout설정으로실행상태를보고한다.
-- [ ] validator lane: Task3의실제공식도구probe가필수. producer lane은Task4capture/replay.
+- [x] validator lane: Task3의실제공식도구probe가필수. producer lane은Task4capture/replay.
   arc lane은GPU필요package/test의명시적whitelist, LevelZero/CUDAreferenceABI,
   관련기존smoke와최근M3k~M3o검사를순차실행한다. 각case의vendor fixture/producer 의존성도고정한다.
   `cargo test --workspace -- --include-ignored`는producer용nvFatbin fixture까지요구하므로
   모든준비가끝난combined lane에서만실행하고개별결과의native/producer분류는유지한다.
   Arc부재와producer fixture부재를같은이유로처리하지않는다.
-- [ ] CI는공식pinnedtool을준비하고cpu+validator를실행한다. vendor/Arc미설정시producer/native는
+- [x] CI는공식pinnedtool을준비하고cpu+validator를실행한다. vendor/Arc미설정시producer/native는
   명시적not_run이며requiredArc완료가아니다. 신뢰하지않는PR코드를개인GPUrunner에서자동실행하지않는다.
-- [ ] tracked stack에는PR번호/base/head기준/검토baseline과의존graph를기록한다.
+- [x] tracked stack에는PR번호/base/head기준/검토baseline과의존graph를기록한다.
   이파일을포함하는자기commit의HEAD를내용에기록하지않는다. 실제candidate commit·clean상태·
   실행입력범위의tree hash·관측원격snapshot은외부local실행보고서에고정한다.
   API권한부재면not_run, 하드코딩된head를원격확인한것으로쓰지않는다.
   후속문서commit은원래검증commit을그대로표기한다. 실행source/tests/scripts/Cargo/설정/manifests의
   범위와hash가동일한경우에만source-equivalent를기록할수있고새HEAD직접검증으로바꾸지않는다.
-- [ ] verify: integration unittest PASS, CPU/validator실제exit0, 명시적누락lane식별,
+- [x] verify: integration unittest PASS, CPU/validator실제exit0, 명시적누락lane식별,
   단일후보의결과와모든requiredlane일치. 명령래퍼성공을각하위case성공으로대체하지않는다.
-- [ ] commit: workflow/scripts/tests/manifest만. 어떤PR도merge/ready변경하지않는다.
+- [x] commit: workflow/scripts/tests/manifest만. 어떤PR도merge/ready변경하지않는다.
 
 ## Task 6: 누적 검토·실행·다음 설계 handoff
 
@@ -336,16 +337,16 @@ validate_integration_report(report: dict, stack: dict) -> list[str]
 **Consumes:** 앞선모든산출물과정확한통합후보.
 **Produces:** 검토가능한후보commit/결과/미검증/의사결정목록, P05및P03/P04다음상세설계의입력.
 
-- [ ] 기존변경을보존한별도관리checkout에서작업후보를고정한다. 필요한localfixture는준비recipe로재현하며
+- [x] 기존변경을보존한별도관리checkout에서작업후보를고정한다. 필요한localfixture는준비recipe로재현하며
   사용자미커밋수정을임의복사·커밋하지않는다. clean source commit과보고서의대상을일치시킨다.
-- [ ] Task5requiredlane을실제실행해읽고, CPU/validator/producer/Arc/APIbehavior/앱을분리집계한다.
+- [x] Task5requiredlane을실제실행해읽고, CPU/validator/producer/Arc/APIbehavior/앱을분리집계한다.
   NVIDIA/AMD not_run은별도유지하며이번Arc기반완료를막지않는다.
-- [ ] 하위에이전트에main~후보누적변경의공통계약검토를맡긴다. 보안·ABI·수명·의미에영향있는
+- [x] 하위에이전트에main~후보누적변경의공통계약검토를맡긴다. 보안·ABI·수명·의미에영향있는
   Critical/Important는재현RED→공통수정→관련suite검증으로처리한다. 발견·판단·보류를전부기록한다.
-- [ ] 공식도구의제약과미확보artifact를정직하게남긴다. pipeline구축성공을범용CUDA/외부앱성공으로세지않는다.
-- [ ] 병행중인P05의retain/release/reset/_v2/TLS/공유상태설계와P03/P04/P10의타입·주소·함수·참여규칙설계에
+- [x] 공식도구의제약과미확보artifact를정직하게남긴다. pipeline구축성공을범용CUDA/외부앱성공으로세지않는다.
+- [x] 병행중인P05의retain/release/reset/_v2/TLS/공유상태설계와P03/P04/P10의타입·주소·함수·참여규칙설계에
   수집한결과를연결한다. 이Task완료때까지설계착수를미루지않는다. 소비자없는필수공통기능도누락하지않는다.
-- [ ] 공개artifact/identity/history검사, 문서링크/차이검사. 기존정책의검토가능초안PR에결과를첨부한다.
+- [x] 공개artifact/identity/history검사, 문서링크/차이검사. 기존정책의검토가능초안PR에결과를첨부한다.
   main병합은구체적후보를사용자에게제시한뒤별도결정한다.
 
 ## 완료 판정
@@ -363,3 +364,28 @@ validate_integration_report(report: dict, stack: dict) -> list[str]
 범용성/의미/상태경계를바꾸는결정은추측구현하지않고수정명세로제시한다.
 P05/실제compiler공백/P10설계는첫묶음과병행가능한범위로분리하며,
 한앱완주나P03전체완료를모든후속개발의일괄선행조건으로두지않는다.
+
+
+## Execution record — 2026-10-21
+
+Tasks 1–6 completed as the first bounded foundation at clean candidate
+`54e7f1593faace0f041691d1eed17f6bafafd0a2`: all 26 required combined cases,
+85 normal Rust tests (87 with prepared ignored cases), and 58 Python tests passed.
+See [execution audit](../../CT-INTEGRATION-AUDIT.md) and
+[draft PR #19](https://github.com/knox9014/CT/pull/19). This completes the first
+foundation bundle, not universal CUDA compatibility or a release.
+
+Recorded rulings and limits:
+- RegistryContext adds expected_lane; source fingerprints also bind exact runtime inputs.
+- Corpus capture is preparation only; normative producer cases replay separately and
+  preserve child status, expected-negative classification and observed input hashes.
+- A clean checkout exposed CRLF recipe hash drift; public corpus inputs now use LF
+  and the static CLI/tests validate real repository input hashes.
+- The real validator exposed and gated correction of Kernel NoContraction and signed
+  OpTypeInt errors; signed operation semantics were checked on Arc.
+- CI source builds have explicit separate local executable locks; integration audit
+  compares against an independently selected lock. Foundation tools reject release claims.
+- Historical negative-control baseline DLL source revisions remain unverified; their
+  exact artifact hashes are bound to configuration. AMD/NVIDIA hardware, broad
+  applications and hosted CI outcomes are separate evidence; hosted status is tracked on PR #19.
+- Original Cargo/README/LICENSE edits are preserved and excluded from the candidate.

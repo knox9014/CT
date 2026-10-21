@@ -26,6 +26,35 @@ claim general CUDA, Runtime, framework, AMD, or NVIDIA compatibility.
 - Hosted Windows CPU/validator workflow. Hosted CI execution is not verified by
   local execution; the workflow does not use a personal GPU runner.
 
+## Verified clean candidate
+
+Validated 2026-10-21 at `54e7f1593faace0f041691d1eed17f6bafafd0a2`, with a
+clean managed checkout and execution-scope fingerprint
+`0ef0ca3ff27edfdf0603f84d1784d5989ff7498ec94f893257ac768b9d3d23a0`.
+The original report retains that commit; later documentation commits do not
+become directly GPU-tested commits.
+
+| Check | Observed result |
+| --- | --- |
+| Required combined cases | 26/26 passed |
+| CPU Rust | 85 passed; two explicitly ignored cases excluded |
+| Rust including prepared ignored cases | 87 passed, including native smoke and real producer parity |
+| Python | 58 passed |
+| Official validator | Eight accepted fixtures, two corrupt controls rejected |
+| NVRTC | Five regenerated output hashes unchanged; two supported translation/validator cases, three expected unsupported controls |
+| M3k–M3o Arc regressions | 2,304 cases; 19,372,800 exact results; 295,200 guards |
+| Independent CUDA consumers | Official-PFN ABI calls and static/dynamic Driver consumers passed |
+| Original bundle audit | Source/config/environment/catalog/tool/input identities matched independent expectations |
+
+The fixed upstream vector-add producer output also translated and validated
+unchanged at this candidate. Capture-only results remain `not_run/capture_only`;
+the three unsupported controls are semantic diagnostics, not supported features.
+Raw candidate reports are preserved under ignored `results/local/`.
+
+The change is published as [stacked draft PR #19](https://github.com/knox9014/CT/pull/19)
+on PR #18. Hosted CI outcomes are tracked on that PR; local execution is not
+substituted for hosted CI. No merge or ready-state change is performed.
+
 ## Correctness defects exposed by actual validation
 
 1. Existing floating operations used Shader-only `NoContraction` in a Kernel
@@ -57,7 +86,7 @@ they are not a clean-candidate or new-HEAD claim.
 - Additional direct M3j regression passed after the signed-type correction.
 - A fresh independent source build of the validator also passed real controls;
   its separate local executable identity was used, not substituted into the
-  repository lock. Hosted CI remains not_run until actually dispatched.
+  repository lock. Hosted execution is tracked separately on PR #19.
 
 ## Independent review and corrections
 
@@ -81,16 +110,18 @@ That candidate is not a passing combined result. Recipes are now fixed as LF
 bytes, with matching recipe hashes; source and generated PTX hashes are unchanged.
 A regression test and the static coverage CLI validate the real repository
 corpus, so this is checked before attempting a GPU run. The corrected candidate
-must be verified independently below.
+subsequently passed the independent clean-checkout run recorded above.
 
-- Clean-candidate results will be recorded against their exact commit below;
-  source-equivalent documentation commits must not relabel that test commit.
+- The validated clean candidate is recorded above. Source-equivalent
+  documentation commits must not relabel that test commit.
 - Historical baseline DLLs are preserved local negative-control artifacts.
   Their actual binary/hash-record bytes are included in native configuration
   identities; their original build source revisions have not been independently
   reconstructed. Do not call these public-source reproducible baseline builds.
-- The tracked PR graph uses existing local remote-tracking refs, not a fresh
-  GitHub API observation. Remote snapshot is not_run until independently read.
+- The initial tracked graph came from local remote-tracking refs. A fresh
+  GitHub observation on 2026-10-21 matched all 18 recorded draft heads; that
+  observation is bound to the local integration audit. PR #19 is the separately
+  identified candidate, avoiding a self-referential head in its own tracked file.
 - No original distributed CUDA executable, general cudart/library/framework,
   AMD or NVIDIA GPU compatibility is established by these foundation tests.
 - Raw logs, generated PTX/SPIR-V, vendor headers, DLLs, and local bindings stay
