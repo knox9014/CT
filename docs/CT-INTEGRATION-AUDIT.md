@@ -148,6 +148,10 @@ The subsequent [P06a query slice](P06a-QUERY-RESULTS.md) records allocation rang
 and four scalar pointer metadata attributes; UVA-dependent attributes remain
 unsupported. The next input is P09a synchronous Runtime initialization/
 registration scope and its dependency audit, not a completed Runtime claim.
+The proposed [P09a1 written design](superpowers/specs/2026-10-21-runtime-memory-design.md)
+and [dependency audit](P09a-DEPENDENCY-AUDIT.md) now have a separate
+[independent review record](P09a-DESIGN-REVIEW.md). They add no Runtime code,
+exports or execution evidence and await the written-design review stage.
 P03/P04 should use the preserved scalar/multi-entry producer failures to improve
 typed ABI/address analysis without source rewriting. P10 shared/barrier design
 must define block participation and failure behavior before promoting the

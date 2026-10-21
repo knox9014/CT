@@ -22,6 +22,10 @@ P06a D2D/memset/속성 계약이며, P05의 남은 제약은 별도로 유지한
 그다음 [P06a 조회 묶음](P06a-QUERY-RESULTS.md)에서 할당 범위와 포인터 속성
 8/9/11/12를 검증해 export는38개다. UVA가 필요한 속성1/2 등은 미지원이며,
 다음 입력은 P09a 첫 동기 Runtime의 초기화·등록 계약과 누락 의존성 확인이다.
+P09a1의 [검토용 서면 설계](superpowers/specs/2026-10-21-runtime-memory-design.md)와
+[의존성 감사](P09a-DEPENDENCY-AUDIT.md), [독립 검토 기록](P09a-DESIGN-REVIEW.md)을
+작성했다. 첫14개 메모리/장치/오류 API와 이후 실제 nvcc 등록·launch를 구분한다.
+Runtime 제품 코드·ABI/GPU 시험은 아직 추가하지 않았으며 서면 설계 검토 단계다.
 
 ## 1. 제품 목표와 성공의 정의
 
