@@ -38,7 +38,8 @@ mod primary;
 mod primary_state;
 pub use entrypoints::{cuGetProcAddress, cuGetProcAddress_v2};
 pub use primary::{
-    cuDevicePrimaryCtxGetState, cuDevicePrimaryCtxRelease_v2, cuDevicePrimaryCtxRetain,
+    cuDevicePrimaryCtxGetState, cuDevicePrimaryCtxRelease_v2, cuDevicePrimaryCtxReset_v2,
+    cuDevicePrimaryCtxRetain,
 };
 #[derive(Default)]
 struct Runtime {

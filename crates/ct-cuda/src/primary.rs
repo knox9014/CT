@@ -77,6 +77,35 @@ pub extern "system" fn cuDevicePrimaryCtxRelease_v2(ordinal: i32) -> i32 {
     })
 }
 
+/// Reset resource ownership while preserving retained usage and all TLS stacks.
+#[no_mangle]
+pub extern "system" fn cuDevicePrimaryCtxReset_v2(ordinal: i32) -> i32 {
+    invoke(|r| {
+        device(r, ordinal)?;
+        let b = r.backend.as_ref().ok_or(NOT_INITIALIZED)?;
+        reset_primary(
+            &mut r.primary,
+            &mut r.contexts,
+            &mut r.retired,
+            ordinal,
+            |c| cleanup_context(b, c),
+        )
+    })
+}
+
+fn reset_primary<T>(
+    primary: &mut primary_state::PrimaryContexts,
+    contexts: &mut BTreeMap<usize, T>,
+    retired: &mut Vec<T>,
+    ordinal: i32,
+    cleanup: impl FnOnce(&mut T) -> CudaResult,
+) -> CudaResult {
+    if let Some(id) = primary.reset(ordinal) {
+        retire_owned(contexts, retired, id, cleanup)?;
+    }
+    Ok(())
+}
+
 fn release_primary<T>(
     primary: &mut primary_state::PrimaryContexts,
     contexts: &mut BTreeMap<usize, T>,
@@ -93,6 +122,60 @@ fn release_primary<T>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reset_failure_preserves_usage_and_never_retries_quarantined_resources() {
+        let mut primary = primary_state::PrimaryContexts::default();
+        primary.retain(0, || Ok(10)).unwrap();
+        primary.retain(0, || panic!("reuse")).unwrap();
+        let mut contexts = BTreeMap::from([(10, 42)]);
+        let mut retired = Vec::new();
+        assert_eq!(
+            reset_primary(&mut primary, &mut contexts, &mut retired, 0, |_| Err(999)),
+            Err(999)
+        );
+        assert!(!primary.active(0));
+        assert!(primary.retired(10));
+        assert!(contexts.is_empty());
+        assert_eq!(retired, vec![42]);
+        assert_eq!(
+            reset_primary(&mut primary, &mut contexts, &mut retired, 0, |_| panic!(
+                "no retry"
+            )),
+            Ok(())
+        );
+        assert_eq!(
+            release_primary(&mut primary, &mut contexts, &mut retired, 0, |_| panic!(
+                "no cleanup"
+            )),
+            Ok(())
+        );
+        assert_eq!(
+            primary.retain(0, || {
+                contexts.insert(11, 43);
+                Ok(11)
+            }),
+            Ok(11)
+        );
+        assert_eq!(
+            release_primary(&mut primary, &mut contexts, &mut retired, 0, |_| panic!(
+                "not final"
+            )),
+            Ok(())
+        );
+        assert!(primary.active(0));
+        assert_eq!(
+            release_primary(&mut primary, &mut contexts, &mut retired, 0, |_| Ok(())),
+            Ok(())
+        );
+        assert_eq!(
+            release_primary(&mut primary, &mut contexts, &mut retired, 0, |_| panic!(
+                "over-release"
+            )),
+            Err(201)
+        );
+        assert_eq!(retired, vec![42]);
+    }
 
     #[test]
     fn final_release_failure_is_inactive_tombstoned_and_never_retried() {

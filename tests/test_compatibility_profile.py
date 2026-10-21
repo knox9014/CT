@@ -19,12 +19,18 @@ class ProfileTests(unittest.TestCase):
             self.assertEqual(expected[name]['lookup_ranges'], [
                 dict(symbol=canonical, minimum=minimum, maximum=12000)])
 
+    def test_reset_uses_v2_version_range_without_legacy_export(self):
+        expected = expected_exports(ROOT)
+        self.assertEqual(expected['cuDevicePrimaryCtxReset_v2']['lookup_ranges'], [
+            dict(symbol='cuDevicePrimaryCtxReset', minimum=11000, maximum=12000)])
+        self.assertNotIn('cuDevicePrimaryCtxReset', expected)
+
     def setUp(self):
         self.data = json.loads((ROOT / 'docs/compatibility/profile-v1.json').read_text(encoding='utf-8'))
 
     def test_current_profile_is_explicitly_bounded(self):
         self.assertEqual(validate_profile(self.data, ROOT), [])
-        self.assertEqual(len(self.data['exports']), 29)
+        self.assertEqual(len(self.data['exports']), 30)
         self.assertEqual(next(e for e in self.data['exports'] if e['symbol']=='cuDriverGetVersion')['behavior'], 'NOT_SUPPORTED')
         self.assertTrue(all(f['state'] in ('experimental','unsupported') for f in self.data['features']))
 

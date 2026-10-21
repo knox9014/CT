@@ -12,6 +12,7 @@ int main() {
     PROBE(cuDeviceGetName, cuDeviceGetName_v2000);
     PROBE(cuDeviceGetAttribute, cuDeviceGetAttribute_v2000);
     PROBE(cuDevicePrimaryCtxRetain, cuDevicePrimaryCtxRetain_v7000);
+    PROBE(cuDevicePrimaryCtxReset_v2, cuDevicePrimaryCtxReset_v11000);
     PROBE(cuDevicePrimaryCtxGetState, cuDevicePrimaryCtxGetState_v7000);
     PROBE(cuDevicePrimaryCtxRelease_v2, cuDevicePrimaryCtxRelease_v11000);
     PROBE(cuCtxCreate_v2, cuCtxCreate_v3020);

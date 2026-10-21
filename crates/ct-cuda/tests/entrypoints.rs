@@ -23,6 +23,7 @@ fn canonical_entries_obey_verified_abi_boundaries() {
         ("cuDevicePrimaryCtxRetain", 7000),
         ("cuDevicePrimaryCtxGetState", 7000),
         ("cuDevicePrimaryCtxRelease", 11000),
+        ("cuDevicePrimaryCtxReset", 11000),
         ("cuCtxCreate", 3020),
         ("cuCtxDestroy", 4000),
         ("cuCtxGetCurrent", 4000),
@@ -65,7 +66,7 @@ fn rejection_initializes_outputs_and_preserves_distinct_resolver_contracts() {
         for name in [
             "missing",
             "cuDevicePrimaryCtxRelease_v2",
-            "cuDevicePrimaryCtxReset",
+            "cuDevicePrimaryCtxReset_v2",
             "cuDevicePrimaryCtxSetFlags",
             "cuMemAlloc_v2",
             "cuCtxCreate_v3",

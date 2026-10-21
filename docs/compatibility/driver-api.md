@@ -16,9 +16,25 @@ without changing state. These deterministic CT guards and post-release handle
 identity have not been compared to NVIDIA hardware. Cleanup errors preserve the
 original error and quarantine uncertain native resources without retry.
 
-Reset, set-flags, nondefault scheduling, pinned-memory APIs and legacy release
-remain unavailable. This is P05a, not complete primary-context or Runtime support.
+Set-flags, nondefault scheduling, pinned-memory APIs and legacy release/reset
+remain unavailable. This is not complete primary-context or Runtime support.
 See the [design](../superpowers/specs/2026-10-21-primary-context-design.md).
+
+### P05b reset extension
+
+`cuDevicePrimaryCtxReset_v2` deactivates resources while preserving every retained
+usage. GetState is inactive after reset; releases still consume outstanding usage.
+Reset on an unused or inactive valid device is a nonallocating no-op. Retain can
+explicitly create a fresh generation; only successful retain increments usage.
+Remaining pre-reset references count toward the new generation's final release.
+Reset never edits TLS. Failed cleanup quarantines resources without retry and
+preserves usage. Existing allocations/modules/functions become invalid.
+
+Old CT context handles remain stale709 even after fresh activation. Exact old
+CUcontext reuse and GetCurrent parity after reset are NVIDIA-unverified; consumers
+must explicitly reacquire/select after reset in this profile. Stale raw native
+device pointer addresses may be reused after deallocation; generation safety for
+them is not claimed. See the [reset design](../superpowers/specs/2026-10-21-primary-reset-design.md).
 
 ## Original M1/M2 scope
 

@@ -2,7 +2,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 struct Primary {
-    context: usize,
+    context: Option<usize>,
     references: usize,
 }
 
@@ -19,14 +19,20 @@ impl PrimaryContexts {
         create: impl FnOnce() -> Result<usize, i32>,
     ) -> Result<usize, i32> {
         if let Some(primary) = self.devices.get_mut(&device) {
-            primary.references = primary.references.checked_add(1).ok_or(999)?;
-            return Ok(primary.context);
+            let references = primary.references.checked_add(1).ok_or(999)?;
+            let context = match primary.context {
+                Some(context) => context,
+                None => create()?,
+            };
+            primary.context = Some(context);
+            primary.references = references;
+            return Ok(context);
         }
         let context = create()?;
         self.devices.insert(
             device,
             Primary {
-                context,
+                context: Some(context),
                 references: 1,
             },
         );
@@ -41,18 +47,29 @@ impl PrimaryContexts {
         }
         let context = primary.context;
         self.devices.remove(&device);
+        if let Some(context) = context {
+            self.retired.insert(context);
+        }
+        Ok(context)
+    }
+
+    /// Deactivate resources without consuming any retained usage.
+    pub fn reset(&mut self, device: i32) -> Option<usize> {
+        let context = self.devices.get_mut(&device)?.context.take()?;
         self.retired.insert(context);
-        Ok(Some(context))
+        Some(context)
     }
 
     pub fn active(&self, device: i32) -> bool {
-        self.devices.contains_key(&device)
+        self.devices
+            .get(&device)
+            .is_some_and(|primary| primary.context.is_some())
     }
 
     pub fn owns(&self, context: usize) -> bool {
         self.devices
             .values()
-            .any(|primary| primary.context == context)
+            .any(|primary| primary.context == Some(context))
     }
 
     pub fn retired(&self, context: usize) -> bool {
@@ -63,6 +80,61 @@ impl PrimaryContexts {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reset_preserves_usage_across_fresh_generation_and_repeated_reset() {
+        let mut state = PrimaryContexts::default();
+        assert_eq!(state.reset(0), None);
+        state.retain(0, || Ok(10)).unwrap();
+        state.retain(0, || panic!("reuse")).unwrap();
+        assert_eq!(state.reset(0), Some(10));
+        assert!(!state.active(0));
+        assert!(state.retired(10));
+        assert!(!state.owns(10));
+        assert_eq!(state.reset(0), None);
+        assert_eq!(state.retain(0, || Ok(11)), Ok(11));
+        assert!(state.retired(10));
+        assert_eq!(state.release(0), Ok(None));
+        assert_eq!(state.release(0), Ok(None));
+        assert!(state.active(0));
+        assert_eq!(state.reset(0), Some(11));
+        assert_eq!(state.release(0), Ok(None));
+        assert_eq!(state.release(0), Err(201));
+        assert!(state.retired(10) && state.retired(11));
+    }
+
+    #[test]
+    fn inactive_releases_and_device_isolation_do_not_create_resources() {
+        let mut state = PrimaryContexts::default();
+        state.retain(0, || Ok(10)).unwrap();
+        state.retain(0, || panic!("reuse")).unwrap();
+        state.retain(1, || Ok(20)).unwrap();
+        assert_eq!(state.reset(0), Some(10));
+        assert!(state.active(1) && state.owns(20));
+        assert_eq!(state.release(0), Ok(None));
+        assert_eq!(state.release(0), Ok(None));
+        assert_eq!(state.release(0), Err(201));
+        assert_eq!(state.reset(0), None);
+        assert_eq!(state.release(1), Ok(Some(20)));
+    }
+
+    #[test]
+    fn reactivation_failure_and_overflow_preserve_inactive_usage() {
+        let mut state = PrimaryContexts::default();
+        state.retain(0, || Ok(10)).unwrap();
+        state.retain(0, || panic!("reuse")).unwrap();
+        state.reset(0);
+        assert_eq!(state.retain(0, || Err(2)), Err(2));
+        assert!(!state.active(0));
+        assert_eq!(state.devices[&0].references, 2);
+        state.devices.get_mut(&0).unwrap().references = usize::MAX;
+        assert_eq!(
+            state.retain(0, || panic!("must check overflow first")),
+            Err(999)
+        );
+        assert!(!state.active(0));
+        assert_eq!(state.devices[&0].references, usize::MAX);
+    }
 
     #[test]
     fn retains_share_one_lazy_context_and_final_release_retires_it() {

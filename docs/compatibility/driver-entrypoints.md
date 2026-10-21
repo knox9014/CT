@@ -21,6 +21,7 @@ Use CUDA base names, such as `cuMemAlloc`, not exported suffix spellings like `c
 | cuGetErrorName, cuGetErrorString | 6000 | same-name export |
 | cuDevicePrimaryCtxRetain, cuDevicePrimaryCtxGetState | 7000 | same-name export; default-flags P05a subset |
 | cuDevicePrimaryCtxRelease | 11000 | cuDevicePrimaryCtxRelease_v2; legacy ABI unavailable |
+| cuDevicePrimaryCtxReset | 11000 | cuDevicePrimaryCtxReset_v2; legacy ABI unavailable |
 | cuGetProcAddress | 11030..11999 | four-argument cuGetProcAddress |
 | cuGetProcAddress | 12000 | five-argument cuGetProcAddress_v2 |
 

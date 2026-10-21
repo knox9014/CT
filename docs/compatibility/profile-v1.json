@@ -114,6 +114,22 @@
       ]
     },
     {
+      "symbol": "cuDevicePrimaryCtxReset_v2",
+      "signature_id": "cuDevicePrimaryCtxReset_v2:(CUdevice device)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuDevicePrimaryCtxReset",
+          "minimum": 11000,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "Default-flags P05b reset preserving retained usage; fresh CT generation",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries",
+        "tests/p05b_cuda_app.c#main"
+      ]
+    },
+    {
       "symbol": "cuDevicePrimaryCtxGetState",
       "signature_id": "cuDevicePrimaryCtxGetState:(CUdevice device, unsigned int *flags, int *active)",
       "lookup_ranges": [
