@@ -144,6 +144,10 @@ P06a D2D/memset/property contracts are the next implementation input.
 The subsequent [P06a memory slice](P06a-MEMORY-RESULTS.md) implements and verifies
 four D2D/typed-fill exports. Remaining P06a allocation/pointer property queries
 are next; asynchronous/peer memory and broader Runtime support remain unverified.
+The subsequent [P06a query slice](P06a-QUERY-RESULTS.md) records allocation range
+and four scalar pointer metadata attributes; UVA-dependent attributes remain
+unsupported. The next input is P09a synchronous Runtime initialization/
+registration scope and its dependency audit, not a completed Runtime claim.
 P03/P04 should use the preserved scalar/multi-entry producer failures to improve
 typed ABI/address analysis without source rewriting. P10 shared/barrier design
 must define block participation and failure behavior before promoting the

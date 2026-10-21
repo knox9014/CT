@@ -81,3 +81,6 @@ Next is the remaining P06a allocation/pointer property query contract. P05
 nondefault scheduling, pinned/managed/2D/3D memory, general Runtime/framework/
 external libraries and AMD/NVIDIA GPU execution remain outstanding. These
 tests do not establish universal CUDA compatibility or a release.
+
+The subsequent [query slice](P06a-QUERY-RESULTS.md) now records bounded allocation
+range and four pointer attributes; it preserves the remaining UVA restrictions.
