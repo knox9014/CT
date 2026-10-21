@@ -7,7 +7,7 @@
       "source_ref": "tests/corpus/sources/scalar.cu",
       "source_sha256": "f0bd45ecd21578ce18609d84d61327caa8e363ddb0e5e71fe696097c9b8b1dc0",
       "recipe_ref": "tests/corpus/recipes/scalar.json",
-      "recipe_sha256": "3174a0579bddb0aea89a62cf5d8ca84b8cb75591c5f608040aaea45daea42793",
+      "recipe_sha256": "545b3262d6094d85c961325d2f103f2d9f2589d8cc8dc4263fe6189f9c672b1a",
       "tool_id": "nvrtc",
       "options": [
         "--gpu-architecture=compute_52",
@@ -31,7 +31,7 @@
       "source_ref": "tests/corpus/sources/multi_entry.cu",
       "source_sha256": "fa70b00a7c9b81c5fc16f34ea8e530b0eb2aa639aa8fbe7336f221357ea12499",
       "recipe_ref": "tests/corpus/recipes/multi_entry.json",
-      "recipe_sha256": "0e33bcc1268a8d9f832b8af699c3d89106da77a1e3eaf69db32501363b9e8d70",
+      "recipe_sha256": "1c81aee371d621b37b4eb3fecb629ee0dfa647abee42378fccfa2cc5c00c0abe",
       "tool_id": "nvrtc",
       "options": [
         "--gpu-architecture=compute_52",
@@ -55,7 +55,7 @@
       "source_ref": "tests/corpus/sources/address_control.cu",
       "source_sha256": "4a995e278bc6c630946c8cd788dd036d74d5e417f4f38a5e0d751398ec933a87",
       "recipe_ref": "tests/corpus/recipes/address_control.json",
-      "recipe_sha256": "47149a0d0cbce6ef1b929e56f7ac13bdcf5ebd2276d5d9407d1b9dfcb6f1f6c9",
+      "recipe_sha256": "ae0b4650576fbf8450bb95582a19b11619a88ebac933fe2132c913766437e8ae",
       "tool_id": "nvrtc",
       "options": [
         "--gpu-architecture=compute_52",
@@ -76,7 +76,7 @@
       "source_ref": "tests/corpus/sources/block_candidate.cu",
       "source_sha256": "6a775bc9f207514e7647360bb693a38b78469214430c66c5c43bf9009090ef0d",
       "recipe_ref": "tests/corpus/recipes/block_candidate.json",
-      "recipe_sha256": "57e143d6dac0dfdb8f0e5802165b5a98c07b083faa06b7627f50bbfb63a2bbd9",
+      "recipe_sha256": "549af0102573c24c14c170ce0187a59bf3ff6425eea1e8df61bbe7c73a83c9e5",
       "tool_id": "nvrtc",
       "options": [
         "--gpu-architecture=compute_52",
@@ -100,7 +100,7 @@
       "source_ref": "tests/corpus/sources/vector_add.cu",
       "source_sha256": "e8894d9ebac6b2855a8af4a5e5084e901929807275a7fa766fa3a85dd945d390",
       "recipe_ref": "tests/corpus/recipes/vector_add.json",
-      "recipe_sha256": "c8eb7d6800818a260a41f6ecee1be595384a7bef9ba584d66480f897fafd92d8",
+      "recipe_sha256": "c8e03b6a0dc72879b9f32d17d659461c7e1fbddbc6ef507018c0165a89cee8e5",
       "tool_id": "nvrtc",
       "options": [
         "--gpu-architecture=compute_52",

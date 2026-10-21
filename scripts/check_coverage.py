@@ -15,7 +15,17 @@ def main():
             errors += validate_applications(apps, root, {f['id'] for f in coverage['features']})
         lock = folder / 'toolchain-lock-v1.json'
         if lock.exists():
-            errors += validate_toolchain(json.loads(lock.read_text(encoding='utf-8')))
+            tools = json.loads(lock.read_text(encoding='utf-8'))
+            tool_errors = validate_toolchain(tools)
+            errors += tool_errors
+            corpus = folder / 'producer-corpus-v1.json'
+            if not errors and corpus.exists():
+                from run_compiler_corpus import validate_corpus
+                producer = json.loads(corpus.read_text(encoding='utf-8'))
+                errors += validate_corpus(producer, root, {t['id'] for t in tools['tools']})
+                features = {f['id'] for f in coverage['features']}
+                if not errors and any(not set(c['required_features']) <= features for c in producer['cases']):
+                    errors.append('unknown corpus feature reference')
     except (OSError, ValueError, UnicodeError):
         errors = ['registry could not be read']
     for error in errors:

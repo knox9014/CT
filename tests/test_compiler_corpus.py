@@ -15,6 +15,15 @@ from run_compiler_corpus import CorpusContext, run_case, validate_corpus, verify
 
 
 class CorpusTests(unittest.TestCase):
+    def test_public_corpus_inputs_have_portable_lf_hashes(self):
+        data = json.loads((ROOT/'docs/compatibility/producer-corpus-v1.json').read_text())
+        self.assertEqual(validate_corpus(data, ROOT, {'nvrtc'}), [])
+        for case in data['cases']:
+            for role in ('source', 'recipe'):
+                raw = (ROOT/case[role+'_ref']).read_bytes()
+                self.assertNotIn(b'\r\n', raw, 'Git checkout must preserve the exact LF input bytes')
+                self.assertEqual(hashlib.sha256(raw).hexdigest(), case[role+'_sha256'])
+
     def setUp(self):
         cache = ROOT / '.cache/corpus-tests'; cache.mkdir(parents=True, exist_ok=True)
         self.temp = tempfile.TemporaryDirectory(dir=cache)

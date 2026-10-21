@@ -1,6 +1,7 @@
 # CT universal foundation execution audit
 
-Date: 2026-10-20. Implementation baseline: `d86d916`.
+Implementation began 2026-10-20; clean-candidate verification continued 2026-10-21.
+Implementation baseline: `d86d916`.
 This foundation preserves the Rust CUDA application connection goal. It does not
 claim general CUDA, Runtime, framework, AMD, or NVIDIA compatibility.
 
@@ -72,6 +73,15 @@ checks; independently supplied tool locks and Git cleanliness. Foundation
 reports explicitly reject release claims.
 
 ## Remaining evidence and scope limits
+
+The first clean candidate, `b079f41`, passed 21 of its 26 combined cases but
+failed all five producer replays. Its recipe hashes referred to CRLF bytes in
+the original Windows checkout, while Git's corpus attributes checked out LF.
+That candidate is not a passing combined result. Recipes are now fixed as LF
+bytes, with matching recipe hashes; source and generated PTX hashes are unchanged.
+A regression test and the static coverage CLI validate the real repository
+corpus, so this is checked before attempting a GPU run. The corrected candidate
+must be verified independently below.
 
 - Clean-candidate results will be recorded against their exact commit below;
   source-equivalent documentation commits must not relabel that test commit.
