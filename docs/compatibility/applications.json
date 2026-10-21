@@ -1,0 +1,140 @@
+{
+  "schema_version": 1,
+  "source_baseline": "d86d916f6b2e4434c9e654d3c616036d426b934c",
+  "applications": [
+    {
+      "id": "vectorAddDrv",
+      "execution_path": "driver_external",
+      "evidence_tier": "upstream_adjusted_build",
+      "inventory_state": "candidate",
+      "source": {
+        "repository": "https://github.com/NVIDIA/cuda-samples",
+        "revision": "2b689228b746248b7bb7d2778d5ea0701669f7d3",
+        "recipe_ref": "tests/m3c_external_check.py"
+      },
+      "artifacts": [
+        {
+          "role": "executable",
+          "sha256": null,
+          "availability": "missing"
+        }
+      ],
+      "required_features": [
+        "loader"
+      ],
+      "test_ids": [
+        "tests/m3c_external_check.py#def run"
+      ]
+    },
+    {
+      "id": "probe.runtime_dynamic",
+      "execution_path": "runtime_dynamic",
+      "evidence_tier": "synthetic",
+      "inventory_state": "candidate",
+      "source": {
+        "repository": "https://github.com/knox9014/CT",
+        "revision": "d86d916f6b2e4434c9e654d3c616036d426b934c",
+        "recipe_ref": "docs/superpowers/plans/2026-10-20-universal-foundation.md"
+      },
+      "artifacts": [
+        {
+          "role": "executable",
+          "sha256": null,
+          "availability": "missing"
+        }
+      ],
+      "required_features": [
+        "runtime"
+      ],
+      "test_ids": []
+    },
+    {
+      "id": "probe.runtime_static",
+      "execution_path": "runtime_static",
+      "evidence_tier": "synthetic",
+      "inventory_state": "candidate",
+      "source": {
+        "repository": "https://github.com/knox9014/CT",
+        "revision": "d86d916f6b2e4434c9e654d3c616036d426b934c",
+        "recipe_ref": "docs/superpowers/plans/2026-10-20-universal-foundation.md"
+      },
+      "artifacts": [
+        {
+          "role": "executable",
+          "sha256": null,
+          "availability": "missing"
+        }
+      ],
+      "required_features": [
+        "runtime.registration"
+      ],
+      "test_ids": []
+    },
+    {
+      "id": "probe.block_parallel",
+      "execution_path": "block_parallel",
+      "evidence_tier": "synthetic",
+      "inventory_state": "candidate",
+      "source": {
+        "repository": "https://github.com/knox9014/CT",
+        "revision": "d86d916f6b2e4434c9e654d3c616036d426b934c",
+        "recipe_ref": "docs/superpowers/plans/2026-10-20-universal-foundation.md"
+      },
+      "artifacts": [
+        {
+          "role": "executable",
+          "sha256": null,
+          "availability": "missing"
+        }
+      ],
+      "required_features": [
+        "parallel.barrier"
+      ],
+      "test_ids": []
+    },
+    {
+      "id": "probe.library",
+      "execution_path": "library",
+      "evidence_tier": "synthetic",
+      "inventory_state": "candidate",
+      "source": {
+        "repository": "https://github.com/knox9014/CT",
+        "revision": "d86d916f6b2e4434c9e654d3c616036d426b934c",
+        "recipe_ref": "docs/superpowers/plans/2026-10-20-universal-foundation.md"
+      },
+      "artifacts": [
+        {
+          "role": "executable",
+          "sha256": null,
+          "availability": "missing"
+        }
+      ],
+      "required_features": [
+        "library.cublas"
+      ],
+      "test_ids": []
+    },
+    {
+      "id": "probe.jit",
+      "execution_path": "jit",
+      "evidence_tier": "synthetic",
+      "inventory_state": "candidate",
+      "source": {
+        "repository": "https://github.com/knox9014/CT",
+        "revision": "d86d916f6b2e4434c9e654d3c616036d426b934c",
+        "recipe_ref": "docs/superpowers/plans/2026-10-20-universal-foundation.md"
+      },
+      "artifacts": [
+        {
+          "role": "executable",
+          "sha256": null,
+          "availability": "missing"
+        }
+      ],
+      "required_features": [
+        "jit.nvrtc"
+      ],
+      "test_ids": []
+    }
+  ]
+}

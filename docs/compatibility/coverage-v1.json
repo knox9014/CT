@@ -1,0 +1,1562 @@
+{
+  "schema_version": 1,
+  "source_baseline": "d86d916f6b2e4434c9e654d3c616036d426b934c",
+  "features": [
+    {
+      "id": "driver.cuInit",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+        "behavior_gap": false
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [],
+        "behavior": [
+          "tests/m3_cuda_app.c#main"
+        ]
+      }
+    },
+    {
+      "id": "driver.cuDriverGetVersion",
+      "category": "abi",
+      "implementation": "missing",
+      "limits": {
+        "contract": "NOT_SUPPORTED",
+        "behavior_gap": true
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [],
+        "behavior": []
+      }
+    },
+    {
+      "id": "driver.cuDeviceGetCount",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+        "behavior_gap": true
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [],
+        "behavior": []
+      }
+    },
+    {
+      "id": "driver.cuDeviceGet",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+        "behavior_gap": false
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [],
+        "behavior": [
+          "tests/m3_cuda_app.c#main"
+        ]
+      }
+    },
+    {
+      "id": "driver.cuDeviceGetName",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+        "behavior_gap": true
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [],
+        "behavior": []
+      }
+    },
+    {
+      "id": "driver.cuDeviceGetAttribute",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+        "behavior_gap": true
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [],
+        "behavior": []
+      }
+    },
+    {
+      "id": "driver.cuCtxCreate_v2",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+        "behavior_gap": false
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [],
+        "behavior": [
+          "tests/m3_cuda_app.c#main"
+        ]
+      }
+    },
+    {
+      "id": "driver.cuCtxDestroy_v2",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+        "behavior_gap": false
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [],
+        "behavior": [
+          "tests/m3_cuda_app.c#main"
+        ]
+      }
+    },
+    {
+      "id": "driver.cuCtxGetCurrent",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+        "behavior_gap": true
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [],
+        "behavior": []
+      }
+    },
+    {
+      "id": "driver.cuCtxSetCurrent",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+        "behavior_gap": true
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [],
+        "behavior": []
+      }
+    },
+    {
+      "id": "driver.cuCtxPushCurrent_v2",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+        "behavior_gap": true
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [],
+        "behavior": []
+      }
+    },
+    {
+      "id": "driver.cuCtxPopCurrent_v2",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+        "behavior_gap": true
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [],
+        "behavior": []
+      }
+    },
+    {
+      "id": "driver.cuCtxGetDevice",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+        "behavior_gap": true
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [],
+        "behavior": []
+      }
+    },
+    {
+      "id": "driver.cuCtxSynchronize",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+        "behavior_gap": true
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [],
+        "behavior": []
+      }
+    },
+    {
+      "id": "driver.cuMemAlloc_v2",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+        "behavior_gap": false
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [],
+        "behavior": [
+          "tests/m3_cuda_app.c#main"
+        ]
+      }
+    },
+    {
+      "id": "driver.cuMemFree_v2",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+        "behavior_gap": false
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [],
+        "behavior": [
+          "tests/m3_cuda_app.c#main"
+        ]
+      }
+    },
+    {
+      "id": "driver.cuMemcpyHtoD_v2",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+        "behavior_gap": false
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [],
+        "behavior": [
+          "tests/m3_cuda_app.c#main"
+        ]
+      }
+    },
+    {
+      "id": "driver.cuMemcpyDtoH_v2",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+        "behavior_gap": false
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [],
+        "behavior": [
+          "tests/m3_cuda_app.c#main"
+        ]
+      }
+    },
+    {
+      "id": "driver.cuGetErrorName",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+        "behavior_gap": true
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [],
+        "behavior": []
+      }
+    },
+    {
+      "id": "driver.cuGetErrorString",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+        "behavior_gap": true
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [],
+        "behavior": []
+      }
+    },
+    {
+      "id": "driver.cuModuleLoadData",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+        "behavior_gap": false
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [],
+        "behavior": [
+          "tests/m3_cuda_app.c#main"
+        ]
+      }
+    },
+    {
+      "id": "driver.cuModuleGetFunction",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+        "behavior_gap": false
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [],
+        "behavior": [
+          "tests/m3_cuda_app.c#main"
+        ]
+      }
+    },
+    {
+      "id": "driver.cuModuleUnload",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+        "behavior_gap": false
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [],
+        "behavior": [
+          "tests/m3_cuda_app.c#main"
+        ]
+      }
+    },
+    {
+      "id": "driver.cuLaunchKernel",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+        "behavior_gap": false
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [],
+        "behavior": [
+          "tests/m3_cuda_app.c#main"
+        ]
+      }
+    },
+    {
+      "id": "driver.cuGetProcAddress",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+        "behavior_gap": true
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [],
+        "behavior": []
+      }
+    },
+    {
+      "id": "driver.cuGetProcAddress_v2",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+        "behavior_gap": true
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [],
+        "behavior": []
+      }
+    },
+    {
+      "id": "ptx.module",
+      "category": "compiler",
+      "implementation": "partial",
+      "limits": {
+        "profiles": [
+          "7.0/sm_50",
+          "8.0/sm_52"
+        ],
+        "address_bits": 64,
+        "entries": 32,
+        "source_bytes": 262144,
+        "tokens": 65536,
+        "registers": 256,
+        "blocks": 128,
+        "instructions": 4096,
+        "params": 32
+      },
+      "test_ids": {
+        "semantic": [
+          "crates/ct-ptx/tests/parser.rs#parses_semantics_independent_of_kernel_and_register_names"
+        ]
+      }
+    },
+    {
+      "id": "ptx.parameters",
+      "category": "compiler",
+      "implementation": "partial",
+      "limits": {
+        "kinds": [
+          "global f32 pointer align4",
+          "u32",
+          "f32"
+        ],
+        "inferred_u64": "single-definition cvta-only proof"
+      },
+      "test_ids": {
+        "semantic": [
+          "crates/ct-ptx/tests/compiler_profile.rs#rejects_ambiguous_u64_and_accepts_proven_pointer_parameters"
+        ]
+      }
+    },
+    {
+      "id": "ptx.parameter",
+      "category": "compiler",
+      "implementation": "partial",
+      "limits": {
+        "spellings": [
+          "ld.param.u32",
+          "ld.param.u64",
+          "ld.param.f32"
+        ],
+        "semantics": "docs/compatibility/ptx-profile.md"
+      },
+      "test_ids": {
+        "behavior": [
+          "tests/m2_kernel_host.c#main"
+        ]
+      }
+    },
+    {
+      "id": "ptx.memory",
+      "category": "compiler",
+      "implementation": "partial",
+      "limits": {
+        "spellings": [
+          "ld.global.f32",
+          "st.global.f32"
+        ],
+        "semantics": "docs/compatibility/ptx-profile.md"
+      },
+      "test_ids": {
+        "behavior": [
+          "tests/m2_kernel_host.c#main"
+        ]
+      }
+    },
+    {
+      "id": "ptx.move",
+      "category": "compiler",
+      "implementation": "partial",
+      "limits": {
+        "spellings": [
+          "mov.u32",
+          "mov.b32",
+          "mov.u64",
+          "mov.b64",
+          "mov.f32",
+          "cvta.to.global.u64"
+        ],
+        "semantics": "docs/compatibility/ptx-profile.md"
+      },
+      "test_ids": {
+        "behavior": [
+          "tests/m2_kernel_host.c#main"
+        ]
+      }
+    },
+    {
+      "id": "ptx.integer",
+      "category": "compiler",
+      "implementation": "partial",
+      "limits": {
+        "spellings": [
+          "add.u32",
+          "add.u64",
+          "sub.u32",
+          "mul.lo.u32",
+          "mul.wide.u32",
+          "mad.lo.u32",
+          "div.u32",
+          "rem.u32"
+        ],
+        "semantics": "docs/compatibility/ptx-profile.md"
+      },
+      "test_ids": {
+        "behavior": [
+          "tests/m2_kernel_host.c#main"
+        ]
+      }
+    },
+    {
+      "id": "ptx.signed",
+      "category": "compiler",
+      "implementation": "partial",
+      "limits": {
+        "spellings": [
+          "add.s64",
+          "mad.lo.s32",
+          "mul.wide.s32",
+          "setp.ge.s32",
+          "setp.lt.s32",
+          "setp.eq.u64"
+        ],
+        "semantics": "docs/compatibility/ptx-profile.md"
+      },
+      "test_ids": {
+        "behavior": [
+          "tests/m2_kernel_host.c#main"
+        ]
+      }
+    },
+    {
+      "id": "ptx.float",
+      "category": "compiler",
+      "implementation": "partial",
+      "limits": {
+        "spellings": [
+          "add.f32",
+          "add.rn.f32",
+          "mul.f32",
+          "mul.rn.f32",
+          "sub.f32",
+          "sub.rn.f32"
+        ],
+        "semantics": "docs/compatibility/ptx-profile.md"
+      },
+      "test_ids": {
+        "behavior": [
+          "tests/m2_kernel_host.c#main"
+        ]
+      }
+    },
+    {
+      "id": "ptx.predicate",
+      "category": "compiler",
+      "implementation": "partial",
+      "limits": {
+        "spellings": [
+          "setp.ge.u32",
+          "setp.lt.u32",
+          "setp.eq.u32",
+          "setp.lt.f32",
+          "setp.ge.f32",
+          "selp.f32"
+        ],
+        "semantics": "docs/compatibility/ptx-profile.md"
+      },
+      "test_ids": {
+        "behavior": [
+          "tests/m2_kernel_host.c#main"
+        ]
+      }
+    },
+    {
+      "id": "ptx.control",
+      "category": "compiler",
+      "implementation": "partial",
+      "limits": {
+        "spellings": [
+          "bra",
+          "@pred bra",
+          "@!pred bra",
+          "ret"
+        ],
+        "semantics": "docs/compatibility/ptx-profile.md"
+      },
+      "test_ids": {
+        "behavior": [
+          "tests/m2_kernel_host.c#main"
+        ]
+      }
+    },
+    {
+      "id": "ptx.unused_globals",
+      "category": "compiler",
+      "implementation": "partial",
+      "limits": {
+        "maximum": 256,
+        "u64_align": 8,
+        "b8_size": [
+          1,
+          4096
+        ],
+        "storage_emitted": false
+      },
+      "test_ids": {
+        "semantic": [
+          "crates/ct-ptx/tests/compiler_profile.rs#validates_unused_globals_but_rejects_references_and_malformed_initializers"
+        ]
+      }
+    },
+    {
+      "id": "fatbin",
+      "category": "compiler",
+      "implementation": "partial",
+      "limits": {
+        "image_bytes": 16777216,
+        "records": 256,
+        "compression": [
+          "plain",
+          "raw LZ4"
+        ],
+        "decoded_per_record": 262152,
+        "flags": [
+          69,
+          8261
+        ],
+        "ptx_candidates": 8,
+        "total_decoded_or_padded_bytes": 1048576
+      },
+      "test_ids": {
+        "semantic": [
+          "crates/ct-fatbin/tests/decoding.rs#compressed_literals_and_overlapping_matches_decode",
+          "crates/ct-fatbin/tests/decoding.rs#rejects_ninth_candidate_and_aggregate_expansion_before_decode"
+        ]
+      }
+    },
+    {
+      "id": "launch",
+      "category": "compiler",
+      "implementation": "partial",
+      "limits": {
+        "dimensions": 3,
+        "synchronous": true,
+        "streams": false,
+        "dynamic_shared": false,
+        "extra": false,
+        "grid_axis_cap": "min(native, I32_MAX)",
+        "global_axis_cap": "U32_MAX",
+        "block_volume": "checked u64, <= native maxTotalGroupSize"
+      },
+      "test_ids": {
+        "behavior": [
+          "tests/m2_kernel_host.c#main",
+          "tests/m3h_cuda_app.c#execute"
+        ],
+        "semantic": [
+          "crates/ct-backend-intel/src/modules.rs#validates_each_dimension_and_checked_block_volume",
+          "tests/m3h_dimensions_check.py#def run_coordinates",
+          "tests/m3h_dimensions_check.py#def rejected_launches"
+        ]
+      }
+    },
+    {
+      "id": "loader",
+      "category": "loader",
+      "implementation": "partial",
+      "limits": {
+        "os": "Windows x64",
+        "scope": "app-local nvcuda.dll",
+        "static_named_imports": true,
+        "dynamic_requirements": "unproven"
+      },
+      "test_ids": {
+        "semantic": [
+          "tests/test_ct_loader.py#test_classifies_static_and_dynamic_and_unknown_symbols"
+        ]
+      }
+    },
+    {
+      "id": "runtime",
+      "category": "runtime",
+      "implementation": "missing",
+      "limits": {
+        "implemented": false
+      },
+      "test_ids": {}
+    },
+    {
+      "id": "amd",
+      "category": "backend",
+      "implementation": "missing",
+      "limits": {
+        "implemented": false
+      },
+      "test_ids": {}
+    },
+    {
+      "id": "streams",
+      "category": "parallel",
+      "implementation": "missing",
+      "limits": {
+        "implemented": false
+      },
+      "test_ids": {}
+    },
+    {
+      "id": "warp",
+      "category": "parallel",
+      "implementation": "missing",
+      "limits": {
+        "implemented": false
+      },
+      "test_ids": {}
+    },
+    {
+      "id": "linking",
+      "category": "compiler",
+      "implementation": "missing",
+      "limits": {
+        "implemented": false
+      },
+      "test_ids": {}
+    },
+    {
+      "id": "fatbin.selection",
+      "category": "compiler",
+      "implementation": "partial",
+      "limits": {
+        "profiles": [
+          "7.0/sm_50",
+          "8.0/sm_52"
+        ],
+        "priority": [
+          "8.0/sm_52",
+          "7.0/sm_50"
+        ],
+        "entry_and_argument_kinds": "entire entry-name -> ordered (kind,alignment) map must match; entry order and parameter names ignored",
+        "duplicate_profile": "unsupported",
+        "unknown_profile": "unsupported",
+        "metadata_mismatch": 218,
+        "native_fallback": false
+      },
+      "test_ids": {
+        "semantic": [
+          "crates/ct-cuda/src/images.rs#selects_profile_independent_of_record_order_and_parameter_names",
+          "tests/m3f_selection_check.py#def main"
+        ]
+      }
+    },
+    {
+      "id": "module.multi_entry",
+      "category": "compiler",
+      "implementation": "partial",
+      "limits": {
+        "entries": 32,
+        "native_modules_per_cuda_module": 1,
+        "per_entry_parameters": 32,
+        "abi_kinds": [
+          "Pointer align4/8 minimum4/8",
+          "U32 (u/b/s32)",
+          "U64 scalar (b64/s64)",
+          "F32"
+        ],
+        "used_globals": false,
+        "device_calls": false
+      },
+      "test_ids": {
+        "semantic": [
+          "crates/ct-ptx/tests/modules.rs#parses_all_entries_with_independent_scopes_and_abi",
+          "crates/ct-codegen-spirv/tests/translation.rs#emits_one_module_with_distinct_functions_and_shared_signatures",
+          "crates/ct-backend-intel/src/modules.rs#failed_creation_retains_partial_handles_for_ordered_cleanup",
+          "tests/m3g_modules_check.py#def run_loaded"
+        ]
+      }
+    },
+    {
+      "id": "ptx.coordinate_components",
+      "category": "compiler",
+      "implementation": "partial",
+      "limits": {
+        "names": [
+          "tid",
+          "ntid",
+          "ctaid",
+          "nctaid"
+        ],
+        "axes": [
+          "x",
+          "y",
+          "z"
+        ],
+        "type": "U32"
+      },
+      "test_ids": {
+        "semantic": [
+          "crates/ct-ptx/tests/dimensions.rs#preserves_all_twelve_special_register_components",
+          "crates/ct-codegen-spirv/tests/translation.rs#extracts_each_axis_and_shares_builtin_vectors_across_entries",
+          "tests/m3h_dimensions_check.py#def run_coordinates"
+        ]
+      }
+    },
+    {
+      "id": "failure.containment",
+      "category": "compiler",
+      "implementation": "partial",
+      "limits": {
+        "injection": "backend unit tests only, cfg(test)",
+        "fatal_codes": [
+          "DEVICE_LOST",
+          "DEVICE_REQUIRES_RESET"
+        ],
+        "uncertain_cleanup": "stop and retain",
+        "allocation_oom": "nonfatal before submission",
+        "cuda_oom": 2,
+        "cuda_fatal_or_unknown": 999,
+        "automatic_recovery": false,
+        "real_device_failure": "unverified"
+      },
+      "test_ids": {
+        "semantic": [
+          "crates/ct-backend-intel/src/fault_tests.rs#failed_launch_reports_original_error_and_blocks_every_later_native_operation",
+          "crates/ct-backend-intel/src/fault_tests.rs#fatal_setup_errors_poison_but_ordinary_setup_errors_allow_a_later_launch",
+          "crates/ct-backend-intel/src/fault_tests.rs#module_build_log_failure_preserves_primary_error_and_stops_native_cleanup",
+          "crates/ct-cuda/src/lib.rs#native_failures_never_map_to_success_and_oom_keeps_its_cuda_category"
+        ]
+      }
+    },
+    {
+      "id": "ptx.integer_bits",
+      "category": "compiler",
+      "implementation": "partial",
+      "limits": {
+        "cvt_formats": [
+          "s32",
+          "u32",
+          "s64",
+          "u64"
+        ],
+        "bitwise": [
+          "and",
+          "or",
+          "xor",
+          "not"
+        ],
+        "shifts": [
+          "shl.b32/b64",
+          "shr.b32/b64/u32/u64/s32/s64"
+        ],
+        "shift_count": "U32; bounded then internally widened for64-bit base",
+        "oversized_shift": "logical zero; arithmetic sign fill",
+        "new_parameter_kinds": false,
+        "float_conversion": false,
+        "saturation": false
+      },
+      "test_ids": {
+        "semantic": [
+          "crates/ct-ptx/tests/integer.rs#converts_all_signed_unsigned_width_pairs_with_source_semantics",
+          "crates/ct-codegen-spirv/tests/translation.rs#every_shift_uses_a_bounded_u32_count_and_oversized_logical_result_select",
+          "tests/m3j_integer_check.py#def oracle"
+        ],
+        "behavior": [
+          "tests/m3j_cuda_app.c#main"
+        ]
+      }
+    },
+    {
+      "id": "ptx.integer_memory",
+      "category": "compiler",
+      "implementation": "partial",
+      "limits": {
+        "global_types": [
+          "b32",
+          "u32",
+          "s32",
+          "b64",
+          "u64",
+          "s64",
+          "f32"
+        ],
+        "scalar64_declarations": [
+          "b64",
+          "s64"
+        ],
+        "unannotated_scalar_u64": false,
+        "pointer_alignment": [
+          4,
+          8
+        ],
+        "pointer_minimum_span": "alignment bytes; conservative4/8",
+        "wide_entry_pointers": "all explicitly align8",
+        "dynamic_access_extents": "trusted caller obligation"
+      },
+      "test_ids": {
+        "semantic": [
+          "crates/ct-ptx/tests/memory.rs#preserves_integer_memory_types_and_explicit_scalar_abi",
+          "crates/ct-codegen-spirv/tests/translation.rs#typed_memory_and_scalar64_use_distinct_pointer_and_integer_signatures",
+          "crates/ct-cuda/src/images.rs#pointer_alignment_and_scalar64_kind_are_part_of_alternative_abi",
+          "tests/m3k_memory_check.py#def invalid_pointers"
+        ],
+        "behavior": [
+          "tests/m3k_cuda_app.c#main"
+        ]
+      }
+    },
+    {
+      "id": "ptx.modular_arithmetic",
+      "category": "compiler",
+      "implementation": "partial",
+      "limits": {
+        "operations": [
+          "add",
+          "sub",
+          "mul.lo",
+          "mad.lo"
+        ],
+        "formats": [
+          "s32",
+          "u32",
+          "s64",
+          "u64"
+        ],
+        "result": "low width bits modulo2^width",
+        "carry": false,
+        "saturation": false,
+        "high_result": false
+      },
+      "test_ids": {
+        "semantic": [
+          "crates/ct-ptx/tests/arithmetic.rs#modular_arithmetic_accepts_all_width_and_signedness_spellings",
+          "crates/ct-codegen-spirv/tests/translation.rs#modular_mad_uses_declared_width_for_product_and_sum",
+          "tests/m3l_arithmetic_check.py#def oracle",
+          "tests/m3l_arithmetic_check.py#def execute"
+        ]
+      }
+    },
+    {
+      "id": "ptx.integer_predicates",
+      "category": "compiler",
+      "implementation": "partial",
+      "limits": {
+        "comparisons": [
+          "eq",
+          "ne",
+          "lt",
+          "le",
+          "gt",
+          "ge"
+        ],
+        "formats": [
+          "s32",
+          "u32",
+          "s64",
+          "u64"
+        ],
+        "select_formats": [
+          "b32",
+          "u32",
+          "s32",
+          "b64",
+          "u64",
+          "s64"
+        ],
+        "paired_predicates": false,
+        "predicate_combining": false
+      },
+      "test_ids": {
+        "semantic": [
+          "crates/ct-ptx/tests/predicates.rs#integer_predicates_and_select_accept_supported_widths",
+          "crates/ct-ptx/tests/predicates.rs#integer_predicates_reject_bad_widths_and_predicates",
+          "crates/ct-codegen-spirv/tests/translation.rs#signed64_predicates_use_signed64_operands_and_integer_select",
+          "tests/m3m_predicates_check.py#def oracle",
+          "tests/m3m_predicates_check.py#def execute",
+          "tests/test_predicate_inputs.py#test_high_bits_alone_can_change_equality"
+        ]
+      }
+    },
+    {
+      "id": "ptx.integer_extrema",
+      "category": "compiler",
+      "implementation": "partial",
+      "limits": {
+        "min_max": [
+          "s32",
+          "u32",
+          "s64",
+          "u64"
+        ],
+        "abs_neg": [
+          "s32",
+          "s64"
+        ],
+        "signed_minimum_unary": "masked two-complement bits; CPU oracle only",
+        "floating": false,
+        "packed": false,
+        "relu": false
+      },
+      "test_ids": {
+        "semantic": [
+          "crates/ct-ptx/tests/minmax.rs#minmax_and_signed_unary_accept_declared_widths",
+          "crates/ct-ptx/tests/minmax.rs#minmax_unary_reject_bad_types_arities_and_modifiers",
+          "crates/ct-codegen-spirv/tests/translation.rs#signed64_minmax_and_abs_use_typed_comparisons_and_modular_negation",
+          "tests/m3n_minmax_check.py#def oracle",
+          "tests/m3n_minmax_check.py#def main",
+          "tests/test_extrema_inputs.py#test_unary_operands_include_both_signed_extrema_zero_and_units"
+        ]
+      }
+    },
+    {
+      "id": "ptx.signed_immediates",
+      "category": "compiler",
+      "implementation": "partial",
+      "limits": {
+        "operand_types": [
+          "U32",
+          "U64"
+        ],
+        "radices": [
+          "decimal",
+          "hex0x",
+          "octal0"
+        ],
+        "signs": [
+          "+",
+          "-"
+        ],
+        "negative_magnitude": "at most2^(operandwidth-1)",
+        "positive_magnitude": "fits operandwidth",
+        "signed_mov_aliases": [
+          "s32",
+          "s64"
+        ],
+        "general_constant_expressions": false,
+        "signed_offsets": false
+      },
+      "test_ids": {
+        "semantic": [
+          "crates/ct-ptx/tests/immediates.rs#signed_literals_preserve_exact_bits_at_declared_operand_width",
+          "crates/ct-ptx/tests/immediates.rs#signed_literals_reject_range_errors_and_other_expressions",
+          "tests/m3o_immediates_check.py#def literals",
+          "tests/m3o_immediates_check.py#def run_case",
+          "crates/ct-ptx/tests/immediates.rs#conversion_literal_range_and_bits_follow_source_width"
+        ]
+      }
+    },
+    {
+      "id": "context.primary",
+      "category": "context",
+      "implementation": "missing",
+      "limits": {
+        "scope": "Not implemented; no execution evidence declared."
+      },
+      "test_ids": {}
+    },
+    {
+      "id": "runtime.registration",
+      "category": "runtime",
+      "implementation": "missing",
+      "limits": {
+        "scope": "Not implemented; no execution evidence declared."
+      },
+      "test_ids": {}
+    },
+    {
+      "id": "parallel.shared",
+      "category": "parallel",
+      "implementation": "missing",
+      "limits": {
+        "scope": "Not implemented; no execution evidence declared."
+      },
+      "test_ids": {}
+    },
+    {
+      "id": "parallel.barrier",
+      "category": "parallel",
+      "implementation": "missing",
+      "limits": {
+        "scope": "Not implemented; no execution evidence declared."
+      },
+      "test_ids": {}
+    },
+    {
+      "id": "parallel.atomic",
+      "category": "parallel",
+      "implementation": "missing",
+      "limits": {
+        "scope": "Not implemented; no execution evidence declared."
+      },
+      "test_ids": {}
+    },
+    {
+      "id": "compiler.device_functions",
+      "category": "compiler",
+      "implementation": "missing",
+      "limits": {
+        "scope": "Not implemented; no execution evidence declared."
+      },
+      "test_ids": {}
+    },
+    {
+      "id": "compiler.narrow_vector_abi",
+      "category": "compiler",
+      "implementation": "missing",
+      "limits": {
+        "scope": "Not implemented; no execution evidence declared."
+      },
+      "test_ids": {}
+    },
+    {
+      "id": "library.cublas",
+      "category": "library",
+      "implementation": "missing",
+      "limits": {
+        "scope": "Not implemented; no execution evidence declared."
+      },
+      "test_ids": {}
+    },
+    {
+      "id": "library.cudnn",
+      "category": "library",
+      "implementation": "missing",
+      "limits": {
+        "scope": "Not implemented; no execution evidence declared."
+      },
+      "test_ids": {}
+    },
+    {
+      "id": "jit.nvrtc",
+      "category": "compiler",
+      "implementation": "missing",
+      "limits": {
+        "scope": "Not implemented; no execution evidence declared."
+      },
+      "test_ids": {}
+    },
+    {
+      "id": "memory.external",
+      "category": "memory",
+      "implementation": "missing",
+      "limits": {
+        "scope": "Not implemented; no execution evidence declared."
+      },
+      "test_ids": {}
+    },
+    {
+      "id": "product.multidevice",
+      "category": "product",
+      "implementation": "missing",
+      "limits": {
+        "scope": "Not implemented; no execution evidence declared."
+      },
+      "test_ids": {}
+    },
+    {
+      "id": "product.validation",
+      "category": "product",
+      "implementation": "partial",
+      "limits": {
+        "scope": "Bounded lanes; static declarations never assert execution success."
+      },
+      "test_ids": {
+        "semantic": [
+          "scripts/run_validation.py#cpu.fmt",
+          "scripts/run_validation.py#cpu.clippy",
+          "scripts/run_validation.py#cpu.rust",
+          "scripts/run_validation.py#cpu.python",
+          "scripts/run_validation.py#cpu.registry",
+          "scripts/run_validation.py#cpu.profile",
+          "scripts/run_validation.py#cpu.publication",
+          "scripts/run_validation.py#validator.build",
+          "scripts/run_validation.py#producer.build",
+          "scripts/run_compiler_corpus.py#run_case",
+          "scripts/run_validation.py#arc.build",
+          "scripts/run_validation.py#combined.all"
+        ],
+        "validator": [
+          "scripts/run_validation.py#validator.real"
+        ],
+        "abi": [
+          "scripts/run_validation.py#arc.levelzero.abi",
+          "scripts/run_validation.py#arc.cuda.abi"
+        ],
+        "native": [
+          "scripts/run_validation.py#arc.native",
+          "scripts/run_validation.py#arc.m3k_memory",
+          "scripts/run_validation.py#arc.m3l_arithmetic",
+          "scripts/run_validation.py#arc.m3m_predicates",
+          "scripts/run_validation.py#arc.m3n_minmax",
+          "scripts/run_validation.py#arc.m3o_immediates"
+        ],
+        "behavior": [
+          "scripts/run_validation.py#arc.consumers"
+        ]
+      }
+    }
+  ],
+  "test_catalog": [
+    {
+      "id": "crates/ct-backend-intel/src/fault_tests.rs#failed_launch_reports_original_error_and_blocks_every_later_native_operation",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-backend-intel/src/fault_tests.rs#fatal_setup_errors_poison_but_ordinary_setup_errors_allow_a_later_launch",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-backend-intel/src/fault_tests.rs#module_build_log_failure_preserves_primary_error_and_stops_native_cleanup",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-backend-intel/src/modules.rs#failed_creation_retains_partial_handles_for_ordered_cleanup",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-backend-intel/src/modules.rs#validates_each_dimension_and_checked_block_volume",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-codegen-spirv/tests/translation.rs#emits_one_module_with_distinct_functions_and_shared_signatures",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-codegen-spirv/tests/translation.rs#every_shift_uses_a_bounded_u32_count_and_oversized_logical_result_select",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-codegen-spirv/tests/translation.rs#extracts_each_axis_and_shares_builtin_vectors_across_entries",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-codegen-spirv/tests/translation.rs#modular_mad_uses_declared_width_for_product_and_sum",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-codegen-spirv/tests/translation.rs#signed64_minmax_and_abs_use_typed_comparisons_and_modular_negation",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-codegen-spirv/tests/translation.rs#signed64_predicates_use_signed64_operands_and_integer_select",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-codegen-spirv/tests/translation.rs#typed_memory_and_scalar64_use_distinct_pointer_and_integer_signatures",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-cuda/src/images.rs#pointer_alignment_and_scalar64_kind_are_part_of_alternative_abi",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-cuda/src/images.rs#selects_profile_independent_of_record_order_and_parameter_names",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-cuda/src/lib.rs#native_failures_never_map_to_success_and_oom_keeps_its_cuda_category",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries",
+      "kind": "resolver"
+    },
+    {
+      "id": "crates/ct-fatbin/tests/decoding.rs#compressed_literals_and_overlapping_matches_decode",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-fatbin/tests/decoding.rs#rejects_ninth_candidate_and_aggregate_expansion_before_decode",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-ptx/tests/arithmetic.rs#modular_arithmetic_accepts_all_width_and_signedness_spellings",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-ptx/tests/compiler_profile.rs#rejects_ambiguous_u64_and_accepts_proven_pointer_parameters",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-ptx/tests/compiler_profile.rs#validates_unused_globals_but_rejects_references_and_malformed_initializers",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-ptx/tests/dimensions.rs#preserves_all_twelve_special_register_components",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-ptx/tests/immediates.rs#conversion_literal_range_and_bits_follow_source_width",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-ptx/tests/immediates.rs#signed_literals_preserve_exact_bits_at_declared_operand_width",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-ptx/tests/immediates.rs#signed_literals_reject_range_errors_and_other_expressions",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-ptx/tests/integer.rs#converts_all_signed_unsigned_width_pairs_with_source_semantics",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-ptx/tests/memory.rs#preserves_integer_memory_types_and_explicit_scalar_abi",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-ptx/tests/minmax.rs#minmax_and_signed_unary_accept_declared_widths",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-ptx/tests/minmax.rs#minmax_unary_reject_bad_types_arities_and_modifiers",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-ptx/tests/modules.rs#parses_all_entries_with_independent_scopes_and_abi",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-ptx/tests/parser.rs#parses_semantics_independent_of_kernel_and_register_names",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-ptx/tests/predicates.rs#integer_predicates_and_select_accept_supported_widths",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-ptx/tests/predicates.rs#integer_predicates_reject_bad_widths_and_predicates",
+      "kind": "semantic"
+    },
+    {
+      "id": "tests/m2_kernel_host.c#main",
+      "kind": "behavior"
+    },
+    {
+      "id": "tests/m3_cuda_app.c#main",
+      "kind": "behavior"
+    },
+    {
+      "id": "tests/m3f_selection_check.py#def main",
+      "kind": "semantic"
+    },
+    {
+      "id": "tests/m3g_modules_check.py#def run_loaded",
+      "kind": "semantic"
+    },
+    {
+      "id": "tests/m3h_cuda_app.c#execute",
+      "kind": "behavior"
+    },
+    {
+      "id": "tests/m3h_dimensions_check.py#def rejected_launches",
+      "kind": "semantic"
+    },
+    {
+      "id": "tests/m3h_dimensions_check.py#def run_coordinates",
+      "kind": "semantic"
+    },
+    {
+      "id": "tests/m3j_cuda_app.c#main",
+      "kind": "behavior"
+    },
+    {
+      "id": "tests/m3j_integer_check.py#def oracle",
+      "kind": "semantic"
+    },
+    {
+      "id": "tests/m3k_cuda_app.c#main",
+      "kind": "behavior"
+    },
+    {
+      "id": "tests/m3k_memory_check.py#def invalid_pointers",
+      "kind": "semantic"
+    },
+    {
+      "id": "tests/m3l_arithmetic_check.py#def execute",
+      "kind": "semantic"
+    },
+    {
+      "id": "tests/m3l_arithmetic_check.py#def oracle",
+      "kind": "semantic"
+    },
+    {
+      "id": "tests/m3m_predicates_check.py#def execute",
+      "kind": "semantic"
+    },
+    {
+      "id": "tests/m3m_predicates_check.py#def oracle",
+      "kind": "semantic"
+    },
+    {
+      "id": "tests/m3n_minmax_check.py#def main",
+      "kind": "semantic"
+    },
+    {
+      "id": "tests/m3n_minmax_check.py#def oracle",
+      "kind": "semantic"
+    },
+    {
+      "id": "tests/m3o_immediates_check.py#def literals",
+      "kind": "semantic"
+    },
+    {
+      "id": "tests/m3o_immediates_check.py#def run_case",
+      "kind": "semantic"
+    },
+    {
+      "id": "tests/test_ct_loader.py#test_classifies_static_and_dynamic_and_unknown_symbols",
+      "kind": "semantic"
+    },
+    {
+      "id": "tests/test_extrema_inputs.py#test_unary_operands_include_both_signed_extrema_zero_and_units",
+      "kind": "semantic"
+    },
+    {
+      "id": "tests/test_predicate_inputs.py#test_high_bits_alone_can_change_equality",
+      "kind": "semantic"
+    },
+    {
+      "id": "scripts/run_validation.py#cpu.fmt",
+      "kind": "semantic"
+    },
+    {
+      "id": "scripts/run_validation.py#cpu.clippy",
+      "kind": "semantic"
+    },
+    {
+      "id": "scripts/run_validation.py#cpu.rust",
+      "kind": "semantic"
+    },
+    {
+      "id": "scripts/run_validation.py#cpu.python",
+      "kind": "semantic"
+    },
+    {
+      "id": "scripts/run_validation.py#cpu.registry",
+      "kind": "semantic"
+    },
+    {
+      "id": "scripts/run_validation.py#cpu.profile",
+      "kind": "semantic"
+    },
+    {
+      "id": "scripts/run_validation.py#cpu.publication",
+      "kind": "semantic"
+    },
+    {
+      "id": "scripts/run_validation.py#validator.build",
+      "kind": "semantic"
+    },
+    {
+      "id": "scripts/run_validation.py#validator.real",
+      "kind": "validator"
+    },
+    {
+      "id": "scripts/run_validation.py#arc.build",
+      "kind": "semantic"
+    },
+    {
+      "id": "scripts/run_validation.py#arc.levelzero.abi",
+      "kind": "abi"
+    },
+    {
+      "id": "scripts/run_validation.py#arc.cuda.abi",
+      "kind": "abi"
+    },
+    {
+      "id": "scripts/run_validation.py#arc.native",
+      "kind": "native"
+    },
+    {
+      "id": "scripts/run_validation.py#arc.m3k_memory",
+      "kind": "native"
+    },
+    {
+      "id": "scripts/run_validation.py#arc.m3l_arithmetic",
+      "kind": "native"
+    },
+    {
+      "id": "scripts/run_validation.py#arc.m3m_predicates",
+      "kind": "native"
+    },
+    {
+      "id": "scripts/run_validation.py#arc.m3n_minmax",
+      "kind": "native"
+    },
+    {
+      "id": "scripts/run_validation.py#arc.m3o_immediates",
+      "kind": "native"
+    },
+    {
+      "id": "scripts/run_validation.py#arc.consumers",
+      "kind": "behavior"
+    },
+    {
+      "id": "scripts/run_validation.py#combined.all",
+      "kind": "semantic"
+    },
+    {
+      "id": "scripts/run_validation.py#producer.build",
+      "kind": "semantic"
+    },
+    {
+      "id": "scripts/run_compiler_corpus.py#run_case",
+      "kind": "semantic"
+    }
+  ]
+}
