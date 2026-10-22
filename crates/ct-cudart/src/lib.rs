@@ -8,6 +8,10 @@ mod memory;
 #[cfg(test)]
 mod memory_tests;
 mod platform;
+#[allow(dead_code)] // Wired into ABI exports after the independent native ABI gate.
+mod registration;
+#[cfg(test)]
+mod registration_tests;
 mod state;
 use driver::DriverBridge;
 use state::Runtime;
