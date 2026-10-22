@@ -1,5 +1,7 @@
 # P09a1: 첫 동기 CUDA Runtime 연결 설계
 
+구현·검증 결과: [P09a1 결과](../../P09a1-RESULTS.md). 아래 본문은 구현 전 설계 기록이다.
+
 상태: 구현 전 검토용 설계. 2026-10-21.
 기준: `4c60225d027be1c8b5d969096fe2bef877f72a70` / Driver38개 export.
 이번 문서는 Runtime 구현·ABI 통과·GPU 실행·일반 nvcc 호환성의 증거가 아니다.
