@@ -26,6 +26,7 @@ jobs:
       - name: CPU checks
         shell: pwsh
         run: ./scripts/run_validation.ps1 -Lane cpu -Required -OutputDirectory results/local/ci-cpu
+      # CPU lane explicitly includes nested Runtime fmt/clippy/test/profile gates.
       - name: Build validator from fixed source archives
         shell: pwsh
         run: |

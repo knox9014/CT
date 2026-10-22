@@ -27,7 +27,15 @@ def supported_symbols():
     return set(re.findall(r" X\((cu\w+),", header))
 
 
-def inspect_pe(data, *, dll=False):
+def runtime_symbols():
+    from check_runtime_profile import PROFILE, validate
+    value = json.loads((REPO / PROFILE).read_text())
+    if validate(value):
+        raise LoaderError('invalid Runtime profile')
+    return {item['symbol'] for item in value['exports']}
+
+
+def inspect_pe(data, *, dll=False, runtime=False):
     def require(ok):
         if not ok:
             raise LoaderError("malformed or unsupported PE image")
@@ -100,7 +108,7 @@ def inspect_pe(data, *, dll=False):
             name = string(name_rva)
             require("/" not in name and "\\" not in name and ":" not in name)
             lower = name.lower()
-            if lower.startswith("cudart"):
+            if lower.startswith("cudart") and not (runtime and lower == 'cudart64_12.dll'):
                 raise LoaderError("CUDA Runtime imports are unsupported")
             names = []
             for j in range(4096):
@@ -109,7 +117,7 @@ def inspect_pe(data, *, dll=False):
                 if thunk == 0:
                     break
                 if thunk & (1 << 63):
-                    if lower == "nvcuda.dll":
+                    if lower == "nvcuda.dll" or lower.startswith('cudart'):
                         raise LoaderError("ordinal CUDA imports are unsupported")
                     names.append("ordinal")
                 else:
@@ -120,6 +128,8 @@ def inspect_pe(data, *, dll=False):
                 raise LoaderError("oversized PE import table")
             if lower == "nvcuda.dll" and not set(names) <= supported_symbols():
                 raise LoaderError("unsupported static CUDA symbol")
+            if lower == 'cudart64_12.dll' and not set(names) <= runtime_symbols():
+                raise LoaderError('unsupported static Runtime symbol')
             imports.append({"library": name, "symbols": names})
         require(terminated)
     return {"architecture": "x64", "cuda_loading": "static" if any(
@@ -139,16 +149,24 @@ def digest(data):
     return hashlib.sha256(data).hexdigest()
 
 
-def prepare_bundle(application, ct_dll, assets, root):
+def prepare_bundle(application, ct_dll, assets, root, *, runtime_dll=None):
     application, ct_dll = Path(application), Path(ct_dll)
     if application.suffix.lower() != ".exe":
         raise LoaderError("application must be an executable")
     app_data, dll_data = read_image(application), read_image(ct_dll)
-    report = inspect_pe(app_data)
+    report = inspect_pe(app_data,runtime=runtime_dll is not None)
     inspect_pe(dll_data, dll=True)
     payloads = {application.name: app_data, "nvcuda.dll": dll_data}
+    if runtime_dll is not None:
+        runtime_symbols()
+        runtime_data = read_image(Path(runtime_dll))
+        inspect_pe(runtime_data,dll=True)
+        if application.name.casefold() == 'cudart64_12.dll':
+            raise LoaderError('bundle filename collision')
+        payloads['cudart64_12.dll'] = runtime_data
+        report['runtime_sha256'] = digest(runtime_data)
     names = {n.casefold() for n in payloads}
-    if len(names) != 2:
+    if len(names) != (3 if runtime_dll is not None else 2):
         raise LoaderError("bundle filename collision")
     for asset in assets:
         asset = Path(asset)
@@ -193,6 +211,7 @@ def main():
     inspect.add_argument("application", type=Path)
     run = commands.add_parser("run", help="execute a trusted standalone application through CT")
     run.add_argument("--ct-dll", type=Path, required=True)
+    run.add_argument('--runtime-dll', type=Path)
     run.add_argument("--ptx", type=Path, action="append", default=[])
     run.add_argument("application", type=Path)
     run.add_argument("arguments", nargs=argparse.REMAINDER)
@@ -203,7 +222,7 @@ def main():
             return 0
         if os.name != "nt":
             raise LoaderError("application connection requires Windows x64")
-        bundle, report = prepare_bundle(args.application, args.ct_dll, args.ptx, REPO / ".cache/runs")
+        bundle, report = prepare_bundle(args.application, args.ct_dll, args.ptx, REPO / ".cache/runs",runtime_dll=args.runtime_dll)
         print(json.dumps({"stage": "CT-application-connection", **report}), flush=True)
         arguments = args.arguments[1:] if args.arguments[:1] == ["--"] else args.arguments
         return run_child(bundle / args.application.name, arguments, bundle)

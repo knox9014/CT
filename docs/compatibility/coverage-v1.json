@@ -1619,6 +1619,46 @@
           "scripts/run_validation.py#arc.memory_queries"
         ]
       }
+    },
+    {
+      "id": "runtime.memory_control",
+      "category": "runtime",
+      "implementation": "partial",
+      "limits": {
+        "contract": "P09a1 Windows x64 explicit synchronous Runtime profile; no kernel registration/launch or general CUDA version claim"
+      },
+      "test_ids": {
+        "semantic": [
+          "scripts/run_validation.py#cpu.runtime_rust",
+          "scripts/run_validation.py#cpu.runtime_profile"
+        ],
+        "abi": [
+          "scripts/run_validation.py#arc.runtime_abi"
+        ],
+        "native": [
+          "scripts/run_validation.py#arc.runtime"
+        ]
+      }
+    },
+    {
+      "id": "runtime.error_state",
+      "category": "runtime",
+      "implementation": "partial",
+      "limits": {
+        "contract": "P09a1 Windows x64 explicit synchronous Runtime profile; no kernel registration/launch or general CUDA version claim"
+      },
+      "test_ids": {
+        "semantic": [
+          "scripts/run_validation.py#cpu.runtime_rust",
+          "scripts/run_validation.py#cpu.runtime_profile"
+        ],
+        "abi": [
+          "scripts/run_validation.py#arc.runtime_abi"
+        ],
+        "native": [
+          "scripts/run_validation.py#arc.runtime"
+        ]
+      }
     }
   ],
   "test_catalog": [
@@ -2056,6 +2096,30 @@
     },
     {
       "id": "scripts/run_validation.py#arc.memory_queries",
+      "kind": "native"
+    },
+    {
+      "id": "scripts/run_validation.py#cpu.runtime_fmt",
+      "kind": "semantic"
+    },
+    {
+      "id": "scripts/run_validation.py#cpu.runtime_clippy",
+      "kind": "semantic"
+    },
+    {
+      "id": "scripts/run_validation.py#cpu.runtime_rust",
+      "kind": "semantic"
+    },
+    {
+      "id": "scripts/run_validation.py#cpu.runtime_profile",
+      "kind": "semantic"
+    },
+    {
+      "id": "scripts/run_validation.py#arc.runtime_abi",
+      "kind": "abi"
+    },
+    {
+      "id": "scripts/run_validation.py#arc.runtime",
       "kind": "native"
     }
   ]

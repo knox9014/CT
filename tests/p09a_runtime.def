@@ -1,0 +1,16 @@
+LIBRARY cudart64_12.dll
+EXPORTS
+cudaGetDeviceCount
+cudaGetDevice
+cudaSetDevice
+cudaDeviceSynchronize
+cudaMalloc
+cudaFree
+cudaMemcpy
+cudaMemset
+cudaGetLastError
+cudaPeekAtLastError
+cudaGetErrorName
+cudaGetErrorString
+cudaDriverGetVersion
+cudaRuntimeGetVersion

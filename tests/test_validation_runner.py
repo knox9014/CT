@@ -11,11 +11,30 @@ import copy
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'scripts'))
 from run_validation import execute, steps, corpus_outcome, configuration, validate_lane_bundle
+from run_validation import runtime_evidence
 from compatibility_registry import canonical_hash
 from prepare_spirv_tools import extract_pinned
 
 
 class RunnerTests(unittest.TestCase):
+    def test_successful_child_without_native_artifacts_is_rejected(self):
+        cache=ROOT/'.cache/runner-tests';cache.mkdir(parents=True,exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=cache) as d:
+            directory=Path(d)
+            self.assertTrue(runtime_evidence(directory,ROOT,'arc.runtime'))
+            (directory/'runtime-native-manifest.json').write_text('{"status":"pass"}')
+            self.assertTrue(runtime_evidence(directory,ROOT,'arc.runtime'))
+            self.assertTrue(runtime_evidence(directory,ROOT,'arc.runtime_abi'))
+    def test_runtime_gates_use_nested_workspace_and_are_required(self):
+        allsteps=steps('combined',Path('validator'),Path('lock'))
+        cases={name:command for name,_,command in allsteps}
+        for name in ('cpu.runtime_fmt','cpu.runtime_clippy','cpu.runtime_rust','cpu.runtime_profile','arc.runtime_abi','arc.runtime'):
+            self.assertIn(name,cases)
+        for name in ('cpu.runtime_fmt','cpu.runtime_clippy','cpu.runtime_rust'):
+            self.assertIn('crates/ct-cudart/Cargo.toml',cases[name])
+        self.assertIn('--locked',cases['cpu.runtime_rust'])
+        self.assertEqual(len(allsteps),38)
+
     def test_bundle_cannot_select_its_own_expected_toolchain(self):
         cache=ROOT/'.cache/runner-tests';cache.mkdir(parents=True,exist_ok=True)
         with tempfile.TemporaryDirectory(dir=cache) as d:
