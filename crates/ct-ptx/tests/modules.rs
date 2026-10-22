@@ -54,3 +54,18 @@ fn bounds_entries_and_keeps_unused_global_validation() {
     );
     assert_eq!(parse_module(&source).unwrap().kernels.len(), 2);
 }
+#[test]
+fn static_nvcc_entry_is_module_local_and_does_not_enable_device_linking() {
+    let local = ".version 8.0 .target sm_52 .address_size 64 .entry same(){ ret; }";
+    let module = ct_ptx::parse_module(local).unwrap();
+    assert_eq!(module.kernels.len(), 1);
+    assert_eq!(module.kernels[0].name, "same");
+    let mixed = format!("{local} .visible .entry other(){{ret;}}");
+    assert_eq!(ct_ptx::parse_module(&mixed).unwrap().kernels.len(), 2);
+    assert!(ct_ptx::parse_module(&format!("{local} .entry same(){{ret;}}")).is_err());
+    for prefix in [".extern ", ".weak ", ".visible .extern "] {
+        assert!(
+            ct_ptx::parse_module(&local.replace(".entry", &format!("{prefix}.entry"))).is_err()
+        );
+    }
+}

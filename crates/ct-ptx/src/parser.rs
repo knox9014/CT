@@ -585,10 +585,10 @@ fn parse_kernel(
     profile: Profile,
     globals: &BTreeSet<String>,
 ) -> Result<Kernel, Error> {
-    if p.peek() != ".visible" {
+    p.eat(".visible");
+    if p.peek() != ".entry" {
         return Err(unsupported(p.line()));
     }
-    p.expect(".visible")?;
     p.expect(".entry")?;
     let name = p.take()?;
     if !identifier(&name) || globals.contains(&name) {
