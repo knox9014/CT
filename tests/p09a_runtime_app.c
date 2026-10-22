@@ -37,7 +37,7 @@ static int interop(HMODULE driver) {
         OK(p_cuMemsetD8_v2((CUdeviceptr)(uintptr_t)a,0xcd,n+4));
         OK(cudaMemcpy((unsigned char*)a+2,src,n,cudaMemcpyHostToDevice));
         OK(cudaMemcpy((void*)(uintptr_t)b,a,n+4,cudaMemcpyDeviceToDevice));
-        memset(output,0x44,sizeof(output)); OK(p_cuMemcpyDtoH_v2(output,b,n+4));
+        memset(output,(unsigned char)((unsigned)seed*11+3),sizeof(output)); OK(p_cuMemcpyDtoH_v2(output,b,n+4));
         for(size_t i=0;i<n+4;i++) {
             unsigned char want=(i<2||i>=n+2)?0xcd:src[i-2];
             if(output[i]!=want) { fputs("oracle mismatch: copy\n",stderr); return 42; }
@@ -45,7 +45,7 @@ static int interop(HMODULE driver) {
         }
         OK(p_cuMemcpyHtoD_v2((CUdeviceptr)(uintptr_t)a+2,src,n));
         OK(cudaMemset((unsigned char*)a+2,0x1234,n));
-        memset(output,0x44,sizeof(output)); OK(cudaMemcpy(output,a,n+4,cudaMemcpyDeviceToHost));
+        memset(output,(unsigned char)((unsigned)seed*17+5),sizeof(output)); OK(cudaMemcpy(output,a,n+4,cudaMemcpyDeviceToHost));
         for(size_t i=0;i<n+4;i++) {
             unsigned char want=(i<2||i>=n+2)?0xcd:0x34;
             if(output[i]!=want) {fputs("oracle mismatch: fill\n",stderr);return 42;}
@@ -77,11 +77,13 @@ int main(int argc,char **argv) {
         printf("{\"mode\":\"%s\",\"status\":\"pass\",\"checked_bytes\":5,\"observations\":1,\"seed\":%d}\n",mode,seed); return 0;
     }
     if(strcmp(mode,"wrong_driver")==0) { REQUIRE(argc==4); REQUIRE(LoadLibraryA(argv[3])!=NULL); }
+    if(strcmp(mode,"missing_export")==0) { REQUIRE(LoadLibraryW(L"nvcuda.dll")!=NULL); }
     if(strcmp(mode,"missing_driver")==0||strcmp(mode,"wrong_driver")==0||strcmp(mode,"missing_export")==0) {
         int count=-1; REQUIRE((int)cudaGetDeviceCount(&count)==35 && count==0);
         count=-1; REQUIRE((int)cudaGetDeviceCount(&count)==35 && count==0);
         HMODULE loaded=GetModuleHandleW(L"nvcuda.dll");
-        if(loaded) { typedef int (__stdcall *Counter)(void); Counter c=(Counter)GetProcAddress(loaded,"test_init_calls"); if(c) REQUIRE(c()==0); }
+        if(strcmp(mode,"missing_driver")==0) {REQUIRE(loaded==NULL);}
+        else {typedef int (__stdcall *Counter)(void); REQUIRE(loaded!=NULL); Counter c=(Counter)GetProcAddress(loaded,"test_init_calls"); REQUIRE(c!=NULL && c()==0);}
         printf("{\"mode\":\"%s\",\"status\":\"pass\",\"checked_bytes\":0,\"observations\":2,\"seed\":%d}\n",mode,seed); return 0;
     }
     HMODULE driver=LoadLibraryW(L"nvcuda.dll"); REQUIRE(driver!=NULL);

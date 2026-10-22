@@ -65,8 +65,8 @@ fn bootstrap_checks_identity_and_pins_before_publish() {
             trace: RefCell::new(vec![]),
         };
         let cache = std::sync::OnceLock::new();
-        assert_eq!(*cache.get_or_init(|| bootstrap(&bad)), Err(35));
-        assert_eq!(*cache.get_or_init(|| bootstrap(&bad)), Err(35));
+        assert_eq!(crate::cached(&cache, || bootstrap(&bad)), Err(35));
+        assert_eq!(crate::cached(&cache, || bootstrap(&bad)), Err(35));
         assert_eq!(bad.trace.borrow().len(), want);
     }
 }

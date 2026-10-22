@@ -11,7 +11,7 @@ def file(root,name):
     if not p.is_relative_to(root/'.cache/p09a-build'):raise ValueError('ABI artifact escape')
     return p
 def digest(p):return hashlib.sha256(p.read_bytes()).hexdigest()
-def audit(path,root=ROOT):
+def audit(path,root=ROOT,*,execute=False):
     try:
         value=json.loads(Path(path).read_text())
         if set(value)!={'case_id','source_tree','probes'} or value['case_id']!='arc.runtime_abi' or value['source_tree']!=source_fingerprint(root):return ['ABI identity mismatch']
@@ -21,8 +21,11 @@ def audit(path,root=ROOT):
             binary=file(root,item['binary']);output=file(root,item['output'])
             if binary.name!=name+'.exe' or digest(binary)!=item['binary_sha256'] or digest(output)!=item['output_sha256']:return ['ABI artifact changed']
             if output.read_bytes().replace(b'\r\n',b'\n')!=EXPECTED:return ['ABI mismatch']
+            if execute:
+                result=subprocess.run([str(binary)],capture_output=True,timeout=30)
+                if result.returncode or result.stdout.replace(b'\r\n',b'\n')!=EXPECTED:return ['ABI replay mismatch']
         return []
-    except (OSError,ValueError,TypeError,KeyError):return ['ABI evidence unavailable']
+    except (OSError,ValueError,TypeError,KeyError,subprocess.SubprocessError):return ['ABI evidence unavailable']
 def capture(folder):
     value=dict(case_id='arc.runtime_abi',source_tree=source_fingerprint(ROOT),probes={})
     for name in ('runtime_reference_abi','runtime_declared_abi'):

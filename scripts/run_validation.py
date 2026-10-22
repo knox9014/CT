@@ -66,7 +66,7 @@ def runtime_evidence(directory, root, case_id, *, capture=False):
             target=(root/pointer['manifest']).resolve()
             if not target.is_relative_to(root/'.cache/p09a-build'):return ['Runtime evidence escape']
             saved.write_bytes(target.read_bytes())
-        return audit(saved,root)
+        return audit(saved,root,execute=capture)
     except (OSError,ValueError,KeyError,TypeError):return ['Runtime native evidence unavailable']
 
 

@@ -12,11 +12,14 @@ mod state;
 use driver::DriverBridge;
 use state::Runtime;
 static BRIDGE: std::sync::OnceLock<Result<Runtime<DriverBridge>, i32>> = std::sync::OnceLock::new();
+fn cached<T>(
+    cache: &std::sync::OnceLock<Result<T, i32>>,
+    load: impl FnOnce() -> Result<T, i32>,
+) -> Result<&T, i32> {
+    cache.get_or_init(load).as_ref().map_err(|&code| code)
+}
 fn bridge() -> Result<&'static Runtime<DriverBridge>, i32> {
-    BRIDGE
-        .get_or_init(|| DriverBridge::open().map(Runtime::new))
-        .as_ref()
-        .map_err(|&code| code)
+    cached(&BRIDGE, || DriverBridge::open().map(Runtime::new))
 }
 #[cfg(test)]
 mod state_tests;

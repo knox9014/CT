@@ -22,7 +22,7 @@ def local(root,name):
     if not p.is_relative_to(root/'.cache/p09a-build'):raise ValueError('artifact escape')
     return p
 
-def audit_manifest(path,root=ROOT):
+def audit_manifest(path,root=ROOT,*,execute=False):
     try:
         m=json.loads(Path(path).read_text())
         if set(m)!={'schema_version','case_id','source_tree','artifacts','modes'} or m['schema_version']!=1 or m['case_id']!='arc.runtime':return ['invalid manifest']
@@ -31,6 +31,7 @@ def audit_manifest(path,root=ROOT):
         if set(m['artifacts'])!=roles:return ['artifact roles mismatch']
         for role,item in m['artifacts'].items():
             if set(item)!={'path','sha256'} or digest(local(root,item['path']).read_bytes())!=item['sha256']:return ['artifact mismatch']
+            if role!='application':inspect_pe(local(root,item['path']).read_bytes(),dll=True)
         imports=inspect_pe(local(root,m['artifacts']['application']['path']).read_bytes(),runtime=True)['imports']
         from check_runtime_profile import SIGNATURES
         observed=[i for i in imports if i['library'].lower()=='cudart64_12.dll']
@@ -56,8 +57,25 @@ def audit_manifest(path,root=ROOT):
             else:
                 n,o=MODES[mode]
                 if record['exit_code']!=0 or json.loads(stdout)!=dict(mode=mode,status='pass',checked_bytes=n,observations=o,seed=seed):return ['native observation mismatch']
+        if execute:
+            for record in m['modes']:
+                mode=record['mode'];seed=secrets.randbelow(1000000)+1
+                bundle=local(root,record['bundle'])
+                command=[str(bundle/'host.exe'),mode,str(seed)]
+                if mode=='wrong_driver':
+                    fake=local(root,m['artifacts']['fake']['path']);wrong=fake.parent/'wrong/nvcuda.dll'
+                    if digest(wrong.read_bytes())!=m['artifacts']['fake']['sha256']:return ['preloaded provider changed']
+                    command.append(str(wrong))
+                run=subprocess.run(command,cwd=bundle,capture_output=True,timeout=90)
+                expected=MODES[mode]
+                if expected is None:
+                    marker=b'oracle mismatch: copy' if mode=='noop_copy' else b'oracle mismatch: fill'
+                    if run.returncode!=42 or marker not in run.stderr:return ['replayed negative control not detected']
+                elif run.returncode!=0 or json.loads(run.stdout)!=dict(mode=mode,status='pass',checked_bytes=expected[0],observations=expected[1],seed=seed):return ['replayed native observation mismatch']
+            # Recheck payloads and source after independent execution.
+            return audit_manifest(path,root)
         return []
-    except (OSError,ValueError,TypeError,KeyError):return ['native manifest unavailable or malformed']
+    except (OSError,ValueError,TypeError,KeyError,subprocess.SubprocessError):return ['native manifest unavailable or malformed']
 
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('artifacts',type=Path);args=p.parse_args()

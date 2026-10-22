@@ -15,7 +15,8 @@ impl Spy {
 }
 impl DriverCalls for Spy {
     fn init(&self) -> i32 {
-        self.push(10, 0, 0, 0)
+        self.calls.lock().unwrap().push((10, 0, 0, 0));
+        0
     }
     fn count(&self) -> DriverResult<i32> {
         Ok(1)
@@ -164,5 +165,9 @@ fn memory_driver_errors_translate_once_and_preserve_null_output() {
         }
         assert!(out.is_null());
         assert_eq!(fill(&rt, 4096usize as *mut c_void, 1, 8), want);
+        assert_eq!(
+            &*rt.driver.calls.lock().unwrap(),
+            &[(10, 0, 0, 0), (12, 0, 0, 8), (4, 4096, 1, 8)]
+        );
     }
 }

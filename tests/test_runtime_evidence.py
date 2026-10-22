@@ -29,7 +29,7 @@ class EvidenceTests(unittest.TestCase):
             struct.pack_into('<Q',app,768+14*8,0)
             artifacts={}
             for role in ('application','driver','runtime','fake','noop_copy','noop_fill','underlying'):
-                path=d/(role+'.bin');path.write_bytes(app if role=='application' else role.encode())
+                path=d/(role+'.bin');path.write_bytes(app if role=='application' else image(dll=True,library=b'kernel32.dll',symbol=b'GetCurrentProcess'))
                 artifacts[role]=dict(path=path.relative_to(ROOT).as_posix(),sha256=hashlib.sha256(path.read_bytes()).hexdigest())
             value=dict(schema_version=1,case_id='arc.runtime',source_tree=source_fingerprint(ROOT),artifacts=artifacts,modes=[])
             for mode,expected in MODES.items():
@@ -42,6 +42,9 @@ class EvidenceTests(unittest.TestCase):
                 err.write_bytes(b'oracle mismatch: copy' if mode=='noop_copy' else b'oracle mismatch: fill' if mode=='noop_fill' else b'')
                 value['modes'].append(dict(mode=mode,seed=1,exit_code=0 if expected else 42,bundle=bundle.relative_to(ROOT).as_posix(),stdout=out.relative_to(ROOT).as_posix(),stderr=err.relative_to(ROOT).as_posix(),payloads=payloads))
             p=d/'manifest.json';p.write_text(json.dumps(value));self.assertEqual(audit_manifest(p),[])
+            # Structurally complete claims still cannot pass required execution:
+            # these synthetic PE bytes contain no executable consumer code.
+            self.assertTrue(audit_manifest(p,execute=True))
             bad=copy.deepcopy(value);bad['modes'].pop();p.write_text(json.dumps(bad));self.assertTrue(audit_manifest(p))
             p.write_text(json.dumps(value));first=value['modes'][0];out=ROOT/first['stdout'];observed=json.loads(out.read_text());observed['observations']=0;out.write_text(json.dumps(observed));self.assertTrue(audit_manifest(p))
             observed['observations']=5;out.write_text(json.dumps(observed));self.assertEqual(audit_manifest(p),[])
