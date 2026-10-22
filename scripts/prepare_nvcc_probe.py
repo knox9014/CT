@@ -22,6 +22,7 @@ STL_COMMIT = 'ab600751924207014ab02f7422ee00a6843e2f0f'
 # Qualification needs a separately reviewed supported-host pin. A child manifest
 # cannot qualify itself by changing a version string or removing an override.
 QUALIFIED_CL = {}
+ENV_POLICY = 'ct-nvcc-sanitized-v1'
 
 
 def digest(path):
@@ -72,7 +73,7 @@ def decode_lz4(block, size):
     return bytes(out)
 
 
-def payload(path):
+def payload(path, mode=None):
     b = Path(path).read_bytes()
     if not 96 <= len(b) <= 16*1024*1024:
         raise ValueError('container limit')
@@ -82,6 +83,8 @@ def payload(path):
     h = b[16:88]
     kind, version, header, size = struct.unpack_from('<HHIQ', h)
     flags = int.from_bytes(h[40:44], 'little')
+    if mode is not None and flags != {'compressed': 0x2041, 'plain': 0x41}[mode]:
+        raise ValueError('actual compression mode differs')
     if (kind, version, header, size) != (1, 0x101, 72, len(b)-88) or size % 8:
         raise ValueError('record extent')
     if flags not in (0x41, 0x2041) or h[20:40] != struct.pack('<IIIII', 64, 8 << 16, 52, 0, 0) or any(h[44:56]+h[64:72]):
@@ -137,8 +140,10 @@ def inventory(roots):
 
 
 def validate_host(host):
-    if set(host) != {'profile', 'compiler_version', 'override', 'roots', 'files', 'tools', 'vcvars'}:
+    if set(host) != {'profile', 'compiler_version', 'override', 'roots', 'files', 'tools', 'vcvars', 'environment_policy'}:
         raise ValueError('host schema')
+    if host['environment_policy'] != ENV_POLICY:
+        raise ValueError('uncontrolled compiler environment')
     if host['profile'] not in ('diagnostic', 'qualified') or not host['files'] or not host['roots']:
         raise ValueError('host closure absent')
     if host['profile'] == 'qualified':
@@ -180,7 +185,7 @@ def audit_probe(path):
         if set(value['commands']) != {'compressed', 'plain'}:
             raise ValueError('producer commands absent')
         for mode, argv in value['commands'].items():
-            if argv != compiler_args(path.parent, value['host']['profile'], mode):
+            if argv != compiler_args(path.parent, value['host']['profile'], mode, str(Path(value['host']['tools']['cl.exe']['path']).parent)):
                 raise ValueError('producer flags changed')
         if set(value['artifacts']) != {'compressed', 'plain'}:
             raise ValueError('producer modes absent')
@@ -192,7 +197,7 @@ def audit_probe(path):
             for relative, sha in files.items():
                 if digest(path.parent/relative) != sha:
                     raise ValueError('producer artifact changed')
-            texts.append(payload(path.parent/('keep-'+mode+'/vector.fatbin')))
+            texts.append(payload(path.parent/('keep-'+mode+'/vector.fatbin'), mode))
         if texts[0] != texts[1]:
             raise ValueError('independent payload mismatch')
         return []
@@ -200,8 +205,8 @@ def audit_probe(path):
         return ['nvcc evidence unavailable or changed']
 
 
-def compiler_args(output, profile, mode):
-    argv = [str(output/'toolkit/bin/nvcc.exe'), '-Xcompiler', '/utf-8',
+def compiler_args(output, profile, mode, compiler_dir):
+    argv = [str(output/'toolkit/bin/nvcc.exe'), '--compiler-bindir', compiler_dir, '-Xcompiler', '/utf-8',
             '--cudart=shared', '--cudadevrt=none', '--keep', '--keep-dir',
             'keep-'+mode, '--generate-code', 'arch=compute_52,code=compute_52', 'vector.cu', '-o', mode+'.exe']
     if profile == 'diagnostic':
@@ -214,6 +219,14 @@ def compiler_args(output, profile, mode):
 def decode_host_env(data):
     return dict(line.split('=', 1) for line in data.decode('utf-16-le').splitlines()
                 if '=' in line and not line.startswith('='))
+
+
+def normalize_env(env):
+    blocked = {'CL', '_CL_', 'LINK', '_LINK_', 'CUDAHOSTCXX', 'CUDACXX',
+               'CPATH', 'CPLUS_INCLUDE_PATH', 'C_INCLUDE_PATH', 'OBJC_INCLUDE_PATH',
+               'CPPFLAGS', 'CFLAGS', 'CXXFLAGS', 'LDFLAGS', 'COMPILER_PATH',
+               'GCC_EXEC_PREFIX', 'LIBRARY_PATH'}
+    return {k:v for k,v in env.items() if k.upper() not in blocked and not k.upper().startswith('NVCC_')}
 
 
 def prepare(output, packages, profile, vcvars):
@@ -234,10 +247,16 @@ def prepare(output, packages, profile, vcvars):
     env_script = output/'host-env.cmd'
     env_script.write_text('@echo off\ncall "'+str(vcvars)+'" >nul\nif errorlevel 1 exit /b 1\nset\n', encoding='utf-8')
     result = subprocess.run(['cmd.exe', '/d', '/u', '/c', str(env_script)], capture_output=True, check=True, timeout=90)
-    env = decode_host_env(result.stdout)
+    env = normalize_env(decode_host_env(result.stdout))
     tools = {name: {'path': shutil.which(name, path=env.get('PATH', env.get('Path', '')))} for name in ('cl.exe', 'link.exe')}
     for item in tools.values():
         item['sha256'] = digest(item['path'])
+    compiler_dir = str(Path(tools['cl.exe']['path']).parent)
+    if Path(tools['link.exe']['path']).parent != Path(compiler_dir):
+        raise ValueError('host compiler/linker selection differs')
+    previous_path = next((v for k,v in env.items() if k.upper() == 'PATH'), '')
+    env = {k:v for k,v in env.items() if k.upper() != 'PATH'}
+    env['PATH'] = compiler_dir+os.pathsep+previous_path
     banner = subprocess.run([tools['cl.exe']['path']], env=env, capture_output=True, timeout=30).stderr.decode('mbcs', errors='replace')
     version = re.search(r'19\.\d+\.\d+', banner)
     if version is None:
@@ -246,13 +265,13 @@ def prepare(output, packages, profile, vcvars):
     # Superset closure: include all local host headers/libraries and compiler-bin helpers.
     roots.append(str(Path(tools['cl.exe']['path']).parent))
     host = dict(profile=profile, compiler_version=version[0], override=profile == 'diagnostic',
-                roots=roots, files=inventory(roots), tools=tools, vcvars=dict(path=str(vcvars), sha256=digest(vcvars)))
+                roots=roots, files=inventory(roots), tools=tools, vcvars=dict(path=str(vcvars), sha256=digest(vcvars)), environment_policy=ENV_POLICY)
     validate_host(host)
     shutil.copyfile(SOURCE, output/'vector.cu')
     artifacts, commands = {}, {}
     for mode in ('compressed', 'plain'):
         (output/('keep-'+mode)).mkdir(exist_ok=True)
-        commands[mode] = compiler_args(output, profile, mode)
+        commands[mode] = compiler_args(output, profile, mode, compiler_dir)
         run = subprocess.run(commands[mode], cwd=output, env=env, capture_output=True, timeout=120)
         (output/('compiler-'+mode+'.log')).write_bytes(run.stdout+run.stderr)
         if run.returncode:

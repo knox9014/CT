@@ -322,7 +322,11 @@ pub fn extract_candidates(image: &[u8]) -> Result<Vec<PtxCandidate<'_>>, Error> 
                     return Err(Error::Unsupported);
                 }
                 let declared = if matches!(u32_at(record, 40)?, 0x2045 | 0x2041) {
-                    usize::try_from(u64_at(record, 56)?).map_err(|_| Error::Invalid)?
+                    let size = usize::try_from(u64_at(record, 56)?).map_err(|_| Error::Invalid)?;
+                    if size == 0 || size > MAX_PTX_SIZE + 8 {
+                        return Err(Error::Unsupported);
+                    }
+                    size
                 } else {
                     payload_size
                 };
@@ -399,5 +403,30 @@ mod allocation_tests {
         let result = extract_candidates(&b);
         RESERVE_FAULT.set(false);
         assert!(matches!(result, Err(Error::Allocation)));
+    }
+
+    #[test]
+    fn public_decoded_limit_precedes_candidate_reserve() {
+        let mut b = vec![0u8; 96];
+        b[..4].copy_from_slice(&MAGIC);
+        b[4] = 1;
+        b[6] = 16;
+        b[8..16].copy_from_slice(&80u64.to_le_bytes());
+        b[16] = 1;
+        b[18..20].copy_from_slice(&0x101u16.to_le_bytes());
+        b[20..24].copy_from_slice(&72u32.to_le_bytes());
+        b[24..32].copy_from_slice(&8u64.to_le_bytes());
+        b[32..36].copy_from_slice(&1u32.to_le_bytes());
+        b[36..40].copy_from_slice(&64u32.to_le_bytes());
+        b[42] = 8;
+        b[44] = 52;
+        b[56..60].copy_from_slice(&0x2041u32.to_le_bytes());
+        b[72..80].copy_from_slice(&262153u64.to_le_bytes());
+        RESERVE_CALLS.set(0);
+        RESERVE_FAULT.set(true);
+        let result = extract_candidates(&b);
+        RESERVE_FAULT.set(false);
+        assert!(matches!(result, Err(Error::Unsupported)));
+        assert_eq!(RESERVE_CALLS.get(), 0);
     }
 }

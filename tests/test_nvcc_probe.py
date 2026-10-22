@@ -71,7 +71,7 @@ class NvccProbeTests(unittest.TestCase):
         host_root.mkdir()
         for name in ('cl.exe', 'link.exe', 'header.h', 'vcvars.cmd'):
             (host_root/name).write_bytes(b'CT-owned non-executable stand-in')
-        host = dict(profile='diagnostic', compiler_version='19.51.1', override=True,
+        host = dict(profile='diagnostic', compiler_version='19.51.1', override=True, environment_policy=probe.ENV_POLICY,
                     roots=[str(host_root)], files=probe.inventory([host_root]),
                     tools={name: dict(path=str(host_root/name), sha256=probe.digest(host_root/name)) for name in ('cl.exe', 'link.exe')},
                     vcvars=dict(path=str(host_root/'vcvars.cmd'), sha256=probe.digest(host_root/'vcvars.cmd')))
@@ -96,7 +96,7 @@ class NvccProbeTests(unittest.TestCase):
             artifacts[mode] = {n: probe.digest(folder/n) for n in names}
         value = dict(schema_version=1, source_sha256=probe.digest(probe.SOURCE), packages=str(folder),
                      vendor_files={'toolkit/include/crt/host_runtime.h': probe.digest(vendor)}, host=host,
-                     commands={m: probe.compiler_args(folder, 'diagnostic', m) for m in ('compressed', 'plain')},
+                     commands={m: probe.compiler_args(folder, 'diagnostic', m, str(host_root)) for m in ('compressed', 'plain')},
                      artifacts=artifacts, runtime_exercised=False)
         return value, {'cuda_nvcc.zip': probe.digest(archive)}
 
@@ -120,11 +120,32 @@ class NvccProbeTests(unittest.TestCase):
                         changed['host']['vcvars']['sha256'] = '0'*64
                     elif mutation == 'qualified':
                         changed['host'].update(profile='qualified', compiler_version='19.38.1', override=False)
-                        changed['commands'] = {m: probe.compiler_args(folder, 'qualified', m) for m in ('compressed', 'plain')}
+                        changed['commands'] = {m: probe.compiler_args(folder, 'qualified', m, str(folder/'host')) for m in ('compressed', 'plain')}
                     else:
                         (folder/'vector.cu').write_bytes(b'changed source')
                     manifest.write_text(json.dumps(changed), encoding='utf-8')
                     self.assertTrue(probe.audit_probe(manifest), mutation)
+
+    def test_wrong_actual_compression_mode_rejected_even_with_updated_hash(self):
+        with tempfile.TemporaryDirectory(dir=ROOT/'.cache') as tmp:
+            folder = Path(tmp)
+            value, pins = self.fixture(folder)
+            source = folder/'keep-plain/vector.fatbin'
+            dest = folder/'keep-compressed/vector.fatbin'
+            dest.write_bytes(source.read_bytes())
+            value['artifacts']['compressed']['keep-compressed/vector.fatbin'] = probe.digest(dest)
+            manifest = folder/'manifest.json'
+            manifest.write_text(json.dumps(value), encoding='utf-8')
+            with patch.dict(probe.PINS, pins, clear=True):
+                self.assertTrue(probe.audit_probe(manifest))
+
+    def test_hidden_compiler_flags_are_removed(self):
+        self.assertTrue(hasattr(probe, 'normalize_env'))
+        original = {'Path':'compiler', 'INCLUDE':'headers', 'CL':'/Iforeign', '_CL_':'/FIforeign.h',
+                    'NVCC_PREPEND_FLAGS':'--no-compress', 'nvcc_append_flags':'-Iforeign',
+                    'NVCC_CCBIN':'foreign', 'LINK':'/LIBPATH:foreign', 'CPATH':'foreign'}
+        clean = probe.normalize_env(original)
+        self.assertEqual(clean, {'Path':'compiler', 'INCLUDE':'headers'})
 
 
 if __name__ == '__main__':

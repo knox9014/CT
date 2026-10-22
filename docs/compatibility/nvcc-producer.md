@@ -31,6 +31,12 @@ adds `-allow-unsupported-compiler` and original STL17.8 headers. Source, command
 archive members, host tools and complete local include/library/bin inventories,
 EXEs, generated stubs, PTX and raw fatbins are bound in the local manifest.
 Replay rebuilds expected archive-member hashes rather than trusting child output.
+Replay also requires actual compressed0x2041 and plain0x41 flags in the respective
+artifacts. Preparation removes NVCC flag/host-selector variables and CL/LINK and
+other implicit compiler include/flag variables, records the normalization policy,
+and explicitly selects the recorded host compiler directory with `--compiler-bindir`.
+Compiler/linker tools must share that directory, which is first on the normalized
+PATH. Include/library inventories describe the resulting VS environment.
 
 NVIDIA and STL files are authenticated against pinned archives. Installed MSVC
 and Windows SDK files are local provenance snapshots, not authenticated vendor
