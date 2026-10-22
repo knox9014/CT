@@ -214,7 +214,7 @@ pub unsafe extern "system" fn __cudaRegisterFunction(
             Ok(())
         })();
         if let Err(code) = names {
-            registry.fail(token as usize, code);
+            registry.fail_mapping(token as usize, host as usize, code);
             return Err(code);
         }
         unsafe {

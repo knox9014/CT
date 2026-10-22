@@ -153,6 +153,27 @@ fn failed_mapping_does_not_poison_other_registration() {
 }
 
 #[test]
+fn callback_failure_reaches_its_host_mapping() {
+    let reg = Registry::new();
+    let b = image();
+    let t = unsafe { register(&reg, &b) };
+    let mut unsupported = metadata();
+    unsupported.optional[0] = 0x100000000;
+    assert_eq!(
+        unsafe { reg.function(t, 11, c"one".as_ptr().cast(), unsupported) },
+        Err(801)
+    );
+    assert_eq!(reg.end(t), Err(801));
+    assert_eq!(reg.lease(11).err(), Some(801));
+    let t = unsafe { register(&reg, &b) };
+    assert_eq!(
+        unsafe { reg.function(t, 12, std::ptr::null(), metadata()) },
+        Err(1)
+    );
+    assert_eq!(reg.lease(12).err(), Some(1));
+}
+
+#[test]
 fn budgets_and_fallible_reservations() {
     let limits = Limits {
         live: 1,

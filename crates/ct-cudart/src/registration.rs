@@ -192,6 +192,8 @@ impl Registry {
         bytes.extend_from_slice(unsafe { std::slice::from_raw_parts(w.data as *const u8, size) });
         ct_fatbin::extract_candidates(&bytes).map_err(map)?;
         let id = inner.records.len() as u64 + 1;
+        let mut functions = Vec::new();
+        reserve(&mut functions, self.limits.functions)?;
         let token = Box::new(0u8);
         let identity = (&*token as *const u8) as usize;
         let data = Arc::new(RegistrationData {
@@ -208,7 +210,7 @@ impl Registry {
             token,
             state: Status::Building,
             data: Some(data),
-            functions: Vec::new(),
+            functions,
         });
         inner.live += 1;
         Ok(identity)
@@ -220,6 +222,40 @@ impl Registry {
                     r.state = Status::Failed(code);
                 }
             }
+        }
+    }
+    pub fn fail_mapping(&self, token: Token, host: usize, code: i32) {
+        if let Ok(mut inner) = self.inner.lock() {
+            let Some(index) = inner.records.iter().position(|r| r.identity() == token) else {
+                return;
+            };
+            let capacity = inner.mappings < self.limits.mappings;
+            let r = &mut inner.records[index];
+            if matches!(r.state, Status::Retired) {
+                return;
+            }
+            r.state = Status::Failed(code);
+            if host == 0 {
+                return;
+            }
+            if let Some(mapping) = r.functions.iter_mut().find(|m| m.host == host) {
+                mapping.error = code;
+                return;
+            }
+            if !capacity || r.functions.len() >= self.limits.functions {
+                return;
+            }
+            // Failure association storage was reserved before publishing the token.
+            r.functions.push(Mapping {
+                host,
+                symbol: Arc::new(Vec::new()),
+                metadata: FunctionMetadata {
+                    thread_limit: -1,
+                    optional: [0; 5],
+                },
+                error: code,
+            });
+            inner.mappings += 1;
         }
     }
     pub unsafe fn function(
@@ -241,7 +277,7 @@ impl Registry {
         let symbol = match prepared {
             Ok(s) => s,
             Err(code) => {
-                self.fail(token, code);
+                self.fail_mapping(token, host, code);
                 return Err(code);
             }
         };
@@ -318,7 +354,7 @@ impl Registry {
             data.retired.store(true, SeqCst);
         }
         let count = r.functions.len();
-        r.functions.clear();
+        r.functions = Vec::new();
         inner.live -= 1;
         inner.mappings -= count;
         Ok(())

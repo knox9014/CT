@@ -1,6 +1,48 @@
 use crate::errors::*;
 
 #[test]
+fn exported_callback_name_failure_is_scoped_to_its_host() {
+    use crate::*;
+    use configuration::Dim3;
+    let image = crate::registration_tests::image();
+    let wrapper = crate::registration_tests::wrapper(&image);
+    let t = unsafe {
+        __cudaRegisterFatBinary((&wrapper as *const registration::Wrapper).cast_mut().cast())
+    };
+    let host = 0x987654321234567usize as *const c_char;
+    unsafe {
+        __cudaRegisterFunction(
+            t,
+            host,
+            c"one".as_ptr().cast_mut(),
+            c"different".as_ptr(),
+            -1,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        );
+    }
+    __cudaRegisterFatBinaryEnd(t);
+    let one = Dim3 { x: 1, y: 1, z: 1 };
+    assert_eq!(
+        unsafe {
+            cudaLaunchKernel(
+                host.cast(),
+                one,
+                one,
+                std::ptr::null_mut(),
+                0,
+                std::ptr::null_mut(),
+            )
+        },
+        801
+    );
+    __cudaUnregisterFatBinary(t);
+}
+
+#[test]
 fn exported_registration_and_configuration_are_gpu_free() {
     use crate::configuration::Dim3;
     use crate::*;
