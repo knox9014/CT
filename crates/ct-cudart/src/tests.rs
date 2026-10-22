@@ -324,3 +324,55 @@ fn last_error_is_thread_local_and_success_does_not_clear() {
     assert_eq!(take(), 21);
     assert_eq!(take(), 0);
 }
+
+#[test]
+fn exported_function_terminal_state_precedes_invalid_payload() {
+    use crate::*;
+    let image = crate::registration_tests::image();
+    let wrapper = crate::registration_tests::wrapper(&image);
+    let token = unsafe {
+        __cudaRegisterFatBinary((&wrapper as *const registration::Wrapper).cast_mut().cast())
+    };
+    let host = 0x876543212345678usize as *const c_char;
+    let call = |token, name, limit| unsafe {
+        __cudaRegisterFunction(
+            token,
+            host,
+            name,
+            name,
+            limit,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        );
+        cudaGetLastError()
+    };
+    cudaGetLastError();
+    assert_eq!(call(token, c"terminal".as_ptr().cast_mut(), 0), 801);
+    assert_eq!(call(token, std::ptr::null_mut(), -1), 801);
+    __cudaRegisterFatBinaryEnd(token);
+    assert_eq!(cudaGetLastError(), 801);
+    let one = configuration::Dim3 { x: 1, y: 1, z: 1 };
+    assert_eq!(
+        unsafe {
+            cudaLaunchKernel(
+                host.cast(),
+                one,
+                one,
+                std::ptr::null_mut(),
+                0,
+                std::ptr::null_mut(),
+            )
+        },
+        801
+    );
+    __cudaUnregisterFatBinary(token);
+    cudaGetLastError();
+    assert_eq!(call(token, std::ptr::null_mut(), 0), 98);
+    assert_eq!(
+        call(usize::MAX as *mut *mut c_void, std::ptr::null_mut(), 0),
+        98
+    );
+}

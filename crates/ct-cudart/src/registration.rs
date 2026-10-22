@@ -218,45 +218,69 @@ impl Registry {
     pub fn fail(&self, token: Token, code: i32) {
         if let Ok(mut inner) = self.inner.lock() {
             if let Some(r) = inner.records.iter_mut().find(|r| r.identity() == token) {
-                if !matches!(r.state, Status::Retired) {
+                if matches!(r.state, Status::Building | Status::Ready) {
                     r.state = Status::Failed(code);
                 }
             }
         }
     }
-    pub fn fail_mapping(&self, token: Token, host: usize, code: i32) {
-        if let Ok(mut inner) = self.inner.lock() {
-            let Some(index) = inner.records.iter().position(|r| r.identity() == token) else {
-                return;
-            };
-            let capacity = inner.mappings < self.limits.mappings;
-            let r = &mut inner.records[index];
-            if matches!(r.state, Status::Retired) {
-                return;
+    // Reject terminal tokens before inspecting untrusted callback payloads.
+    pub fn function_state(&self, token: Token) -> Result<(), i32> {
+        let mut inner = self.inner.lock().map_err(|_| 999)?;
+        let r = inner
+            .records
+            .iter_mut()
+            .find(|r| r.identity() == token)
+            .ok_or(98)?;
+        match r.state {
+            Status::Building => Ok(()),
+            Status::Failed(code) => Err(code),
+            Status::Retired => Err(98),
+            Status::Ready => {
+                r.state = Status::Failed(1);
+                Err(1)
             }
-            r.state = Status::Failed(code);
-            if host == 0 {
-                return;
-            }
-            if let Some(mapping) = r.functions.iter_mut().find(|m| m.host == host) {
-                mapping.error = code;
-                return;
-            }
-            if !capacity || r.functions.len() >= self.limits.functions {
-                return;
-            }
-            // Failure association storage was reserved before publishing the token.
-            r.functions.push(Mapping {
-                host,
-                symbol: Arc::new(Vec::new()),
-                metadata: FunctionMetadata {
-                    thread_limit: -1,
-                    optional: [0; 5],
-                },
-                error: code,
-            });
-            inner.mappings += 1;
         }
+    }
+    pub fn fail_mapping(&self, token: Token, host: usize, code: i32) -> i32 {
+        let Ok(mut inner) = self.inner.lock() else {
+            return 999;
+        };
+        let Some(index) = inner.records.iter().position(|r| r.identity() == token) else {
+            return 98;
+        };
+        let capacity = inner.mappings < self.limits.mappings;
+        let r = &mut inner.records[index];
+        // Recheck after payload preparation, which runs outside the registry lock.
+        let code = match r.state {
+            Status::Retired => return 98,
+            Status::Failed(first) => return first,
+            Status::Ready => 1,
+            Status::Building => code,
+        };
+        r.state = Status::Failed(code);
+        if host == 0 {
+            return code;
+        }
+        if let Some(mapping) = r.functions.iter_mut().find(|m| m.host == host) {
+            mapping.error = code;
+            return code;
+        }
+        if !capacity || r.functions.len() >= self.limits.functions {
+            return code;
+        }
+        // Failure association storage was reserved before publishing the token.
+        r.functions.push(Mapping {
+            host,
+            symbol: Arc::new(Vec::new()),
+            metadata: FunctionMetadata {
+                thread_limit: -1,
+                optional: [0; 5],
+            },
+            error: code,
+        });
+        inner.mappings += 1;
+        code
     }
     pub unsafe fn function(
         &self,
@@ -265,6 +289,7 @@ impl Registry {
         symbol: *const u8,
         metadata: FunctionMetadata,
     ) -> Result<(), i32> {
+        self.function_state(token)?;
         let prepared = (|| {
             if host == 0 {
                 return Err(1);
@@ -277,8 +302,7 @@ impl Registry {
         let symbol = match prepared {
             Ok(s) => s,
             Err(code) => {
-                self.fail_mapping(token, host, code);
-                return Err(code);
+                return Err(self.fail_mapping(token, host, code));
             }
         };
         let mut inner = self.inner.lock().map_err(|_| 999)?;

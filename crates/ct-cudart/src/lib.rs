@@ -205,6 +205,7 @@ pub unsafe extern "system" fn __cudaRegisterFunction(
 ) {
     let registry = &kernel_runtime().registry;
     let _ = callback_boundary(registry, Some(token as usize), || {
+        registry.function_state(token as usize)?;
         let names = (|| unsafe {
             let a = registration::copy_name(device.cast(), 1024)?;
             let b = registration::copy_name(name.cast(), 1024)?;
@@ -214,8 +215,7 @@ pub unsafe extern "system" fn __cudaRegisterFunction(
             Ok(())
         })();
         if let Err(code) = names {
-            registry.fail_mapping(token as usize, host as usize, code);
-            return Err(code);
+            return Err(registry.fail_mapping(token as usize, host as usize, code));
         }
         unsafe {
             registry.function(

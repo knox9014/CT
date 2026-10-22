@@ -294,3 +294,32 @@ fn mapping_function_and_name_limits_are_independent() {
     );
     assert_eq!(unsafe { copy_name(std::ptr::null(), 1024) }, Err(1));
 }
+
+#[test]
+fn failed_registration_keeps_first_error_and_retired_rejects_payloads() {
+    let reg = Registry::new();
+    let b = image();
+    let token = unsafe { register(&reg, &b) };
+    let unsupported = FunctionMetadata {
+        thread_limit: 1,
+        optional: [0; 5],
+    };
+    assert_eq!(
+        unsafe { reg.function(token, 901, c"kernel".as_ptr().cast(), unsupported) },
+        Err(801)
+    );
+    assert_eq!(
+        unsafe { reg.function(token, 901, std::ptr::null(), metadata()) },
+        Err(801)
+    );
+    reg.fail(token, 999);
+    assert_eq!(reg.end(token), Err(801));
+    assert_eq!(reg.lease(901).err(), Some(801));
+    reg.retire(token).unwrap();
+    for token in [token, usize::MAX] {
+        assert_eq!(
+            unsafe { reg.function(token, 901, std::ptr::null(), unsupported) },
+            Err(98)
+        );
+    }
+}
