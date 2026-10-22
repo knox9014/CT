@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "dll_name": "cudart64_12.dll",
+  "exports": [
+    {
+      "symbol": "cudaGetDeviceCount",
+      "signature_id": "i32(out_i32)",
+      "behavior": "Bounded P09a1 contract; not a CUDA version claim.",
+      "test_ids": [
+        "crates/ct-cudart/src/tests.rs#runtime_error_mapping_is_explicit"
+      ]
+    },
+    {
+      "symbol": "cudaGetDevice",
+      "signature_id": "i32(out_i32)",
+      "behavior": "Bounded P09a1 contract; not a CUDA version claim.",
+      "test_ids": [
+        "crates/ct-cudart/src/tests.rs#runtime_error_mapping_is_explicit"
+      ]
+    },
+    {
+      "symbol": "cudaSetDevice",
+      "signature_id": "i32(i32)",
+      "behavior": "Bounded P09a1 contract; not a CUDA version claim.",
+      "test_ids": [
+        "crates/ct-cudart/src/tests.rs#runtime_error_mapping_is_explicit"
+      ]
+    },
+    {
+      "symbol": "cudaDeviceSynchronize",
+      "signature_id": "i32()",
+      "behavior": "Bounded P09a1 contract; not a CUDA version claim.",
+      "test_ids": [
+        "crates/ct-cudart/src/tests.rs#runtime_error_mapping_is_explicit"
+      ]
+    },
+    {
+      "symbol": "cudaMalloc",
+      "signature_id": "i32(out_ptr,size)",
+      "behavior": "Bounded P09a1 contract; not a CUDA version claim.",
+      "test_ids": [
+        "crates/ct-cudart/src/tests.rs#runtime_error_mapping_is_explicit"
+      ]
+    },
+    {
+      "symbol": "cudaFree",
+      "signature_id": "i32(ptr)",
+      "behavior": "Bounded P09a1 contract; not a CUDA version claim.",
+      "test_ids": [
+        "crates/ct-cudart/src/tests.rs#runtime_error_mapping_is_explicit"
+      ]
+    },
+    {
+      "symbol": "cudaMemcpy",
+      "signature_id": "i32(ptr,const_ptr,size,i32)",
+      "behavior": "Bounded P09a1 contract; not a CUDA version claim.",
+      "test_ids": [
+        "crates/ct-cudart/src/tests.rs#runtime_error_mapping_is_explicit"
+      ]
+    },
+    {
+      "symbol": "cudaMemset",
+      "signature_id": "i32(ptr,i32,size)",
+      "behavior": "Bounded P09a1 contract; not a CUDA version claim.",
+      "test_ids": [
+        "crates/ct-cudart/src/tests.rs#runtime_error_mapping_is_explicit"
+      ]
+    },
+    {
+      "symbol": "cudaGetLastError",
+      "signature_id": "i32()",
+      "behavior": "Bounded P09a1 contract; not a CUDA version claim.",
+      "test_ids": [
+        "crates/ct-cudart/src/tests.rs#runtime_error_mapping_is_explicit"
+      ]
+    },
+    {
+      "symbol": "cudaPeekAtLastError",
+      "signature_id": "i32()",
+      "behavior": "Bounded P09a1 contract; not a CUDA version claim.",
+      "test_ids": [
+        "crates/ct-cudart/src/tests.rs#runtime_error_mapping_is_explicit"
+      ]
+    },
+    {
+      "symbol": "cudaGetErrorName",
+      "signature_id": "const_char_ptr(i32)",
+      "behavior": "Bounded P09a1 contract; not a CUDA version claim.",
+      "test_ids": [
+        "crates/ct-cudart/src/tests.rs#runtime_error_mapping_is_explicit"
+      ]
+    },
+    {
+      "symbol": "cudaGetErrorString",
+      "signature_id": "const_char_ptr(i32)",
+      "behavior": "Bounded P09a1 contract; not a CUDA version claim.",
+      "test_ids": [
+        "crates/ct-cudart/src/tests.rs#runtime_error_mapping_is_explicit"
+      ]
+    },
+    {
+      "symbol": "cudaDriverGetVersion",
+      "signature_id": "i32(out_i32)",
+      "behavior": "Bounded P09a1 contract; not a CUDA version claim.",
+      "test_ids": [
+        "crates/ct-cudart/src/tests.rs#runtime_error_mapping_is_explicit"
+      ]
+    },
+    {
+      "symbol": "cudaRuntimeGetVersion",
+      "signature_id": "i32(out_i32)",
+      "behavior": "Bounded P09a1 contract; not a CUDA version claim.",
+      "test_ids": [
+        "crates/ct-cudart/src/tests.rs#runtime_error_mapping_is_explicit"
+      ]
+    }
+  ],
+  "limits": [
+    "Windows x64; app-local single Driver; synchronous explicit copies only.",
+    "No launch, registration, UVA, streams, reset recovery or framework claim."
+  ]
+}
