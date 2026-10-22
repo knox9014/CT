@@ -298,9 +298,15 @@ def main():
     p.add_argument('--vcvars', type=Path, required=True)
     p = sub.add_parser('replay')
     p.add_argument('--manifest', type=Path, required=True)
+    p.add_argument('--rust', action='store_true')
     args = parser.parse_args()
     try:
         errors = audit_probe(args.manifest) if args.action == 'replay' else audit_probe(prepare(args.output, args.packages, args.host_profile, args.vcvars))
+        if not errors and args.action=='replay' and args.rust:
+            env=os.environ.copy();env['CARGO_INCREMENTAL']='0'
+            for key,mode in [('CT_NVCC_COMPRESSED','compressed'),('CT_NVCC_PLAIN','plain')]:
+                env[key]=str(args.manifest.resolve().parent/('keep-'+mode)/'vector.fatbin')
+            subprocess.run(['cargo','test','-p','ct-fatbin','--test','decoding','genuine_nvcc_compressed_and_plain_match','--','--ignored','--exact'],cwd=ROOT,env=env,check=True,timeout=120)
         print('nvcc producer replay passed; Runtime not exercised' if not errors else 'nvcc producer verification failed')
         return int(bool(errors))
     except (OSError, ValueError, subprocess.SubprocessError, zipfile.BadZipFile):

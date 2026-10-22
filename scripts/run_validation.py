@@ -3,6 +3,7 @@ import argparse
 import ctypes as c
 import hashlib
 import json
+import importlib
 import os
 from pathlib import Path
 import platform
@@ -12,10 +13,10 @@ from compatibility_registry import (RegistryContext, canonical_hash, validate_co
     validate_coverage, validate_environment, validate_report, validate_toolchain)
 
 
-def execute(command, *, cwd, log, timeout_s):
+def execute(command, *, cwd, log, timeout_s, env=None):
     try:
         with log.open('wb') as output:
-            completed=subprocess.run(command,cwd=cwd,stdout=output,stderr=subprocess.STDOUT,timeout=timeout_s)
+            completed=subprocess.run(command,cwd=cwd,env=env,stdout=output,stderr=subprocess.STDOUT,timeout=timeout_s)
         return dict(status='pass',reason='passed') if completed.returncode==0 else dict(status='fail',reason='test_failed')
     except subprocess.TimeoutExpired:return dict(status='fail',reason='tool_timeout')
     except OSError:return dict(status='fail',reason='tool_unavailable')
@@ -49,22 +50,50 @@ def source_fingerprint(root):
     return canonical_hash(inputs)
 
 
+RUNTIME_EVIDENCE={
+    'arc.runtime':('p09a_runtime_check','audit_manifest','native','p09a-native-latest.json','p09a-build'),
+    'arc.runtime_abi':('runtime_abi_evidence','audit','abi','p09a-abi-latest.json','p09a-build'),
+    'arc.runtime_kernel_abi':('runtime_kernel_abi_evidence','audit','kernel-abi','p09a2-abi-latest.json','p09a2-build'),
+    'arc.runtime_kernel':('p09a2_kernel_check','audit_manifest','kernel-native','p09a2-kernel-latest.json','p09a2-kernel'),
+}
+
+
+def clear_runtime_evidence(root,case_id):
+    (root/'.cache'/RUNTIME_EVIDENCE[case_id][3]).unlink(missing_ok=True)
+
+
+def execution_environment(root,case_id):
+    env=os.environ.copy()
+    env['CARGO_INCREMENTAL']='0'
+    if case_id=='combined.all':
+        for key,mode in [('CT_NVCC_COMPRESSED','compressed'),('CT_NVCC_PLAIN','plain')]:
+            env[key]=str(root/'.cache/p09a2-producer'/('keep-'+mode)/'vector.fatbin')
+    return env
+
+
+def producer_evidence(directory,root,*,capture=False):
+    from prepare_nvcc_probe import audit_probe,digest
+    try:
+        origin='.cache/p09a2-producer/manifest.json';target=root/origin;saved=directory/'nvcc-producer-evidence.json'
+        expected=dict(origin=origin,sha256=digest(target),manifest=json.loads(target.read_bytes()))
+        if capture:saved.write_text(json.dumps(expected,indent=2),encoding='utf-8')
+        if json.loads(saved.read_bytes())!=expected:return ['producer evidence changed']
+        return audit_probe(target)
+    except (OSError,ValueError,TypeError,KeyError):return ['producer evidence unavailable']
+
+
 def runtime_evidence(directory, root, case_id, *, capture=False):
     """Audit actual native artifacts; a child exit code/JSON cannot declare success."""
     try:
-        if case_id=='arc.runtime':
-            if str(root/'tests') not in sys.path:sys.path.insert(0,str(root/'tests'))
-            from p09a_runtime_check import audit_manifest as audit
-            label='native'
-        else:
-            from runtime_abi_evidence import audit
-            label='abi'
+        if str(root/'tests') not in sys.path:sys.path.insert(0,str(root/'tests'))
+        module,function,label,pointer_name,allowed=RUNTIME_EVIDENCE[case_id]
+        audit=getattr(importlib.import_module(module),function)
         saved=directory/('runtime-'+label+'-manifest.json')
         if capture:
-            pointer=json.loads((root/('.cache/p09a-'+label+'-latest.json')).read_text())
+            pointer=json.loads((root/'.cache'/pointer_name).read_text())
             if set(pointer)!={'manifest'}:return ['invalid Runtime evidence pointer']
             target=(root/pointer['manifest']).resolve()
-            if not target.is_relative_to(root/'.cache/p09a-build'):return ['Runtime evidence escape']
+            if not target.is_relative_to(root/'.cache'/allowed):return ['Runtime evidence escape']
             saved.write_bytes(target.read_bytes())
         return audit(saved,root,execute=capture)
     except (OSError,ValueError,KeyError,TypeError):return ['Runtime native evidence unavailable']
@@ -149,6 +178,7 @@ def steps(lane, validator, lock):
         producer.append(('producer.'+item['id'],'semantic',[py,'scripts/run_compiler_corpus.py','replay',
             '--case',item['id'],'--lock',str(lock),'--validator',str(validator),
             '--output','results/local/producer-'+item['id']+'.json']))
+    producer.append(('producer.nvcc_fatbin','semantic',[py,'scripts/prepare_nvcc_probe.py','replay','--manifest','.cache/p09a2-producer/manifest.json','--rust']))
     arc=[('arc.build','semantic',['cargo','build','-p','ct-cuda']),
         ('arc.levelzero.abi','abi',['pwsh','-NoProfile','-File','scripts/check_level_zero_abi.ps1']),
         ('arc.cuda.abi','abi',['pwsh','-NoProfile','-File','scripts/check_cuda_abi.ps1','-Lock',str(lock)]),
@@ -172,6 +202,8 @@ def steps(lane, validator, lock):
     arc.append(('arc.memory_queries','native',['pwsh','-NoProfile','-File','scripts/run_p06q_smoke.ps1']))
     arc.append(('arc.runtime_abi','abi',['pwsh','-NoProfile','-File','scripts/check_runtime_abi.ps1']))
     arc.append(('arc.runtime','native',['pwsh','-NoProfile','-File','scripts/run_p09a_smoke.ps1']))
+    arc.append(('arc.runtime_kernel_abi','abi',['pwsh','-NoProfile','-File','scripts/check_runtime_kernel_abi.ps1']))
+    arc.append(('arc.runtime_kernel','native',['pwsh','-NoProfile','-File','scripts/run_p09a2_smoke.ps1','-HostProfile','diagnostic']))
     combined=cpu+validator_steps+producer+arc+[
         ('combined.all','semantic',['cargo','test','--workspace','--','--include-ignored'])]
     return {'cpu':cpu,'validator':validator_steps,'producer':producer,'arc':arc,'combined':combined}[lane]
@@ -195,6 +227,21 @@ def configuration(root, lane, selected):
         if name=='combined.all':
             for variant in ('plain','compressed'):
                 artifacts[variant+'_fatbin']=hashlib.sha256((root/'.cache/reference/m3e'/(variant+'.fatbin')).read_bytes()).hexdigest()
+        nvcc_tools=['cuda-nvcc-producer','cuda-cudart-producer','cuda-cccl-producer','ms-stl-diagnostic']
+        if name in ('producer.nvcc_fatbin','arc.runtime_kernel_abi','arc.runtime_kernel','combined.all'):
+            parameters['producer_host_profile']='diagnostic'
+            for role,path in {'nvcc_producer_manifest':'.cache/p09a2-producer/manifest.json',
+                'nvcc_compressed_fatbin':'.cache/p09a2-producer/keep-compressed/vector.fatbin',
+                'nvcc_plain_fatbin':'.cache/p09a2-producer/keep-plain/vector.fatbin',
+                'nvcc_fixture':'tests/fixtures/p09a2/vector.cu','runtime_profile':'docs/compatibility/runtime-profile-v1.json'}.items():
+                artifacts[role]=hashlib.sha256((root/path).read_bytes()).hexdigest()
+        if name=='arc.runtime_kernel_abi':
+            from runtime_kernel_abi_evidence import INPUTS
+            for index,path in enumerate(INPUTS):artifacts['kernel_abi_input_'+str(index)]=hashlib.sha256((root/path).read_bytes()).hexdigest()
+        if name=='arc.runtime_kernel':
+            if str(root/'tests') not in sys.path:sys.path.insert(0,str(root/'tests'))
+            from p09a2_kernel_check import INPUTS
+            for index,path in enumerate(INPUTS):artifacts['kernel_input_'+str(index)]=hashlib.sha256((root/path).read_bytes()).hexdigest()
         if name in ('arc.runtime_abi','arc.runtime'):
             for role,path in {'runtime_profile':'docs/compatibility/runtime-profile-v1.json',
                 'runtime_abi':'tests/runtime_reference_abi.cpp','declared_abi':'tests/runtime_declared_abi.cpp',
@@ -204,7 +251,7 @@ def configuration(root, lane, selected):
                 artifacts[role]=hashlib.sha256((root/path).read_bytes()).hexdigest()
         config['cases'].append(dict(case_id=name,test_id=test_id,execution_kind=kind,application_id=None,
             parameters=parameters,artifact_requirements=artifacts,
-            tool_ids=['cuda-runtime-headers','cuda-nvcc-support-headers'] if name in ('arc.runtime_abi','arc.runtime') else ['spirv-val'] if kind=='validator' or (corpus_case and corpus_case['expected_class']=='supported') else ['cuda-headers'] if name in ('arc.cuda.abi','arc.device_memory','arc.memory_queries') else []))
+            tool_ids=nvcc_tools if name in ('producer.nvcc_fatbin','arc.runtime_kernel_abi','arc.runtime_kernel','combined.all') else ['cuda-runtime-headers','cuda-nvcc-support-headers'] if name in ('arc.runtime_abi','arc.runtime') else ['spirv-val'] if kind=='validator' or (corpus_case and corpus_case['expected_class']=='supported') else ['cuda-headers'] if name in ('arc.cuda.abi','arc.device_memory','arc.memory_queries') else []))
     return config
 
 
@@ -233,8 +280,9 @@ def validate_lane_bundle(directory, root, lane, *, expected_commit, expected_tre
             frozenset(x['case_id'] for x in expected['cases']),lane)
         errors+=validate_report(report,context=context)
         for case in report['cases']:
-            if case['case_id'] in ('arc.runtime','arc.runtime_abi') and case['status']=='pass':
+            if case['case_id'] in RUNTIME_EVIDENCE and case['status']=='pass':
                 errors+=runtime_evidence(directory,root,case['case_id'])
+            if case['case_id']=='producer.nvcc_fatbin' and case['status']=='pass':errors+=producer_evidence(directory,root)
         return errors,report
     except (OSError,ValueError,KeyError,TypeError):return ['lane bundle unavailable or malformed'],None
 
@@ -274,14 +322,14 @@ def main():
                 result=dict(status='fail' if args.required else 'skipped',reason='tool_unavailable')
             else:
                 print('Running '+case['case_id'],flush=True)
-                if case['case_id'] in ('arc.runtime','arc.runtime_abi'):
-                    label='native' if case['case_id']=='arc.runtime' else 'abi'
-                    (root/('.cache/p09a-'+label+'-latest.json')).unlink(missing_ok=True)
-                result=execute(command,cwd=root,log=output/(case['case_id']+'.log'),timeout_s=300)
-                if case['case_id'] in ('arc.runtime','arc.runtime_abi') and result['status']=='pass':
+                if case['case_id'] in RUNTIME_EVIDENCE:clear_runtime_evidence(root,case['case_id'])
+                result=execute(command,cwd=root,log=output/(case['case_id']+'.log'),timeout_s=300,env=execution_environment(root,case['case_id']))
+                if case['case_id'] in RUNTIME_EVIDENCE and result['status']=='pass':
                     if runtime_evidence(output,root,case['case_id'],capture=True):result=dict(status='fail',reason='test_failed')
+                if case['case_id']=='producer.nvcc_fatbin' and result['status']=='pass':
+                    if producer_evidence(output,root,capture=True):result=dict(status='fail',reason='test_failed')
                 stopped=result['reason']=='tool_timeout'
-                if case['case_id'].startswith('producer.') and case['case_id']!='producer.build':
+                if case['case_id'].startswith('producer.') and case['case_id'] not in ('producer.build','producer.nvcc_fatbin'):
                     # Preserve child outcome; capture_only/not_run can never be
                     # converted to pass by a successful wrapper exit code.
                     try:

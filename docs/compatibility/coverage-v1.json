@@ -1149,11 +1149,23 @@
     {
       "id": "runtime.registration",
       "category": "runtime",
-      "implementation": "missing",
+      "implementation": "partial",
       "limits": {
-        "scope": "Not implemented; no execution evidence declared."
+        "contract": "Runtime21 Windows x64 EXE registration/configuration and synchronous kernels; nvcc12 PTX with cudadevrt=none only; diagnostic unsupported host, no default22 or general CUDA claim"
       },
-      "test_ids": {}
+      "test_ids": {
+        "semantic": [
+          "scripts/run_validation.py#cpu.runtime_rust",
+          "scripts/run_validation.py#cpu.runtime_profile",
+          "scripts/run_validation.py#producer.nvcc_fatbin"
+        ],
+        "abi": [
+          "scripts/run_validation.py#arc.runtime_kernel_abi"
+        ],
+        "native": [
+          "scripts/run_validation.py#arc.runtime_kernel"
+        ]
+      }
     },
     {
       "id": "parallel.shared",
@@ -1625,7 +1637,7 @@
       "category": "runtime",
       "implementation": "partial",
       "limits": {
-        "contract": "P09a1 Windows x64 explicit synchronous Runtime profile; no kernel registration/launch or general CUDA version claim"
+        "contract": "P09a1 memory/error subset remains separately tested within bounded Runtime21; no general CUDA version claim"
       },
       "test_ids": {
         "semantic": [
@@ -1645,7 +1657,7 @@
       "category": "runtime",
       "implementation": "partial",
       "limits": {
-        "contract": "P09a1 Windows x64 explicit synchronous Runtime profile; no kernel registration/launch or general CUDA version claim"
+        "contract": "P09a1 memory/error subset remains separately tested within bounded Runtime21; no general CUDA version claim"
       },
       "test_ids": {
         "semantic": [
@@ -1657,6 +1669,27 @@
         ],
         "native": [
           "scripts/run_validation.py#arc.runtime"
+        ]
+      }
+    },
+    {
+      "id": "runtime.kernel_launch",
+      "category": "runtime",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Context-specific same-Driver kernel materialization; default stream/shared0 only; bounded retirement; no framework/release/AMD/NVIDIA claim"
+      },
+      "test_ids": {
+        "semantic": [
+          "scripts/run_validation.py#cpu.runtime_rust",
+          "scripts/run_validation.py#cpu.runtime_profile",
+          "scripts/run_validation.py#producer.nvcc_fatbin"
+        ],
+        "abi": [
+          "scripts/run_validation.py#arc.runtime_kernel_abi"
+        ],
+        "native": [
+          "scripts/run_validation.py#arc.runtime_kernel"
         ]
       }
     }
@@ -2120,6 +2153,18 @@
     },
     {
       "id": "scripts/run_validation.py#arc.runtime",
+      "kind": "native"
+    },
+    {
+      "id": "scripts/run_validation.py#producer.nvcc_fatbin",
+      "kind": "semantic"
+    },
+    {
+      "id": "scripts/run_validation.py#arc.runtime_kernel_abi",
+      "kind": "abi"
+    },
+    {
+      "id": "scripts/run_validation.py#arc.runtime_kernel",
       "kind": "native"
     }
   ]
