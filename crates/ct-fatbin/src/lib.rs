@@ -127,21 +127,47 @@ fn decompress(block: &[u8], size: usize) -> Result<Vec<u8>, Error> {
     Ok(out)
 }
 
-fn ptx_record<'a>(header: &[u8], payload: &'a [u8]) -> Result<Cow<'a, [u8]>, Error> {
-    let flags = u32_at(header, 40)?;
-    if !matches!(flags, 0x45 | 0x2045) || header[44..56].iter().any(|b| *b != 0) {
+enum RecordProfile {
+    NvFatbin,
+    Nvcc12,
+}
+
+fn record_profile(header: &[u8]) -> Result<RecordProfile, Error> {
+    let profile = match u32_at(header, 40)? {
+        0x45 | 0x2045 => RecordProfile::NvFatbin,
+        0x41 | 0x2041 if header.len() == 72 => RecordProfile::Nvcc12,
+        _ => return Err(Error::Unsupported),
+    };
+    if header[44..56].iter().any(|b| *b != 0) {
         return Err(Error::Unsupported);
     }
-    if !matches!(
-        (
-            u16_at(header, 26)?,
-            u16_at(header, 24)?,
-            u32_at(header, 28)?
-        ),
-        (7, 0, 50) | (8, 0, 52)
-    ) {
-        return Err(Error::Unsupported);
+    let ptx = (
+        u16_at(header, 26)?,
+        u16_at(header, 24)?,
+        u32_at(header, 28)?,
+    );
+    match profile {
+        RecordProfile::NvFatbin => {
+            if !matches!(ptx, (7, 0, 50) | (8, 0, 52)) {
+                return Err(Error::Unsupported);
+            }
+            nvfatbin_metadata(header)?;
+        }
+        RecordProfile::Nvcc12 => {
+            if ptx != (8, 0, 52)
+                || u32_at(header, 20)? != 64
+                || u32_at(header, 32)? != 0
+                || u32_at(header, 36)? != 0
+                || header[64..72].iter().any(|b| *b != 0)
+            {
+                return Err(Error::Unsupported);
+            }
+        }
     }
+    Ok(profile)
+}
+
+fn nvfatbin_metadata(header: &[u8]) -> Result<(), Error> {
     // Observed nvFatbin12.4 layout: bounded identifier followed by an option
     // descriptor. Nonempty JIT options are rejected rather than silently ignored.
     let metadata = u32_at(header, 20)? as usize;
@@ -184,9 +210,15 @@ fn ptx_record<'a>(header: &[u8], payload: &'a [u8]) -> Result<Cow<'a, [u8]>, Err
     {
         return Err(Error::Invalid);
     }
+    Ok(())
+}
+
+fn ptx_record<'a>(header: &[u8], payload: &'a [u8]) -> Result<Cow<'a, [u8]>, Error> {
+    record_profile(header)?;
+    let flags = u32_at(header, 40)?;
     let compressed_size = u32_at(header, 16)? as usize;
     let decoded_size = usize::try_from(u64_at(header, 56)?).map_err(|_| Error::Invalid)?;
-    let mut decoded = if flags == 0x2045 {
+    let mut decoded = if matches!(flags, 0x2045 | 0x2041) {
         if compressed_size == 0
             || compressed_size > payload.len()
             || payload.len() - compressed_size >= 8
@@ -265,7 +297,7 @@ pub fn extract_candidates(image: &[u8]) -> Result<Vec<PtxCandidate<'_>>, Error> 
                 if candidates.len() >= MAX_CANDIDATES {
                     return Err(Error::Unsupported);
                 }
-                let declared = if u32_at(record, 40)? == 0x2045 {
+                let declared = if matches!(u32_at(record, 40)?, 0x2045 | 0x2041) {
                     usize::try_from(u64_at(record, 56)?).map_err(|_| Error::Invalid)?
                 } else {
                     payload_size
