@@ -7,6 +7,12 @@ pub const MAX_PTX_SIZE: usize = 262144;
 pub const MAX_CANDIDATES: usize = 8;
 pub const MAX_TOTAL_DECODED_SIZE: usize = 1024 * 1024;
 
+#[cfg(test)]
+thread_local! {
+    static RESERVE_FAULT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    static RESERVE_CALLS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PtxProfile {
     pub major: u16,
@@ -23,6 +29,23 @@ pub struct PtxCandidate<'a> {
 pub enum Error {
     Invalid,
     Unsupported,
+    Allocation,
+}
+
+fn reserve<T>(out: &mut Vec<T>, additional: usize) -> Result<(), Error> {
+    #[cfg(test)]
+    {
+        RESERVE_CALLS.set(RESERVE_CALLS.get() + 1);
+        if RESERVE_FAULT.get() {
+            return Err(Error::Allocation);
+        }
+    }
+    out.try_reserve_exact(additional)
+        .map_err(|_| Error::Allocation)
+}
+
+fn reserve_bytes(out: &mut Vec<u8>, additional: usize) -> Result<(), Error> {
+    reserve(out, additional)
 }
 
 fn u16_at(b: &[u8], n: usize) -> Result<u16, Error> {
@@ -90,7 +113,8 @@ fn decompress(block: &[u8], size: usize) -> Result<Vec<u8>, Error> {
         }
         Ok(n)
     }
-    let mut out = Vec::with_capacity(size);
+    let mut out = Vec::new();
+    reserve_bytes(&mut out, size)?;
     let mut pos = 0;
     loop {
         let token = *block.get(pos).ok_or(Error::Invalid)?;
@@ -306,6 +330,7 @@ pub fn extract_candidates(image: &[u8]) -> Result<Vec<PtxCandidate<'_>>, Error> 
                 if decoded_total > MAX_TOTAL_DECODED_SIZE {
                     return Err(Error::Unsupported);
                 }
+                reserve(&mut candidates, 1)?;
                 let text = ptx_record(&record[..header_size], &record[header_size..])?;
                 candidates.push(PtxCandidate {
                     profile: PtxProfile {
@@ -325,4 +350,54 @@ pub fn extract_candidates(image: &[u8]) -> Result<Vec<PtxCandidate<'_>>, Error> 
         return Err(Error::Unsupported);
     }
     Ok(candidates)
+}
+
+#[cfg(test)]
+mod allocation_tests {
+    use super::*;
+
+    #[test]
+    fn decoded_limit_precedes_reserve() {
+        RESERVE_CALLS.set(0);
+        RESERVE_FAULT.set(true);
+        assert_eq!(decompress(&[0], MAX_PTX_SIZE + 9), Err(Error::Unsupported));
+        assert_eq!(RESERVE_CALLS.get(), 0);
+        RESERVE_FAULT.set(false);
+    }
+
+    #[test]
+    fn reservation_failure_is_not_invalid_ptx() {
+        RESERVE_FAULT.set(true);
+        let result = decompress(&[0x20, b'a', 0], 2);
+        RESERVE_FAULT.set(false);
+        assert!(
+            result.is_err(),
+            "injected reserve failure must prevent decoding"
+        );
+        assert_ne!(result, Err(Error::Invalid));
+        assert_ne!(result, Err(Error::Unsupported));
+        assert_eq!(result, Err(Error::Allocation));
+    }
+
+    #[test]
+    fn candidate_reservation_is_fallible() {
+        let mut b = vec![0u8; 96];
+        b[..4].copy_from_slice(&MAGIC);
+        b[4] = 1;
+        b[6] = 16;
+        b[8..16].copy_from_slice(&80u64.to_le_bytes());
+        b[16] = 1;
+        b[18..20].copy_from_slice(&0x101u16.to_le_bytes());
+        b[20..24].copy_from_slice(&72u32.to_le_bytes());
+        b[24..32].copy_from_slice(&8u64.to_le_bytes());
+        b[36..40].copy_from_slice(&64u32.to_le_bytes());
+        b[42] = 8;
+        b[44] = 52;
+        b[56] = 0x41;
+        b[88] = b'x';
+        RESERVE_FAULT.set(true);
+        let result = extract_candidates(&b);
+        RESERVE_FAULT.set(false);
+        assert!(matches!(result, Err(Error::Allocation)));
+    }
 }

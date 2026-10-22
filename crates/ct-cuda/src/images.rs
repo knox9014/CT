@@ -17,6 +17,14 @@ fn raw(text: String) -> Vec<SourceCandidate> {
     }]
 }
 
+fn fatbin_error(error: ct_fatbin::Error) -> i32 {
+    match error {
+        ct_fatbin::Error::Invalid => 218,
+        ct_fatbin::Error::Unsupported => UNSUPPORTED,
+        ct_fatbin::Error::Allocation => 2,
+    }
+}
+
 /// Caller supplies a readable C string or the full readable declared fatbin.
 /// The cap precedes formation of its binary slice, not host-pointer validation.
 pub(crate) unsafe fn read_candidates(image: *const c_void) -> Result<Vec<SourceCandidate>, i32> {
@@ -32,15 +40,11 @@ pub(crate) unsafe fn read_candidates(image: *const c_void) -> Result<Vec<SourceC
         data.push(byte);
     }
     if data == ct_fatbin::MAGIC {
-        let error = |e| match e {
-            ct_fatbin::Error::Invalid => 218,
-            ct_fatbin::Error::Unsupported => UNSUPPORTED,
-        };
         let header = std::slice::from_raw_parts(image.cast::<u8>(), 16);
-        let size = ct_fatbin::image_size(header).map_err(error)?;
+        let size = ct_fatbin::image_size(header).map_err(fatbin_error)?;
         let bytes = std::slice::from_raw_parts(image.cast::<u8>(), size);
         return ct_fatbin::extract_candidates(bytes)
-            .map_err(error)?
+            .map_err(fatbin_error)?
             .into_iter()
             .map(|candidate| {
                 Ok(SourceCandidate {
@@ -135,6 +139,12 @@ pub(crate) fn compile_candidates(candidates: Vec<SourceCandidate>) -> Result<Com
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn allocation_maps_to_out_of_memory() {
+        assert_eq!(super::fatbin_error(ct_fatbin::Error::Allocation), 2);
+        assert_eq!(super::fatbin_error(ct_fatbin::Error::Invalid), 218);
+        assert_eq!(super::fatbin_error(ct_fatbin::Error::Unsupported), 801);
+    }
     use super::*;
     use ct_ptx::Profile;
     const OLD: Profile = Profile {
