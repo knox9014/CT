@@ -145,7 +145,7 @@ Driver 코드를 Runtime 숫자로 그대로 cast하지 않는다. 명시적 표
 | Driver/adapter 결과 | Runtime 결과 |
 | --- | --- |
 | 0 / 1 / 2 | cudaSuccess0 / InvalidValue1 / MemoryAllocation2 |
-| Driver3 또는 native 초기화 실패 | InitializationError3 |
+| Driver3 | InitializationError3 |
 | Driver100 / 101 | NoDevice100 / InvalidDevice101 |
 | Driver201 | IncompatibleDriverContext49 |
 | Driver709 / 801 | ContextIsDestroyed709 / NotSupported801 |
@@ -159,6 +159,9 @@ Driver 코드를 Runtime 숫자로 그대로 cast하지 않는다. 명시적 표
 Get만 clear한다. 서로 다른 스레드·Runtime instance 사이에서 오류를 공유하지 않는다.
 ErrorName/String의 미등록 코드에는 `unrecognized error code`를 반환한다.
 고정된 지원 enum 이름과 설명만 반환하고 raw native 로그/호스트 경로를 노출하지 않는다.
+계획 구체화 시 초기화 오류의 모호함을 정리했다: 현재 Driver가 native 원인을999로
+반환하면 Runtime도999를 유지한다. 원인 분류 없이 모든 초기화 실패를3으로 바꾸지 않는다.
+Driver init의 첫 결과는 Runtime instance에서 고정하고 자동 재시도하지 않는다.
 근거: [Runtime 오류](https://docs.nvidia.com/cuda/archive/12.0.1/cuda-runtime-api/group__CUDART__ERROR.html).
 
 ## 6. 로더·검증 경계

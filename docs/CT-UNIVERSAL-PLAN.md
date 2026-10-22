@@ -26,6 +26,9 @@ P09a1의 [검토용 서면 설계](superpowers/specs/2026-10-21-runtime-memory-d
 [의존성 감사](P09a-DEPENDENCY-AUDIT.md), [독립 검토 기록](P09a-DESIGN-REVIEW.md)을
 작성했다. 첫14개 메모리/장치/오류 API와 이후 실제 nvcc 등록·launch를 구분한다.
 Runtime 제품 코드·ABI/GPU 시험은 아직 추가하지 않았으며 서면 설계 검토 단계다.
+2026-10-22 사용자 후속 진행에 따라 [상세 구현 계획](superpowers/plans/2026-10-22-runtime-memory.md)을
+작성하고 독립 검토했다. 첫14개 API의 여섯 구현 Task와 required38개 목표를 정했으며,
+아직 Runtime 제품 구현/새 native 통과 결과를 추가한 것은 아니다.
 
 ## 1. 제품 목표와 성공의 정의
 

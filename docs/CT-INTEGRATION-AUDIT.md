@@ -152,6 +152,10 @@ The proposed [P09a1 written design](superpowers/specs/2026-10-21-runtime-memory-
 and [dependency audit](P09a-DEPENDENCY-AUDIT.md) now have a separate
 [independent review record](P09a-DESIGN-REVIEW.md). They add no Runtime code,
 exports or execution evidence and await the written-design review stage.
+The user's follow-up continued to the [2026-10-22 detailed plan](superpowers/plans/2026-10-22-runtime-memory.md).
+Its six tasks preserve the32 existing gates and add six Runtime gates. Two read-only
+reviews found no blocking plan contradiction. Product implementation still awaits
+plan review;38 is the planned required case count, not an observed passing result.
 P03/P04 should use the preserved scalar/multi-entry producer failures to improve
 typed ABI/address analysis without source rewriting. P10 shared/barrier design
 must define block participation and failure behavior before promoting the
