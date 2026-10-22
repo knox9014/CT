@@ -26,7 +26,7 @@ def main():
         if errors:
             raise ValueError('invalid lock')
         tool = next(t for t in lock['tools'] if t['id'] == args.tool_id)
-        observed = {role: hashlib.sha256((args.directory / role).read_bytes()).hexdigest()
+        observed = {role: hashlib.sha256((args.directory / ('crt/'+role if args.tool_id=='cuda-nvcc-support-headers' else role)).read_bytes()).hexdigest()
                     for role in tool['files']}
         errors = validate_tool_execution(tool, observed_platform=observed_platform(),
                                         observed_hashes=observed, required=True)

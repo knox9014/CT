@@ -46,6 +46,8 @@ def validate(value):
     if seen != set(SIGNATURES) or len(entries) != 14: errors.append('incomplete exports')
     header = (REPO / 'include/ct_cudart.h').read_text()
     if set(re.findall(r'CT_RUNTIME_API (cuda\w+)\(',header)) != set(SIGNATURES): errors.append('header drift')
+    exports=(REPO/'tests/p09a_runtime.def').read_text().splitlines()[2:]
+    if len(exports)!=14 or set(exports)!=set(SIGNATURES):errors.append('import library drift')
     return errors
 
 def main():

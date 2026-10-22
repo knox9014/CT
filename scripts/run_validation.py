@@ -49,6 +49,27 @@ def source_fingerprint(root):
     return canonical_hash(inputs)
 
 
+def runtime_evidence(directory, root, case_id, *, capture=False):
+    """Audit actual native artifacts; a child exit code/JSON cannot declare success."""
+    try:
+        if case_id=='arc.runtime':
+            if str(root/'tests') not in sys.path:sys.path.insert(0,str(root/'tests'))
+            from p09a_runtime_check import audit_manifest as audit
+            label='native'
+        else:
+            from runtime_abi_evidence import audit
+            label='abi'
+        saved=directory/('runtime-'+label+'-manifest.json')
+        if capture:
+            pointer=json.loads((root/('.cache/p09a-'+label+'-latest.json')).read_text())
+            if set(pointer)!={'manifest'}:return ['invalid Runtime evidence pointer']
+            target=(root/pointer['manifest']).resolve()
+            if not target.is_relative_to(root/'.cache/p09a-build'):return ['Runtime evidence escape']
+            saved.write_bytes(target.read_bytes())
+        return audit(saved,root)
+    except (OSError,ValueError,KeyError,TypeError):return ['Runtime native evidence unavailable']
+
+
 def environment(native=False):
     env=dict(schema_version=1,os=platform.system()+' '+platform.version(),host_abi=platform.machine(),
         gpu_model=None,driver_version=None,runtime_versions={},compiler_versions={'python':platform.python_version()})
@@ -115,6 +136,10 @@ def steps(lane, validator, lock):
         ('cpu.registry','semantic',[py,'scripts/check_coverage.py']),
         ('cpu.profile','semantic',[py,'scripts/check_compatibility_profile.py']),
         ('cpu.publication','semantic',[py,'scripts/check_public_artifacts.py','--tracked'])]
+    cpu += [('cpu.runtime_fmt','semantic',['cargo','fmt','--manifest-path','crates/ct-cudart/Cargo.toml','--check']),
+        ('cpu.runtime_clippy','semantic',['cargo','clippy','--manifest-path','crates/ct-cudart/Cargo.toml','--locked','--all-targets','--','-D','warnings']),
+        ('cpu.runtime_rust','semantic',['cargo','test','--manifest-path','crates/ct-cudart/Cargo.toml','--locked']),
+        ('cpu.runtime_profile','semantic',[py,'scripts/check_runtime_profile.py'])]
     validator_steps=[('validator.build','semantic',['cargo','build','-p','ct-codegen-spirv','--example','translate_module']),
         ('validator.real','validator',[py,'scripts/check_spirv_outputs.py','--tool',str(validator),'--lock',str(lock)])]
     producer=[('producer.build','semantic',['cargo','build','-p','ct-codegen-spirv','--example','translate_module'])]
@@ -145,6 +170,8 @@ def steps(lane, validator, lock):
     arc.append(('arc.device_memory','native',['pwsh','-NoProfile','-File','scripts/run_p06a_smoke.ps1']))
     # Catalog marker: arc.memory_queries
     arc.append(('arc.memory_queries','native',['pwsh','-NoProfile','-File','scripts/run_p06q_smoke.ps1']))
+    arc.append(('arc.runtime_abi','abi',['pwsh','-NoProfile','-File','scripts/check_runtime_abi.ps1']))
+    arc.append(('arc.runtime','native',['pwsh','-NoProfile','-File','scripts/run_p09a_smoke.ps1']))
     combined=cpu+validator_steps+producer+arc+[
         ('combined.all','semantic',['cargo','test','--workspace','--','--include-ignored'])]
     return {'cpu':cpu,'validator':validator_steps,'producer':producer,'arc':arc,'combined':combined}[lane]
@@ -168,9 +195,16 @@ def configuration(root, lane, selected):
         if name=='combined.all':
             for variant in ('plain','compressed'):
                 artifacts[variant+'_fatbin']=hashlib.sha256((root/'.cache/reference/m3e'/(variant+'.fatbin')).read_bytes()).hexdigest()
+        if name in ('arc.runtime_abi','arc.runtime'):
+            for role,path in {'runtime_profile':'docs/compatibility/runtime-profile-v1.json',
+                'runtime_abi':'tests/runtime_reference_abi.cpp','declared_abi':'tests/runtime_declared_abi.cpp',
+                'runtime_consumer':'tests/p09a_runtime_app.c','runtime_exports':'tests/p09a_runtime.def',
+                'fake_provider':'tests/p09a_fake_driver.c','noop_provider':'tests/p09a_noop_driver.c',
+                'control_exports':'tests/p09a_driver_control.def'}.items():
+                artifacts[role]=hashlib.sha256((root/path).read_bytes()).hexdigest()
         config['cases'].append(dict(case_id=name,test_id=test_id,execution_kind=kind,application_id=None,
             parameters=parameters,artifact_requirements=artifacts,
-            tool_ids=['spirv-val'] if kind=='validator' or (corpus_case and corpus_case['expected_class']=='supported') else ['cuda-headers'] if name in ('arc.cuda.abi','arc.device_memory','arc.memory_queries') else []))
+            tool_ids=['cuda-runtime-headers','cuda-nvcc-support-headers'] if name in ('arc.runtime_abi','arc.runtime') else ['spirv-val'] if kind=='validator' or (corpus_case and corpus_case['expected_class']=='supported') else ['cuda-headers'] if name in ('arc.cuda.abi','arc.device_memory','arc.memory_queries') else []))
     return config
 
 
@@ -198,6 +232,9 @@ def validate_lane_bundle(directory, root, lane, *, expected_commit, expected_tre
             {x['case_id']:x for x in expected['cases']},{},{t['id']:t for t in approved_lock['tools']},
             frozenset(x['case_id'] for x in expected['cases']),lane)
         errors+=validate_report(report,context=context)
+        for case in report['cases']:
+            if case['case_id'] in ('arc.runtime','arc.runtime_abi') and case['status']=='pass':
+                errors+=runtime_evidence(directory,root,case['case_id'])
         return errors,report
     except (OSError,ValueError,KeyError,TypeError):return ['lane bundle unavailable or malformed'],None
 
@@ -237,7 +274,12 @@ def main():
                 result=dict(status='fail' if args.required else 'skipped',reason='tool_unavailable')
             else:
                 print('Running '+case['case_id'],flush=True)
+                if case['case_id'] in ('arc.runtime','arc.runtime_abi'):
+                    label='native' if case['case_id']=='arc.runtime' else 'abi'
+                    (root/('.cache/p09a-'+label+'-latest.json')).unlink(missing_ok=True)
                 result=execute(command,cwd=root,log=output/(case['case_id']+'.log'),timeout_s=300)
+                if case['case_id'] in ('arc.runtime','arc.runtime_abi') and result['status']=='pass':
+                    if runtime_evidence(output,root,case['case_id'],capture=True):result=dict(status='fail',reason='test_failed')
                 stopped=result['reason']=='tool_timeout'
                 if case['case_id'].startswith('producer.') and case['case_id']!='producer.build':
                     # Preserve child outcome; capture_only/not_run can never be

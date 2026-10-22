@@ -45,6 +45,41 @@
         "spirv-val.exe": "af651ae9f039bfe302d34056021d9ad04d5e1b7d5a9626bc7794a911e6bef41b"
       },
       "validation_target": "opencl1.2"
+    },
+    {
+      "id": "cuda-runtime-headers",
+      "pin_state": "pinned",
+      "version": "12.0.107",
+      "source_url": "https://pypi.org/project/nvidia-cuda-runtime-cu12/12.0.107/",
+      "source_revision": null,
+      "artifact_sha256": "f595d66142e9ba5d1157d73ef06488735d814415a462714426f3989344e675eb",
+      "platform": "windows-x64",
+      "recipe_ref": "docs/superpowers/plans/2026-10-22-runtime-memory.md",
+      "files": {
+        "cuda_runtime_api.h": "0f1cf968eb66ee320f51b3cb8f670ab1f785e1882c85291ee0918ef2d573dbf9",
+        "builtin_types.h": "e75d7426f7b4e8abcd6e3cdd0631fa9577a6c5f8cd31f1ff2996e79d9b5ab4a3",
+        "device_types.h": "2416b764cb308e6d9e93268826f3918f5a05e760d28e49c112ff9c732491e328",
+        "driver_types.h": "7424f3836f00b666967ef6e813bcaa5283cc9ddb9adbf470938b79b1fd2f0370",
+        "vector_types.h": "80b37640c68e1100d3a55ebff992cf520b2ebe15f12f8ebb089cc68da1f10c49",
+        "surface_types.h": "88415cab52950c320e68c4294e838100df7d20c04e60e365e24a7985630a8900",
+        "texture_types.h": "5ff8cf72cd8e8100a2ac3382cd8a472bf6cd5a8eda5252031b5c1f9170968945",
+        "cuda_device_runtime_api.h": "e70d894bfaa35a522649db1a8fd8eeab0e5d5a1293c6ad862b925e02a289fcf2"
+      },
+      "validation_target": null
+    },
+    {
+      "id": "cuda-nvcc-support-headers",
+      "pin_state": "pinned",
+      "version": "12.0.76",
+      "source_url": "https://pypi.org/project/nvidia-cuda-nvcc-cu12/12.0.76/",
+      "source_revision": null,
+      "artifact_sha256": "135809154702a6302713391d3b78b9f6b4584157f539103dbd2b1d5e5922a225",
+      "platform": "windows-x64",
+      "recipe_ref": "docs/superpowers/plans/2026-10-22-runtime-memory.md",
+      "files": {
+        "host_defines.h": "b5c6230db0d261b24a9121b37d2ed9af6e208ab7da63b41a9261ac20fdc6c33c"
+      },
+      "validation_target": null
     }
   ]
 }

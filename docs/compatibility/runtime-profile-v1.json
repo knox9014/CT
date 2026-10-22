@@ -5,113 +5,141 @@
     {
       "symbol": "cudaGetDeviceCount",
       "signature_id": "i32(out_i32)",
-      "behavior": "Bounded P09a1 contract; not a CUDA version claim.",
+      "behavior": "One pinned Driver; preserve ordinary current context; process-lifetime primary retain.",
       "test_ids": [
-        "crates/ct-cudart/src/tests.rs#runtime_error_mapping_is_explicit"
+        "crates/ct-cudart/src/state_tests.rs#set_device_is_eager_and_retains_once",
+        "tests/runtime_reference_abi.cpp#main",
+        "tests/p09a_runtime_app.c#main"
       ]
     },
     {
       "symbol": "cudaGetDevice",
       "signature_id": "i32(out_i32)",
-      "behavior": "Bounded P09a1 contract; not a CUDA version claim.",
+      "behavior": "One pinned Driver; preserve ordinary current context; process-lifetime primary retain.",
       "test_ids": [
-        "crates/ct-cudart/src/tests.rs#runtime_error_mapping_is_explicit"
+        "crates/ct-cudart/src/state_tests.rs#set_device_is_eager_and_retains_once",
+        "tests/runtime_reference_abi.cpp#main",
+        "tests/p09a_runtime_app.c#main"
       ]
     },
     {
       "symbol": "cudaSetDevice",
       "signature_id": "i32(i32)",
-      "behavior": "Bounded P09a1 contract; not a CUDA version claim.",
+      "behavior": "One pinned Driver; preserve ordinary current context; process-lifetime primary retain.",
       "test_ids": [
-        "crates/ct-cudart/src/tests.rs#runtime_error_mapping_is_explicit"
+        "crates/ct-cudart/src/state_tests.rs#set_device_is_eager_and_retains_once",
+        "tests/runtime_reference_abi.cpp#main",
+        "tests/p09a_runtime_app.c#main"
       ]
     },
     {
       "symbol": "cudaDeviceSynchronize",
       "signature_id": "i32()",
-      "behavior": "Bounded P09a1 contract; not a CUDA version claim.",
+      "behavior": "One pinned Driver; preserve ordinary current context; process-lifetime primary retain.",
       "test_ids": [
-        "crates/ct-cudart/src/tests.rs#runtime_error_mapping_is_explicit"
+        "crates/ct-cudart/src/state_tests.rs#set_device_is_eager_and_retains_once",
+        "tests/runtime_reference_abi.cpp#main",
+        "tests/p09a_runtime_app.c#main"
       ]
     },
     {
       "symbol": "cudaMalloc",
       "signature_id": "i32(out_ptr,size)",
-      "behavior": "Bounded P09a1 contract; not a CUDA version claim.",
+      "behavior": "Synchronous explicit memory path; zero-size and context rules follow P09a1 spec.",
       "test_ids": [
-        "crates/ct-cudart/src/tests.rs#runtime_error_mapping_is_explicit"
+        "crates/ct-cudart/src/memory_tests.rs#unsupported_kind_is_not_hidden_by_zero_size",
+        "tests/runtime_reference_abi.cpp#main",
+        "tests/p09a_runtime_app.c#main"
       ]
     },
     {
       "symbol": "cudaFree",
       "signature_id": "i32(ptr)",
-      "behavior": "Bounded P09a1 contract; not a CUDA version claim.",
+      "behavior": "Synchronous explicit memory path; zero-size and context rules follow P09a1 spec.",
       "test_ids": [
-        "crates/ct-cudart/src/tests.rs#runtime_error_mapping_is_explicit"
+        "crates/ct-cudart/src/memory_tests.rs#unsupported_kind_is_not_hidden_by_zero_size",
+        "tests/runtime_reference_abi.cpp#main",
+        "tests/p09a_runtime_app.c#main"
       ]
     },
     {
       "symbol": "cudaMemcpy",
       "signature_id": "i32(ptr,const_ptr,size,i32)",
-      "behavior": "Bounded P09a1 contract; not a CUDA version claim.",
+      "behavior": "Synchronous explicit memory path; zero-size and context rules follow P09a1 spec.",
       "test_ids": [
-        "crates/ct-cudart/src/tests.rs#runtime_error_mapping_is_explicit"
+        "crates/ct-cudart/src/memory_tests.rs#unsupported_kind_is_not_hidden_by_zero_size",
+        "tests/runtime_reference_abi.cpp#main",
+        "tests/p09a_runtime_app.c#main"
       ]
     },
     {
       "symbol": "cudaMemset",
       "signature_id": "i32(ptr,i32,size)",
-      "behavior": "Bounded P09a1 contract; not a CUDA version claim.",
+      "behavior": "Synchronous explicit memory path; zero-size and context rules follow P09a1 spec.",
       "test_ids": [
-        "crates/ct-cudart/src/tests.rs#runtime_error_mapping_is_explicit"
+        "crates/ct-cudart/src/memory_tests.rs#unsupported_kind_is_not_hidden_by_zero_size",
+        "tests/runtime_reference_abi.cpp#main",
+        "tests/p09a_runtime_app.c#main"
       ]
     },
     {
       "symbol": "cudaGetLastError",
       "signature_id": "i32()",
-      "behavior": "Bounded P09a1 contract; not a CUDA version claim.",
+      "behavior": "Pure TLS/static errors; version queries return801 and zero output.",
       "test_ids": [
-        "crates/ct-cudart/src/tests.rs#runtime_error_mapping_is_explicit"
+        "crates/ct-cudart/src/tests.rs#export_signatures_and_pure_error_paths",
+        "tests/runtime_reference_abi.cpp#main",
+        "tests/p09a_runtime_app.c#main"
       ]
     },
     {
       "symbol": "cudaPeekAtLastError",
       "signature_id": "i32()",
-      "behavior": "Bounded P09a1 contract; not a CUDA version claim.",
+      "behavior": "Pure TLS/static errors; version queries return801 and zero output.",
       "test_ids": [
-        "crates/ct-cudart/src/tests.rs#runtime_error_mapping_is_explicit"
+        "crates/ct-cudart/src/tests.rs#export_signatures_and_pure_error_paths",
+        "tests/runtime_reference_abi.cpp#main",
+        "tests/p09a_runtime_app.c#main"
       ]
     },
     {
       "symbol": "cudaGetErrorName",
       "signature_id": "const_char_ptr(i32)",
-      "behavior": "Bounded P09a1 contract; not a CUDA version claim.",
+      "behavior": "Pure TLS/static errors; version queries return801 and zero output.",
       "test_ids": [
-        "crates/ct-cudart/src/tests.rs#runtime_error_mapping_is_explicit"
+        "crates/ct-cudart/src/tests.rs#export_signatures_and_pure_error_paths",
+        "tests/runtime_reference_abi.cpp#main",
+        "tests/p09a_runtime_app.c#main"
       ]
     },
     {
       "symbol": "cudaGetErrorString",
       "signature_id": "const_char_ptr(i32)",
-      "behavior": "Bounded P09a1 contract; not a CUDA version claim.",
+      "behavior": "Pure TLS/static errors; version queries return801 and zero output.",
       "test_ids": [
-        "crates/ct-cudart/src/tests.rs#runtime_error_mapping_is_explicit"
+        "crates/ct-cudart/src/tests.rs#export_signatures_and_pure_error_paths",
+        "tests/runtime_reference_abi.cpp#main",
+        "tests/p09a_runtime_app.c#main"
       ]
     },
     {
       "symbol": "cudaDriverGetVersion",
       "signature_id": "i32(out_i32)",
-      "behavior": "Bounded P09a1 contract; not a CUDA version claim.",
+      "behavior": "Pure TLS/static errors; version queries return801 and zero output.",
       "test_ids": [
-        "crates/ct-cudart/src/tests.rs#runtime_error_mapping_is_explicit"
+        "crates/ct-cudart/src/tests.rs#export_signatures_and_pure_error_paths",
+        "tests/runtime_reference_abi.cpp#main",
+        "tests/p09a_runtime_app.c#main"
       ]
     },
     {
       "symbol": "cudaRuntimeGetVersion",
       "signature_id": "i32(out_i32)",
-      "behavior": "Bounded P09a1 contract; not a CUDA version claim.",
+      "behavior": "Pure TLS/static errors; version queries return801 and zero output.",
       "test_ids": [
-        "crates/ct-cudart/src/tests.rs#runtime_error_mapping_is_explicit"
+        "crates/ct-cudart/src/tests.rs#export_signatures_and_pure_error_paths",
+        "tests/runtime_reference_abi.cpp#main",
+        "tests/p09a_runtime_app.c#main"
       ]
     }
   ],
