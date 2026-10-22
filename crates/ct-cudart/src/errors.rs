@@ -26,6 +26,10 @@ pub fn text(code: i32, description: bool) -> *const c_char {
         1 => (b"cudaErrorInvalidValue\0", b"invalid argument\0"),
         2 => (b"cudaErrorMemoryAllocation\0", b"out of memory\0"),
         3 => (b"cudaErrorInitializationError\0", b"initialization error\0"),
+        9 => (
+            b"cudaErrorInvalidConfiguration\0",
+            b"invalid launch configuration\0",
+        ),
         21 => (
             b"cudaErrorInvalidMemcpyDirection\0",
             b"invalid copy direction\0",
@@ -40,6 +44,15 @@ pub fn text(code: i32, description: bool) -> *const c_char {
         ),
         100 => (b"cudaErrorNoDevice\0", b"no device\0"),
         101 => (b"cudaErrorInvalidDevice\0", b"invalid device ordinal\0"),
+        98 => (
+            b"cudaErrorInvalidDeviceFunction\0",
+            b"invalid device function\0",
+        ),
+        218 => (b"cudaErrorInvalidPtx\0", b"invalid PTX\0"),
+        400 => (
+            b"cudaErrorInvalidResourceHandle\0",
+            b"invalid resource handle\0",
+        ),
         709 => (b"cudaErrorContextIsDestroyed\0", b"context is destroyed\0"),
         801 => (b"cudaErrorNotSupported\0", b"operation not supported\0"),
         999 => (b"cudaErrorUnknown\0", b"unknown error\0"),

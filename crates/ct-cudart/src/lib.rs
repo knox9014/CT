@@ -1,6 +1,10 @@
 #![allow(non_snake_case)]
 #![allow(clippy::missing_safety_doc)]
 use std::ffi::{c_char, c_void};
+#[allow(dead_code)] // Export wiring follows native ABI proof.
+mod configuration;
+#[cfg(test)]
+mod configuration_tests;
 mod device;
 mod driver;
 mod errors;
@@ -29,6 +33,26 @@ fn bridge() -> Result<&'static Runtime<DriverBridge>, i32> {
 mod state_tests;
 fn boundary(f: impl FnOnce() -> i32) -> i32 {
     errors::record(std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)).unwrap_or(999))
+}
+#[allow(dead_code)]
+fn callback_boundary<T>(
+    registry: &registration::Registry,
+    token: Option<registration::Token>,
+    f: impl FnOnce() -> Result<T, i32>,
+) -> Result<T, i32> {
+    let result = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)) {
+        Ok(result) => result,
+        Err(_) => {
+            if let Some(token) = token {
+                registry.fail(token, 999);
+            }
+            Err(999)
+        }
+    };
+    if let Err(code) = result.as_ref() {
+        errors::record(*code);
+    }
+    result
 }
 unsafe fn scalar(out: *mut i32) -> i32 {
     if out.is_null() {
