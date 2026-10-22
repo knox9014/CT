@@ -10,6 +10,10 @@ mod driver;
 mod errors;
 #[allow(dead_code)]
 mod kernel_driver;
+#[cfg(test)]
+mod kernel_tests;
+#[allow(dead_code)]
+mod kernels;
 mod memory;
 #[cfg(test)]
 mod memory_tests;
@@ -22,6 +26,10 @@ mod state;
 use driver::DriverBridge;
 use state::Runtime;
 static BRIDGE: std::sync::OnceLock<Result<Runtime<DriverBridge>, i32>> = std::sync::OnceLock::new();
+static KERNELS: std::sync::OnceLock<kernels::KernelRuntime> = std::sync::OnceLock::new();
+fn kernel_runtime() -> &'static kernels::KernelRuntime {
+    KERNELS.get_or_init(kernels::KernelRuntime::new)
+}
 fn cached<T>(
     cache: &std::sync::OnceLock<Result<T, i32>>,
     load: impl FnOnce() -> Result<T, i32>,

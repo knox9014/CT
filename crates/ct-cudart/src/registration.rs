@@ -55,7 +55,7 @@ pub struct RegistrationData {
 }
 pub struct LaunchLease {
     pub data: Arc<RegistrationData>,
-    symbol: Arc<Vec<u8>>,
+    pub(crate) symbol: Arc<Vec<u8>>,
 }
 impl LaunchLease {
     pub fn image(&self) -> &[u8] {

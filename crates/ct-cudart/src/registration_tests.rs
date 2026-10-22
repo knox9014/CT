@@ -1,7 +1,7 @@
 use super::registration::*;
 use std::ffi::c_void;
 
-fn image() -> Vec<u8> {
+pub(super) fn image() -> Vec<u8> {
     let text = b".version 8.0\n.target sm_52\n.address_size 64\n";
     let padded = (text.len() + 1 + 7) & !7;
     let mut b = vec![0; 88 + padded];
@@ -21,7 +21,7 @@ fn image() -> Vec<u8> {
     b[88..88 + text.len()].copy_from_slice(text);
     b
 }
-fn wrapper(b: &[u8]) -> Wrapper {
+pub(super) fn wrapper(b: &[u8]) -> Wrapper {
     Wrapper {
         magic: 0x466243b1,
         version: 1,
@@ -29,11 +29,11 @@ fn wrapper(b: &[u8]) -> Wrapper {
         extra: 0,
     }
 }
-unsafe fn register(reg: &Registry, b: &[u8]) -> usize {
+pub(super) unsafe fn register(reg: &Registry, b: &[u8]) -> usize {
     reg.register((&wrapper(b) as *const Wrapper).cast::<c_void>())
         .unwrap()
 }
-fn metadata() -> FunctionMetadata {
+pub(super) fn metadata() -> FunctionMetadata {
     FunctionMetadata {
         thread_limit: -1,
         optional: [0; 5],
