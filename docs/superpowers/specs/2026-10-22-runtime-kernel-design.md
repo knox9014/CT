@@ -1,7 +1,8 @@
 # P09a2: compiler-generated CUDA registration and kernel launch
 
-Status: written design for user review; no product implementation authorized by
-this document itself. Basis: P09a1 execution candidate24ef127 and
+Status: design and basic-then-default sequence approved by the user's
+2026-10-22 request, "우선 1번하고 2번 하자". Detailed implementation plans
+are being prepared for review; no product implementation has started. Basis: P09a1 execution candidate24ef127 and
 [real nvcc preflight observations](../../P09a2-PRODUCER-PROBE.md).
 
 ## 1. Purpose and measurable scope
