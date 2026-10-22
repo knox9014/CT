@@ -30,6 +30,32 @@ def image(symbol=b"cuInit", library=b"nvcuda.dll", ordinal=False, dll=False):
 
 
 class InspectTests(unittest.TestCase):
+    def test_runtime_imports_require_exact_opt_in_profile(self):
+        value = image(symbol=b'cudaMalloc',library=b'cudart64_12.dll')
+        with self.assertRaises(LoaderError): inspect_pe(value)
+        self.assertEqual(inspect_pe(value,runtime=True)['imports'][0]['symbols'],['cudaMalloc'])
+        for symbol,library,ordinal in [(b'cudaLaunchKernel',b'cudart64_12.dll',False),
+            (b'__cudaRegisterFatBinary',b'cudart64_12.dll',False),
+            (b'cudaMalloc',b'cudart64_110.dll',False),(b'cudaMalloc',b'cudart64_12.dll',True)]:
+            with self.subTest(symbol=symbol,library=library,ordinal=ordinal),self.assertRaises(LoaderError):
+                inspect_pe(image(symbol=symbol,library=library,ordinal=ordinal),runtime=True)
+
+    def test_runtime_bundle_preserves_all_payload_bytes_and_rejects_collisions(self):
+        with tempfile.TemporaryDirectory(dir=self.temp_root) as root:
+            root=Path(root)
+            app,driver,runtime=root/'app.exe',root/'ct.dll',root/'runtime.dll'
+            app.write_bytes(image(symbol=b'cudaMalloc',library=b'cudart64_12.dll'))
+            driver.write_bytes(image(dll=True))
+            runtime.write_bytes(image(dll=True,library=b'kernel32.dll',symbol=b'GetCurrentProcess'))
+            bundle,report=prepare_bundle(app,driver,[],root/'runs',runtime_dll=runtime)
+            for name,source in [('app.exe',app),('nvcuda.dll',driver),('cudart64_12.dll',runtime)]:
+                self.assertEqual((bundle/name).read_bytes(),source.read_bytes())
+            self.assertEqual(len(report['runtime_sha256']),64)
+            for name in ['NVCUDA.DLL.exe','cudart64_12.dll']:
+                # A Runtime-named asset must never shadow the explicitly supplied module.
+                asset=root/name; asset.write_bytes(b'input')
+                with self.assertRaises(LoaderError):prepare_bundle(app,driver,[asset],root/'runs',runtime_dll=runtime)
+
     def setUp(self):
         self.temp_root = (Path(__file__).resolve().parents[1] / ".cache/loader-tests").resolve()
         self.temp_root.mkdir(parents=True, exist_ok=True)

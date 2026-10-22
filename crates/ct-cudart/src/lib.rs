@@ -1,10 +1,12 @@
 #![allow(non_snake_case)]
 #![allow(clippy::missing_safety_doc)]
-#![allow(dead_code)] // Intermediate ABI skeleton; stateful wiring follows.
 use std::ffi::{c_char, c_void};
 mod device;
 mod driver;
 mod errors;
+mod memory;
+#[cfg(test)]
+mod memory_tests;
 mod platform;
 mod state;
 use driver::DriverBridge;
@@ -47,7 +49,7 @@ pub extern "system" fn cudaDeviceSynchronize() -> i32 {
     boundary(device::synchronize)
 }
 #[no_mangle]
-pub unsafe extern "system" fn cudaMalloc(out: *mut *mut c_void, _: usize) -> i32 {
+pub unsafe extern "system" fn cudaMalloc(out: *mut *mut c_void, size: usize) -> i32 {
     boundary(|| {
         if out.is_null() {
             1
@@ -55,26 +57,54 @@ pub unsafe extern "system" fn cudaMalloc(out: *mut *mut c_void, _: usize) -> i32
             unsafe {
                 *out = std::ptr::null_mut();
             }
-            801
+            if size == 0 {
+                return 801;
+            }
+            match bridge() {
+                Ok(rt) => unsafe { memory::allocate(rt, out, size) },
+                Err(code) => code,
+            }
         }
     })
 }
 #[no_mangle]
-pub extern "system" fn cudaFree(_: *mut c_void) -> i32 {
-    boundary(|| 801)
+pub extern "system" fn cudaFree(ptr: *mut c_void) -> i32 {
+    boundary(|| match bridge() {
+        Ok(rt) => memory::free(rt, ptr),
+        Err(code) => code,
+    })
 }
 #[no_mangle]
 pub unsafe extern "system" fn cudaMemcpy(
-    _: *mut c_void,
-    _: *const c_void,
-    _: usize,
-    _: i32,
+    dst: *mut c_void,
+    src: *const c_void,
+    size: usize,
+    kind: i32,
 ) -> i32 {
-    boundary(|| 801)
+    boundary(|| {
+        if let Some(code) = unsafe { memory::copy_preflight(dst, src, size, kind) } {
+            return code;
+        }
+        match bridge() {
+            Ok(rt) => unsafe { memory::copy_device(rt, dst, src, size, kind) },
+            Err(code) => code,
+        }
+    })
 }
 #[no_mangle]
-pub extern "system" fn cudaMemset(_: *mut c_void, _: i32, _: usize) -> i32 {
-    boundary(|| 801)
+pub extern "system" fn cudaMemset(ptr: *mut c_void, value: i32, size: usize) -> i32 {
+    boundary(|| {
+        if size == 0 {
+            return 0;
+        }
+        if ptr.is_null() {
+            return 1;
+        }
+        match bridge() {
+            Ok(rt) => memory::fill(rt, ptr, value, size),
+            Err(code) => code,
+        }
+    })
 }
 #[no_mangle]
 pub extern "system" fn cudaGetLastError() -> i32 {
