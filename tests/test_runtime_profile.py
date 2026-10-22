@@ -9,6 +9,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 import check_runtime_profile as profile
 
 class RuntimeProfileTests(unittest.TestCase):
+    def test_kernel_profile_has_exact21_and_no_default22(self):
+        self.assertEqual(len(profile.SIGNATURES),21)
+        self.assertIn('__cudaRegisterFatBinary',profile.SIGNATURES)
+        self.assertIn('__cudaPushCallConfiguration',profile.SIGNATURES)
+        self.assertNotIn('__cudaRegisterVar',profile.SIGNATURES)
     def test_runtime_header_closure_rejects_missing_or_modified_dependency(self):
         import tempfile,hashlib
         from check_runtime_header_closure import check

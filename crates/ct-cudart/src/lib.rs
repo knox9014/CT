@@ -1,24 +1,20 @@
 #![allow(non_snake_case)]
 #![allow(clippy::missing_safety_doc)]
 use std::ffi::{c_char, c_void};
-#[allow(dead_code)] // Export wiring follows native ABI proof.
 mod configuration;
 #[cfg(test)]
 mod configuration_tests;
 mod device;
 mod driver;
 mod errors;
-#[allow(dead_code)]
 mod kernel_driver;
 #[cfg(test)]
 mod kernel_tests;
-#[allow(dead_code)]
 mod kernels;
 mod memory;
 #[cfg(test)]
 mod memory_tests;
 mod platform;
-#[allow(dead_code)] // Wired into ABI exports after the independent native ABI gate.
 mod registration;
 #[cfg(test)]
 mod registration_tests;
@@ -44,7 +40,6 @@ mod state_tests;
 fn boundary(f: impl FnOnce() -> i32) -> i32 {
     errors::record(std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)).unwrap_or(999))
 }
-#[allow(dead_code)]
 fn callback_boundary<T>(
     registry: &registration::Registry,
     token: Option<registration::Token>,
@@ -173,3 +168,138 @@ pub unsafe extern "system" fn cudaRuntimeGetVersion(out: *mut i32) -> i32 {
 }
 #[cfg(test)]
 mod tests;
+
+#[no_mangle]
+pub unsafe extern "system" fn __cudaRegisterFatBinary(wrapper: *mut c_void) -> *mut *mut c_void {
+    let registry = &kernel_runtime().registry;
+    callback_boundary(registry, None, || unsafe { registry.register(wrapper) })
+        .map(|token| token as *mut *mut c_void)
+        .unwrap_or(std::ptr::null_mut())
+}
+#[no_mangle]
+pub extern "system" fn __cudaRegisterFatBinaryEnd(token: *mut *mut c_void) {
+    let registry = &kernel_runtime().registry;
+    let _ = callback_boundary(registry, Some(token as usize), || {
+        registry.end(token as usize)
+    });
+}
+#[no_mangle]
+pub extern "system" fn __cudaUnregisterFatBinary(token: *mut *mut c_void) {
+    let registry = &kernel_runtime().registry;
+    let _ = callback_boundary(registry, Some(token as usize), || {
+        registry.retire(token as usize)
+    });
+}
+#[no_mangle]
+pub unsafe extern "system" fn __cudaRegisterFunction(
+    token: *mut *mut c_void,
+    host: *const c_char,
+    device: *mut c_char,
+    name: *const c_char,
+    thread_limit: i32,
+    tid: *mut configuration::Dim3,
+    bid: *mut configuration::Dim3,
+    block: *mut configuration::Dim3,
+    grid: *mut configuration::Dim3,
+    warp: *mut i32,
+) {
+    let registry = &kernel_runtime().registry;
+    let _ = callback_boundary(registry, Some(token as usize), || {
+        let names = (|| unsafe {
+            let a = registration::copy_name(device.cast(), 1024)?;
+            let b = registration::copy_name(name.cast(), 1024)?;
+            if a != b {
+                return Err(801);
+            }
+            Ok(())
+        })();
+        if let Err(code) = names {
+            registry.fail(token as usize, code);
+            return Err(code);
+        }
+        unsafe {
+            registry.function(
+                token as usize,
+                host as usize,
+                device.cast(),
+                registration::FunctionMetadata {
+                    thread_limit,
+                    optional: [
+                        tid as usize,
+                        bid as usize,
+                        block as usize,
+                        grid as usize,
+                        warp as usize,
+                    ],
+                },
+            )
+        }
+    });
+}
+#[no_mangle]
+pub extern "system" fn __cudaPushCallConfiguration(
+    grid: configuration::Dim3,
+    block: configuration::Dim3,
+    shared: usize,
+    stream: *mut c_void,
+) -> u32 {
+    boundary(|| {
+        configuration::push(configuration::Config {
+            grid,
+            block,
+            shared,
+            stream: stream as usize,
+        })
+    }) as u32
+}
+#[no_mangle]
+pub unsafe extern "system" fn __cudaPopCallConfiguration(
+    grid: *mut configuration::Dim3,
+    block: *mut configuration::Dim3,
+    shared: *mut usize,
+    stream: *mut c_void,
+) -> i32 {
+    boundary(|| unsafe { configuration::pop(grid, block, shared, stream) })
+}
+#[no_mangle]
+pub unsafe extern "system" fn cudaLaunchKernel(
+    host: *const c_void,
+    grid: configuration::Dim3,
+    block: configuration::Dim3,
+    args: *mut *mut c_void,
+    shared: usize,
+    stream: *mut c_void,
+) -> i32 {
+    boundary(|| {
+        let kernel = kernel_runtime();
+        if let Err(code) = kernel.registry.lease(host as usize) {
+            return code;
+        }
+        let config = configuration::Config {
+            grid,
+            block,
+            shared,
+            stream: stream as usize,
+        };
+        let code = configuration::preflight(config);
+        if code != 0 {
+            return code;
+        }
+        match bridge() {
+            Ok(rt) => unsafe {
+                kernel.launch(
+                    rt,
+                    host as usize,
+                    configuration::Config {
+                        grid,
+                        block,
+                        shared,
+                        stream: stream as usize,
+                    },
+                    args,
+                )
+            },
+            Err(code) => code,
+        }
+    })
+}

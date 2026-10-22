@@ -16,7 +16,7 @@ class EvidenceTests(unittest.TestCase):
     def test_complete_observations_are_bound_to_bytes_and_counters(self):
         from p09a_runtime_check import MODES
         from run_validation import source_fingerprint
-        from check_runtime_profile import SIGNATURES
+        from check_runtime_profile import BASE_SIGNATURES as SIGNATURES
         from test_ct_loader import image
         cache=ROOT/'.cache/p09a-build';cache.mkdir(parents=True,exist_ok=True)
         with tempfile.TemporaryDirectory(dir=cache) as name:

@@ -1,0 +1,6 @@
+EXPORTS
+cuModuleLoadData=ct_foreign.cuModuleLoadData
+cuModuleGetFunction=ct_foreign.cuModuleGetFunction
+cuLaunchKernel=ct_foreign.cuLaunchKernel
+cuModuleUnload=ct_foreign.cuModuleUnload
+cuDeviceGetAttribute=ct_foreign.cuDeviceGetAttribute

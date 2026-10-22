@@ -5,7 +5,7 @@ import re
 
 REPO = Path(__file__).resolve().parents[1]
 PROFILE = 'docs/compatibility/runtime-profile-v1.json'
-SIGNATURES = {
+BASE_SIGNATURES = {
     'cudaGetDeviceCount':'i32(out_i32)', 'cudaGetDevice':'i32(out_i32)',
     'cudaSetDevice':'i32(i32)', 'cudaDeviceSynchronize':'i32()',
     'cudaMalloc':'i32(out_ptr,size)', 'cudaFree':'i32(ptr)',
@@ -13,6 +13,15 @@ SIGNATURES = {
     'cudaGetLastError':'i32()', 'cudaPeekAtLastError':'i32()',
     'cudaGetErrorName':'const_char_ptr(i32)', 'cudaGetErrorString':'const_char_ptr(i32)',
     'cudaDriverGetVersion':'i32(out_i32)', 'cudaRuntimeGetVersion':'i32(out_i32)',
+}
+SIGNATURES = {**BASE_SIGNATURES,
+    '__cudaRegisterFatBinary':'ptr_ptr(ptr)',
+    '__cudaRegisterFatBinaryEnd':'void(ptr_ptr)',
+    '__cudaUnregisterFatBinary':'void(ptr_ptr)',
+    '__cudaRegisterFunction':'void(ptr_ptr,const_char_ptr,char_ptr,const_char_ptr,i32,uint3_ptr,uint3_ptr,dim3_ptr,dim3_ptr,i32_ptr)',
+    '__cudaPushCallConfiguration':'u32(dim3,dim3,size,stream)',
+    '__cudaPopCallConfiguration':'i32(dim3_ptr,dim3_ptr,size_ptr,ptr)',
+    'cudaLaunchKernel':'i32(const_ptr,dim3,dim3,ptr_ptr,size,stream)',
 }
 
 def validate(value):
@@ -43,17 +52,17 @@ def validate(value):
             target = REPO / file
             if not target.is_file() or test not in target.read_text(encoding='utf-8'):
                 errors.append('missing test reference')
-    if seen != set(SIGNATURES) or len(entries) != 14: errors.append('incomplete exports')
+    if seen != set(SIGNATURES) or len(entries) != 21: errors.append('incomplete exports')
     header = (REPO / 'include/ct_cudart.h').read_text()
-    if set(re.findall(r'CT_RUNTIME_API (cuda\w+)\(',header)) != set(SIGNATURES): errors.append('header drift')
+    if set(re.findall(r'CT_RUNTIME_API ((?:__cuda|cuda)\w+)\(',header)) != set(SIGNATURES): errors.append('header drift')
     exports=(REPO/'tests/p09a_runtime.def').read_text().splitlines()[2:]
-    if len(exports)!=14 or set(exports)!=set(SIGNATURES):errors.append('import library drift')
+    if len(exports)!=21 or set(exports)!=set(SIGNATURES):errors.append('import library drift')
     return errors
 
 def main():
     errors = validate(json.loads((REPO / PROFILE).read_text()))
     for error in errors: print(error)
-    if not errors: print('Runtime profile: 14 bounded declarations checked; execution unproven')
+    if not errors: print('Runtime profile: 21 bounded declarations checked; execution unproven')
     return bool(errors)
 
 if __name__ == '__main__': raise SystemExit(main())

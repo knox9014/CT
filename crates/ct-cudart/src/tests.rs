@@ -1,6 +1,95 @@
 use crate::errors::*;
 
 #[test]
+fn exported_registration_and_configuration_are_gpu_free() {
+    use crate::configuration::Dim3;
+    use crate::*;
+    let _: unsafe extern "system" fn(*mut c_void) -> *mut *mut c_void = __cudaRegisterFatBinary;
+    let _: extern "system" fn(*mut *mut c_void) = __cudaRegisterFatBinaryEnd;
+    let _: extern "system" fn(*mut *mut c_void) = __cudaUnregisterFatBinary;
+    let _: extern "system" fn(Dim3, Dim3, usize, *mut c_void) -> u32 = __cudaPushCallConfiguration;
+    let _: unsafe extern "system" fn(*mut Dim3, *mut Dim3, *mut usize, *mut c_void) -> i32 =
+        __cudaPopCallConfiguration;
+    let _: unsafe extern "system" fn(
+        *const c_void,
+        Dim3,
+        Dim3,
+        *mut *mut c_void,
+        usize,
+        *mut c_void,
+    ) -> i32 = cudaLaunchKernel;
+    let image = crate::registration_tests::image();
+    let wrapper = crate::registration_tests::wrapper(&image);
+    let token = unsafe {
+        __cudaRegisterFatBinary(
+            (&wrapper as *const crate::registration::Wrapper)
+                .cast_mut()
+                .cast(),
+        )
+    };
+    assert!(!token.is_null());
+    let host = 0x1234567891234567usize as *const c_char;
+    unsafe {
+        __cudaRegisterFunction(
+            token,
+            host,
+            c"one".as_ptr().cast_mut(),
+            c"one".as_ptr(),
+            -1,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        );
+    }
+    __cudaRegisterFatBinaryEnd(token);
+    let zero = Dim3 { x: 0, y: 1, z: 1 };
+    let one = Dim3 { x: 1, y: 1, z: 1 };
+    assert_eq!(
+        unsafe {
+            cudaLaunchKernel(
+                host.cast(),
+                zero,
+                one,
+                std::ptr::null_mut(),
+                0,
+                std::ptr::null_mut(),
+            )
+        },
+        9
+    );
+    assert_eq!(
+        unsafe {
+            cudaLaunchKernel(
+                host.cast(),
+                one,
+                one,
+                std::ptr::null_mut(),
+                1,
+                std::ptr::null_mut(),
+            )
+        },
+        801
+    );
+    assert!(BRIDGE.get().is_none());
+    __cudaUnregisterFatBinary(token);
+    assert_eq!(
+        unsafe {
+            cudaLaunchKernel(
+                host.cast(),
+                one,
+                one,
+                std::ptr::null_mut(),
+                0,
+                std::ptr::null_mut(),
+            )
+        },
+        98
+    );
+}
+
+#[test]
 fn kernel_extension_is_complete_and_cached() {
     use crate::platform::*;
     use std::cell::Cell;

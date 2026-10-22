@@ -141,10 +141,78 @@
         "tests/runtime_reference_abi.cpp#main",
         "tests/p09a_runtime_app.c#main"
       ]
+    },
+    {
+      "symbol": "__cudaRegisterFatBinary",
+      "signature_id": "ptr_ptr(ptr)",
+      "behavior": "Bounded CPU registration/configuration and synchronous context-specific kernel launch; non-RDC nvcc PTX with cudadevrt=none only.",
+      "test_ids": [
+        "tests/runtime_kernel_native_abi.cpp#main",
+        "crates/ct-cudart/src/tests.rs#exported_registration_and_configuration_are_gpu_free"
+      ]
+    },
+    {
+      "symbol": "__cudaRegisterFatBinaryEnd",
+      "signature_id": "void(ptr_ptr)",
+      "behavior": "Bounded CPU registration/configuration and synchronous context-specific kernel launch; non-RDC nvcc PTX with cudadevrt=none only.",
+      "test_ids": [
+        "tests/runtime_kernel_native_abi.cpp#main",
+        "crates/ct-cudart/src/tests.rs#exported_registration_and_configuration_are_gpu_free"
+      ]
+    },
+    {
+      "symbol": "__cudaUnregisterFatBinary",
+      "signature_id": "void(ptr_ptr)",
+      "behavior": "Bounded CPU registration/configuration and synchronous context-specific kernel launch; non-RDC nvcc PTX with cudadevrt=none only.",
+      "test_ids": [
+        "tests/runtime_kernel_native_abi.cpp#main",
+        "crates/ct-cudart/src/tests.rs#exported_registration_and_configuration_are_gpu_free"
+      ]
+    },
+    {
+      "symbol": "__cudaRegisterFunction",
+      "signature_id": "void(ptr_ptr,const_char_ptr,char_ptr,const_char_ptr,i32,uint3_ptr,uint3_ptr,dim3_ptr,dim3_ptr,i32_ptr)",
+      "behavior": "Bounded CPU registration/configuration and synchronous context-specific kernel launch; non-RDC nvcc PTX with cudadevrt=none only.",
+      "test_ids": [
+        "tests/runtime_kernel_native_abi.cpp#main",
+        "crates/ct-cudart/src/tests.rs#exported_registration_and_configuration_are_gpu_free"
+      ]
+    },
+    {
+      "symbol": "__cudaPushCallConfiguration",
+      "signature_id": "u32(dim3,dim3,size,stream)",
+      "behavior": "Bounded CPU registration/configuration and synchronous context-specific kernel launch; non-RDC nvcc PTX with cudadevrt=none only.",
+      "test_ids": [
+        "tests/runtime_kernel_native_abi.cpp#main",
+        "crates/ct-cudart/src/tests.rs#exported_registration_and_configuration_are_gpu_free"
+      ]
+    },
+    {
+      "symbol": "__cudaPopCallConfiguration",
+      "signature_id": "i32(dim3_ptr,dim3_ptr,size_ptr,ptr)",
+      "behavior": "Bounded CPU registration/configuration and synchronous context-specific kernel launch; non-RDC nvcc PTX with cudadevrt=none only.",
+      "test_ids": [
+        "tests/runtime_kernel_native_abi.cpp#main",
+        "crates/ct-cudart/src/tests.rs#exported_registration_and_configuration_are_gpu_free"
+      ]
+    },
+    {
+      "symbol": "cudaLaunchKernel",
+      "signature_id": "i32(const_ptr,dim3,dim3,ptr_ptr,size,stream)",
+      "behavior": "Bounded CPU registration/configuration and synchronous context-specific kernel launch; non-RDC nvcc PTX with cudadevrt=none only.",
+      "test_ids": [
+        "tests/runtime_kernel_native_abi.cpp#main",
+        "crates/ct-cudart/src/tests.rs#exported_registration_and_configuration_are_gpu_free"
+      ]
     }
   ],
   "limits": [
-    "Windows x64; app-local single Driver; synchronous explicit copies only.",
-    "No launch, registration, UVA, streams, reset recovery or framework claim."
+    "Windows x64 EXE constructors; app-local single Driver; Runtime21 diagnostic preview.",
+    "nvcc12 non-RDC PTX8.0/sm52, cudart=shared, cudadevrt=none; default22/prelinked/Var excluded.",
+    "Zero shared memory and null/default stream only; no UVA, streams/PTDS, reset recovery or framework claim.",
+    "Registration64 live/1024 lifetime,512 functions each/4096 host mappings,1024-byte names,16MiB images/64MiB owned raw total.",
+    "128 native ownership records and module slots,64 TLS configurations; detected fallible reservation errors2, budget exhaustion801.",
+    "No native cleanup in callbacks/destructors; matching-context retirement drain only on explicit Launch or Synchronize.",
+    "Unsupported MSVC producer is diagnostic; no supported-host compiler pin registered."
   ]
 }

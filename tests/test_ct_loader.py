@@ -34,8 +34,12 @@ class InspectTests(unittest.TestCase):
         value = image(symbol=b'cudaMalloc',library=b'cudart64_12.dll')
         with self.assertRaises(LoaderError): inspect_pe(value)
         self.assertEqual(inspect_pe(value,runtime=True)['imports'][0]['symbols'],['cudaMalloc'])
-        for symbol,library,ordinal in [(b'cudaLaunchKernel',b'cudart64_12.dll',False),
-            (b'__cudaRegisterFatBinary',b'cudart64_12.dll',False),
+        for symbol in (b'cudaLaunchKernel',b'__cudaRegisterFatBinary',b'__cudaPopCallConfiguration'):
+            data=image(symbol=symbol,library=b'cudart64_12.dll')
+            self.assertEqual(inspect_pe(data,runtime=True)['imports'][0]['symbols'],[symbol.decode()])
+            with self.assertRaises(LoaderError):inspect_pe(data)
+        for symbol,library,ordinal in [(b'__cudaRegisterVar',b'cudart64_12.dll',False),
+            (b'cudaLaunchKernelExC',b'cudart64_12.dll',False),
             (b'cudaMalloc',b'cudart64_110.dll',False),(b'cudaMalloc',b'cudart64_12.dll',True)]:
             with self.subTest(symbol=symbol,library=library,ordinal=ordinal),self.assertRaises(LoaderError):
                 inspect_pe(image(symbol=symbol,library=library,ordinal=ordinal),runtime=True)
