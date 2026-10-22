@@ -20,8 +20,9 @@ pub trait DriverCalls: Send + Sync {
 
 pub struct DriverBridge {
     #[cfg(windows)]
-    _owned: crate::platform::windows::Owned,
+    pub(crate) _owned: crate::platform::windows::Owned,
     table: [usize; 15],
+    pub(crate) kernel: std::sync::OnceLock<Result<[usize; 5], i32>>,
 }
 impl DriverBridge {
     pub fn open() -> Result<Self, i32> {
@@ -32,6 +33,7 @@ impl DriverBridge {
             Ok(Self {
                 _owned: owned,
                 table,
+                kernel: std::sync::OnceLock::new(),
             })
         }
         #[cfg(not(windows))]

@@ -1,6 +1,53 @@
 use crate::errors::*;
 
 #[test]
+fn kernel_extension_is_complete_and_cached() {
+    use crate::platform::*;
+    use std::cell::Cell;
+    struct Fake {
+        missing: usize,
+        calls: Cell<usize>,
+    }
+    impl Platform for Fake {
+        type Owned = ();
+        fn load_owned(&self) -> Result<(), i32> {
+            Ok(())
+        }
+        fn check_identity(&self, _: &()) -> Result<(), i32> {
+            Ok(())
+        }
+        fn resolve(&self, _: &(), name: &[u8]) -> Result<usize, i32> {
+            let index = KERNEL_SYMBOLS.iter().position(|s| *s == name).unwrap();
+            self.calls.set(self.calls.get() + 1);
+            if index == self.missing {
+                Err(35)
+            } else {
+                Ok(index + 1)
+            }
+        }
+        fn pin(&self, _: &()) -> Result<(), i32> {
+            Ok(())
+        }
+    }
+    for missing in 0..=5 {
+        let fake = Fake {
+            missing,
+            calls: Cell::new(0),
+        };
+        let cache = std::sync::OnceLock::new();
+        let a = crate::cached(&cache, || resolve_kernel(&fake, &()));
+        if missing < 5 {
+            assert_eq!(a, Err(35));
+        } else {
+            assert_eq!(a, Ok(&[1, 2, 3, 4, 5]));
+        }
+        let count = fake.calls.get();
+        let _ = crate::cached(&cache, || resolve_kernel(&fake, &()));
+        assert_eq!(fake.calls.get(), count);
+    }
+}
+
+#[test]
 fn bootstrap_checks_identity_and_pins_before_publish() {
     use crate::platform::*;
     use std::cell::RefCell;

@@ -8,6 +8,8 @@ mod configuration_tests;
 mod device;
 mod driver;
 mod errors;
+#[allow(dead_code)]
+mod kernel_driver;
 mod memory;
 #[cfg(test)]
 mod memory_tests;
