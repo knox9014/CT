@@ -24,3 +24,10 @@ class DefaultNumericTests(unittest.TestCase):
   value.update(mode='control',errors=[98],blocked_errors=[801,801],driver_calls=[0,0]);value['runs'][0]['c']=c
   self.assertEqual(verify_result(value,seed,'control'),[])
   value['driver_calls']=[0,1];self.assertTrue(verify_result(value,seed,'control'))
+
+class DefaultControlProvenanceTests(unittest.TestCase):
+ def test_blocked_symbol_must_be_an_actual_oracle_entry(self):
+  from p09a2c_default_check import validate_control_symbol
+  source=(ROOT/'tests/p09a2c_default_control.cpp').read_text()
+  self.assertEqual(validate_control_symbol(source,'.visible .entry ct_oracle_add() {}'),[])
+  self.assertTrue(validate_control_symbol(source,'.visible .entry other() {}'))

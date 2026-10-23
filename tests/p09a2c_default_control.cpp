@@ -22,14 +22,13 @@ int main(int argc,char **argv) {
     std::rewind(file);std::vector<unsigned char> image((size_t)size);REQUIRE(std::fread(image.data(),1,image.size(),file)==image.size());std::fclose(file);
     HMODULE provider=LoadLibraryW(L"nvcuda.dll");REQUIRE(provider);
     auto calls=reinterpret_cast<unsigned long long (__stdcall *)(void)>(GetProcAddress(provider,"ct_driver_calls"));REQUIRE(calls&&calls()==0);
-    char unsupported_symbol[]="generic_unsupported";auto unsupported_host=reinterpret_cast<const char *>(uintptr_t(0x777788889999));
+    char unsupported_symbol[]="ct_oracle_add";auto unsupported_host=reinterpret_cast<const char *>(uintptr_t(0x777788889999));
+    auto linked_host=reinterpret_cast<const char *>(uintptr_t(0x777788888888));
     Wrapper blocked={0x466243b1,1,image.data(),nullptr};auto blocked_token=p___cudaRegisterFatBinary(&blocked);REQUIRE(blocked_token);
     p___cudaRegisterFunction(blocked_token,unsupported_host,unsupported_symbol,unsupported_symbol,-1,nullptr,nullptr,nullptr,nullptr,nullptr);
     p___cudaRegisterVar(blocked_token,reinterpret_cast<char *>(uintptr_t(12345)),unsupported_symbol,unsupported_symbol,0,8,0,0);p___cudaRegisterFatBinaryEnd(blocked_token);REQUIRE(p_cudaGetLastError()==0);
-    CT_dim3 one={1,1,1};REQUIRE(p_cudaLaunchKernel(unsupported_host,one,one,nullptr,0,nullptr)==801);REQUIRE(calls()==0);p___cudaUnregisterFatBinary(blocked_token);p_cudaGetLastError();
-    const unsigned char *dependencies[]={image.data(),nullptr};blocked.version=2;blocked.extra=dependencies;blocked_token=p___cudaRegisterFatBinary(&blocked);REQUIRE(blocked_token);
-    p___cudaRegisterFunction(blocked_token,unsupported_host,unsupported_symbol,unsupported_symbol,-1,nullptr,nullptr,nullptr,nullptr,nullptr);p___cudaRegisterFatBinaryEnd(blocked_token);REQUIRE(p_cudaGetLastError()==0);
-    REQUIRE(p_cudaLaunchKernel(unsupported_host,one,one,nullptr,0,nullptr)==801);REQUIRE(calls()==0);p___cudaUnregisterFatBinary(blocked_token);p_cudaGetLastError();
+    const unsigned char *dependencies[]={image.data(),nullptr};blocked.version=2;blocked.extra=dependencies;auto linked_token=p___cudaRegisterFatBinary(&blocked);REQUIRE(linked_token);
+    p___cudaRegisterFunction(linked_token,linked_host,unsupported_symbol,unsupported_symbol,-1,nullptr,nullptr,nullptr,nullptr,nullptr);p___cudaRegisterFatBinaryEnd(linked_token);REQUIRE(p_cudaGetLastError()==0);
     Wrapper wrapper={0x466243b1,1,image.data(),nullptr};void **token=p___cudaRegisterFatBinary(&wrapper);REQUIRE(token);
     auto host=reinterpret_cast<const char *>(uintptr_t(0x1234567891234567));char symbol[]="ct_oracle_add";
     p___cudaRegisterFunction(token,host,symbol,symbol,-1,nullptr,nullptr,nullptr,nullptr,nullptr);p___cudaRegisterFatBinaryEnd(token);
@@ -41,6 +40,9 @@ int main(int argc,char **argv) {
     OK(p_cudaMemcpy(da,a,sizeof(a),1));OK(p_cudaMemcpy(db,b,sizeof(b),1));OK(p_cudaMemcpy(dc,c,sizeof(c),1));
     uint64_t pa=(uint64_t)(uintptr_t)da+8,pb=(uint64_t)(uintptr_t)db+8,pc=(uint64_t)(uintptr_t)dc+8;unsigned n=17;
     void *args[]={&pa,&pb,&pc,&n};CT_dim3 grid={2,1,1},block={16,1,1};
+    // Same real entry and device arguments as the runnable sibling, with unused metadata.
+    auto before=calls();REQUIRE(p_cudaLaunchKernel(unsupported_host,grid,block,args,0,nullptr)==801);REQUIRE(calls()==before);p___cudaUnregisterFatBinary(blocked_token);p_cudaGetLastError();
+    before=calls();REQUIRE(p_cudaLaunchKernel(linked_host,grid,block,args,0,nullptr)==801);REQUIRE(calls()==before);p___cudaUnregisterFatBinary(linked_token);p_cudaGetLastError();
     OK(p_cudaLaunchKernel(host,grid,block,args,0,nullptr));
     p___cudaUnregisterFatBinary(token);
     int retired=p_cudaLaunchKernel(host,grid,block,args,0,nullptr);REQUIRE(retired==98);

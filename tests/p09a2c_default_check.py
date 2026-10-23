@@ -3,6 +3,7 @@ import argparse
 import json
 from pathlib import Path
 import secrets
+import re
 import shutil
 import subprocess
 import sys
@@ -32,6 +33,10 @@ def verify_result(value,seed,mode):
         value={k:v for k,v in value.items() if k not in ('blocked_errors','driver_calls')};value['mode']='retire'
         return verify_kernel(value,seed,'retire')
     return verify_kernel(value,seed,mode)
+
+def validate_control_symbol(source,ptx):
+    match=re.search(r'char unsupported_symbol\[\]="([A-Za-z_][A-Za-z0-9_]*)"',source)
+    return [] if match and re.search(r'\.entry\s+'+re.escape(match[1])+r'\s*\(',ptx) else ['blocked control entry absent']
 
 def executable(mode):return 'control.exe' if mode=='control' else 'negative.exe' if mode=='used_global' else 'host.exe'
 def payloads(mode):
@@ -79,6 +84,7 @@ def audit_manifest(path,root=ROOT,*,execute=False):
         for name in ('kernel_oracle.cu','module_a.cu','module_b.cu'):
             if digest(folder/name)!=m['inputs']['tests/fixtures/p09a2/'+name]:return ['compiled source changed']
         if digest(folder/'default_used_global.cu')!=m['inputs']['tests/fixtures/p09a2/default_used_global.cu']:return ['negative source changed']
+        if validate_control_symbol((root/'tests/p09a2c_default_control.cpp').read_text(),(folder/'keep/kernel_oracle.ptx').read_text()):return ['blocked control entry absent']
         negative_imports=inspect_pe(local(root,m['artifacts']['negative']['path']).read_bytes(),runtime=True)['imports']
         if '__cudaRegisterVar' not in {s for i in negative_imports if i['library'].lower()=='cudart64_12.dll' for s in i['symbols']}:return ['negative variable import absent']
         ptx=(folder/'keep-negative/default_used_global.ptx').read_text();stub=(folder/'keep-negative/default_used_global.cudafe1.stub.c').read_text()

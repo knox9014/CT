@@ -91,7 +91,7 @@ def default_producer_evidence(directory,root,*,capture=False):
         expected=dict(origin=origin,sha256=digest(target),manifest=json.loads(target.read_bytes()))
         if capture:saved.write_text(json.dumps(expected,indent=2),encoding='utf-8')
         if json.loads(saved.read_bytes())!=expected:return ['default producer evidence changed']
-        return audit_default_producer(target,root)
+        return audit_default_producer(target,root,execute=capture)
     except (OSError,ValueError,TypeError,KeyError):return ['default producer evidence unavailable']
 
 

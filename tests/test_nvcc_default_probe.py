@@ -43,6 +43,25 @@ class DefaultProducerArtifactTests(unittest.TestCase):
    save()
    with patch.object(d,'audit_probe',return_value=[]):
     self.assertEqual(d.audit_default_producer(manifest,root),[])
+    from types import SimpleNamespace
+    def child(command,*,cwd,**kwargs):
+     for index,data in enumerate((user,empty,linked)):(Path(cwd)/('raw-'+str(index)+'.bin')).write_bytes(data)
+     return SimpleNamespace(returncode=11,stderr=b'',stdout=(out/'observe/stdout.jsonl').read_bytes())
+    with patch.object(d.subprocess,'run',side_effect=child) as run:
+     self.assertEqual(d.audit_default_producer(manifest,root,execute=True),[]);run.assert_called_once()
+    def bad_child(command,*,cwd,**kwargs):
+     result=child(command,cwd=cwd,**kwargs);(Path(cwd)/'raw-2.bin').write_bytes(b'forged raw');return result
+    with patch.object(d.subprocess,'run',side_effect=bad_child):self.assertEqual(d.audit_default_producer(manifest,root,execute=True),['default replay raw mismatch'])
+    with patch.object(d.subprocess,'run',return_value=SimpleNamespace(returncode=11,stderr=b'',stdout=b'{"status":"pass"}')):self.assertEqual(d.audit_default_producer(manifest,root,execute=True),['default independent replay failed'])
+
     (out/'observe/raw-2.bin').write_bytes(linked+b'changed');self.assertEqual(d.audit_default_producer(manifest,root),['default artifacts changed']);(out/'observe/raw-2.bin').write_bytes(linked)
     m['commands']['cuda'].append('--cudadevrt=none');save();self.assertEqual(d.audit_default_producer(manifest,root),['default compiler flags']);m['commands']['cuda'].pop()
     m['host_profile']='qualified';save();self.assertEqual(d.audit_default_producer(manifest,root),['default source/qualification'])
+
+class DefaultReplayTests(unittest.TestCase):
+ def test_replay_requests_fresh_constructor_execution(self):
+  from unittest.mock import patch
+  import prepare_nvcc_default as d
+  path=Path('manifest.json')
+  with patch.object(sys,'argv',['prepare_nvcc_default.py','replay','--manifest',str(path)]),patch.object(d,'audit_default_producer',return_value=[]) as audit:
+   self.assertEqual(d.main(),0);audit.assert_called_once_with(path,execute=True)

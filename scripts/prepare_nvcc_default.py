@@ -1,5 +1,5 @@
 """Authenticated default device-runtime producer and CPU-only constructor observations."""
-import argparse,json,os,shutil,struct,subprocess
+import argparse,json,os,shutil,struct,subprocess,tempfile
 from pathlib import Path
 from prepare_nvcc_probe import audit_probe,digest,normalize_env,decode_host_env
 ROOT=Path(__file__).resolve().parents[1]
@@ -63,7 +63,7 @@ def artifacts(output):
     fixed += ['observe/raw-'+str(i)+'.bin' for i in range(3)]
     return {n:digest(output/n) for n in fixed}
 
-def audit_default_producer(path,root=ROOT):
+def audit_default_producer(path,root=ROOT,*,execute=False):
     try:
         path=Path(path).resolve()
         if not path.is_relative_to(root/'.cache/p09a2c-producer'):return ['default producer escape']
@@ -81,8 +81,19 @@ def audit_default_producer(path,root=ROOT):
         if any(r['size']!=(out/('observe/raw-'+str(r['index'])+'.bin')).stat().st_size for r in rows if r['kind']=='image'):return ['default observed size mismatch']
         if raw_info(out/'observe/raw-0.bin')!=[1] or raw_info(out/'observe/raw-1.bin')!=[] or raw_info(out/'observe/raw-2.bin')!=[2]*9:return ['default raw shape']
         if digest(out/'observe/raw-0.bin')!=digest(out/'keep/vector.fatbin') or digest(out/'observe/raw-1.bin')!=digest(out/'keep/default_dlink.fatbin'):return ['default raw source mismatch']
+        if execute:
+            with tempfile.TemporaryDirectory(prefix='replay-',dir=out) as temporary:
+                bundle=Path(temporary).resolve()
+                if not bundle.is_relative_to(out):raise ValueError('replay output escape')
+                shutil.copyfile(out/'default.exe',bundle/'application.exe');shutil.copyfile(out/'observer.dll',bundle/'cudart64_12.dll')
+                run=subprocess.run([str(bundle/'application.exe')],cwd=bundle,capture_output=True,timeout=30)
+                if run.returncode!=11 or run.stderr or [json.loads(line) for line in run.stdout.splitlines()]!=rows:return ['default independent replay failed']
+                expected={f'raw-{i}.bin' for i in range(3)}
+                if {f.name for f in bundle.glob('raw-*.bin')}!=expected:return ['default replay raw mismatch']
+                if any(digest(bundle/name)!=m['artifacts']['observe/'+name] for name in expected):return ['default replay raw mismatch']
+            return audit_default_producer(path,root,execute=False)
         return []
-    except (OSError,ValueError,KeyError,TypeError,struct.error):return ['default producer unavailable']
+    except (OSError,ValueError,KeyError,TypeError,struct.error,subprocess.SubprocessError):return ['default producer unavailable']
 
 def commands(out,base,host):
     return {'cuda':compiler_args(out,base,host),'observer':[host['tools']['cl.exe']['path'],'/nologo','/W4','/WX','/EHsc','/LD','/std:c++17','/utf-8','/external:W0','/external:I'+str(base/'toolkit/include'),'observer.cpp','/Foobserver.obj','/Feobserver.dll']}
@@ -102,14 +113,14 @@ def prepare(base_path,out):
     if run.returncode!=11 or run.stderr or validate_observations(rows):raise ValueError('default constructor observation failed')
     m={'schema_version':1,'base_producer':{'path':base_path.relative_to(ROOT).as_posix(),'sha256':digest(base_path)},'source':{SOURCE:digest(ROOT/SOURCE),OBSERVER:digest(ROOT/OBSERVER)},'commands':argv,'host_profile':base['host']['profile'],'artifacts':artifacts(out),'observations':{'exit_code':run.returncode,'rows':rows}}
     path=out/'manifest.json';path.write_text(json.dumps(m,indent=2)+'\n',encoding='utf-8')
-    if audit_default_producer(path):raise ValueError('default producer audit failed')
+    if audit_default_producer(path,execute=True):raise ValueError('default producer audit failed')
     return path
 
 def main():
     p=argparse.ArgumentParser();sub=p.add_subparsers(dest='action',required=True);a=sub.add_parser('prepare');a.add_argument('--base-manifest',type=Path,default=ROOT/'.cache/p09a2-producer/manifest.json');a.add_argument('--output',type=Path,default=ROOT/'.cache/p09a2c-producer');a=sub.add_parser('replay');a.add_argument('--manifest',type=Path,default=ROOT/'.cache/p09a2c-producer/manifest.json');args=p.parse_args()
     try:
         if args.action=='prepare':prepare(args.base_manifest,args.output)
-        elif audit_default_producer(args.manifest):raise ValueError('default replay failed')
+        elif audit_default_producer(args.manifest,execute=True):raise ValueError('default replay failed')
         print('Authenticated default-link producer observations passed; no Runtime/GPU execution claim');return 0
     except (OSError,ValueError,KeyError,subprocess.SubprocessError):print('Default producer failed; local diagnostics retained');return 1
 if __name__=='__main__':raise SystemExit(main())
