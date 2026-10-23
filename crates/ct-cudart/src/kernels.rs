@@ -122,6 +122,7 @@ impl KernelRuntime {
         args: *mut *mut c_void,
     ) -> Result<(), i32> {
         let lease = self.registry.lease(host)?;
+        let image = lease.image()?;
         let code = preflight(config);
         if code != 0 {
             return Err(code);
@@ -169,7 +170,7 @@ impl KernelRuntime {
         if matches!(state.phase, Phase::Fresh) {
             self.reserve_slot()?;
             state.reserved = true;
-            match runtime.driver.load(lease.image()) {
+            match runtime.driver.load(image) {
                 Ok(module) => {
                     state.module = Some(module);
                     state.phase = if lease.retired() {

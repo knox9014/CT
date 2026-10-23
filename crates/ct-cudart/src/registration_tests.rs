@@ -54,11 +54,11 @@ fn snapshot_survives_source_mutation() {
     b.fill(0);
     name.fill(b'x');
     let lease = reg.lease(11).unwrap();
-    assert_eq!(lease.image(), expected);
+    assert_eq!(lease.image().unwrap(), expected);
     assert_eq!(lease.symbol(), b"kernel\0");
     reg.retire(token).unwrap();
     assert_eq!(reg.lease(11).err(), Some(98));
-    assert_eq!(lease.image(), expected);
+    assert_eq!(lease.image().unwrap(), expected);
     assert!(lease.retired());
 }
 
@@ -123,6 +123,11 @@ fn registration_never_calls_driver_and_rejects_bad_wrapper() {
     let mut w = wrapper(&b);
     assert_eq!(unsafe { reg.register(std::ptr::null()) }, Err(1));
     w.version = 2;
+    assert_eq!(
+        unsafe { reg.register((&w as *const Wrapper).cast()) },
+        Err(1)
+    );
+    w.version = 3;
     assert_eq!(
         unsafe { reg.register((&w as *const Wrapper).cast()) },
         Err(801)

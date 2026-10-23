@@ -39,12 +39,17 @@ impl Default for Limits {
     }
 }
 pub struct Image {
-    pub bytes: Vec<u8>,
+    pub contents: crate::registration_images::OwnedImages,
     budget: Arc<AtomicUsize>,
 }
 impl Drop for Image {
     fn drop(&mut self) {
-        self.budget.fetch_sub(self.bytes.len(), SeqCst);
+        debug_assert_eq!(
+            self.contents.raw_bytes,
+            self.contents.primary.len()
+                + self.contents.prelinked.iter().map(Vec::len).sum::<usize>()
+        );
+        self.budget.fetch_sub(self.contents.raw_bytes, SeqCst);
     }
 }
 pub struct RegistrationData {
@@ -58,8 +63,11 @@ pub struct LaunchLease {
     pub(crate) symbol: Arc<Vec<u8>>,
 }
 impl LaunchLease {
-    pub fn image(&self) -> &[u8] {
-        &self.data.image.bytes
+    pub fn image(&self) -> Result<&[u8], i32> {
+        if self.data.image.contents.version != 1 {
+            return Err(801);
+        }
+        Ok(&self.data.image.contents.primary)
     }
     pub fn symbol(&self) -> &[u8] {
         &self.symbol
@@ -107,7 +115,7 @@ pub struct Registry {
     raw_bytes: Arc<AtomicUsize>,
 }
 
-fn reserve<T>(v: &mut Vec<T>, count: usize) -> Result<(), i32> {
+pub(crate) fn reserve<T>(v: &mut Vec<T>, count: usize) -> Result<(), i32> {
     #[cfg(test)]
     if FAIL_RESERVATION.get() {
         return Err(2);
@@ -158,39 +166,17 @@ impl Registry {
         }
     }
     pub unsafe fn register(&self, wrapper: *const c_void) -> Result<Token, i32> {
-        if wrapper.is_null() {
-            return Err(1);
-        }
-        let w = unsafe { wrapper.cast::<Wrapper>().read_unaligned() };
-        if w.magic != 0x466243b1 || w.data == 0 {
-            return Err(1);
-        }
-        if w.version != 1 || w.extra != 0 {
-            return Err(801);
-        }
-        let map = |e| match e {
-            ct_fatbin::Error::Invalid => 218,
-            ct_fatbin::Error::Unsupported => 801,
-            ct_fatbin::Error::Allocation => 2,
-        };
-        let header = unsafe { std::slice::from_raw_parts(w.data as *const u8, 16) };
-        let size = ct_fatbin::image_size(header).map_err(map)?;
         let mut inner = self.inner.lock().map_err(|_| 999)?;
-        if inner.live >= self.limits.live
-            || inner.records.len() >= self.limits.lifetime
-            || size
-                > self
-                    .limits
-                    .raw_bytes
-                    .saturating_sub(self.raw_bytes.load(SeqCst))
-        {
+        if inner.live >= self.limits.live || inner.records.len() >= self.limits.lifetime {
             return Err(801);
         }
+        let remaining = self
+            .limits
+            .raw_bytes
+            .saturating_sub(self.raw_bytes.load(SeqCst));
+        let contents = unsafe { crate::registration_images::copy_images(wrapper, remaining) }?;
+        let size = contents.raw_bytes;
         reserve(&mut inner.records, 1)?;
-        let mut bytes = Vec::new();
-        reserve(&mut bytes, size)?;
-        bytes.extend_from_slice(unsafe { std::slice::from_raw_parts(w.data as *const u8, size) });
-        ct_fatbin::extract_candidates(&bytes).map_err(map)?;
         let id = inner.records.len() as u64 + 1;
         let mut functions = Vec::new();
         reserve(&mut functions, self.limits.functions)?;
@@ -199,7 +185,7 @@ impl Registry {
         let data = Arc::new(RegistrationData {
             id,
             image: Image {
-                bytes,
+                contents,
                 budget: self.raw_bytes.clone(),
             },
             retired: AtomicBool::new(false),

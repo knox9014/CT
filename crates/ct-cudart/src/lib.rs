@@ -17,6 +17,9 @@ mod memory_tests;
 mod platform;
 mod registration;
 #[cfg(test)]
+mod registration_image_tests;
+mod registration_images;
+#[cfg(test)]
 mod registration_tests;
 mod state;
 use driver::DriverBridge;
@@ -272,8 +275,13 @@ pub unsafe extern "system" fn cudaLaunchKernel(
 ) -> i32 {
     boundary(|| {
         let kernel = kernel_runtime();
-        if let Err(code) = kernel.registry.lease(host as usize) {
-            return code;
+        match kernel.registry.lease(host as usize) {
+            Ok(lease) => {
+                if let Err(code) = lease.image() {
+                    return code;
+                }
+            }
+            Err(code) => return code,
         }
         let config = configuration::Config {
             grid,
