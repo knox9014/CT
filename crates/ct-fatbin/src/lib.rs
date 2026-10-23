@@ -93,6 +93,54 @@ pub fn image_size(header: &[u8]) -> Result<usize, Error> {
     Ok(size)
 }
 
+/// Outer-container facts only; neither instruction validation nor executability.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ContainerInfo {
+    pub record_count: u16,
+    pub ptx_records: u16,
+    pub machine_records: u16,
+}
+pub fn inspect_container(image: &[u8]) -> Result<ContainerInfo, Error> {
+    if image_size(image)? != image.len() {
+        return Err(Error::Invalid);
+    }
+    let mut info = ContainerInfo {
+        record_count: 0,
+        ptx_records: 0,
+        machine_records: 0,
+    };
+    let mut offset = 16usize;
+    while offset < image.len() {
+        if info.record_count == 256 {
+            return Err(Error::Unsupported);
+        }
+        let r = &image[offset..];
+        let kind = u16_at(r, 0)?;
+        if u16_at(r, 2)? != 0x101 {
+            return Err(Error::Unsupported);
+        }
+        let header = u32_at(r, 4)? as usize;
+        let payload = usize::try_from(u64_at(r, 8)?).map_err(|_| Error::Invalid)?;
+        if !(64..=4096).contains(&header)
+            || !header.is_multiple_of(8)
+            || payload == 0
+            || !payload.is_multiple_of(8)
+        {
+            return Err(Error::Invalid);
+        }
+        let extent = header.checked_add(payload).ok_or(Error::Invalid)?;
+        r.get(..extent).ok_or(Error::Invalid)?;
+        match kind {
+            1 => info.ptx_records += 1,
+            2 => info.machine_records += 1,
+            _ => return Err(Error::Unsupported),
+        }
+        info.record_count += 1;
+        offset = offset.checked_add(extent).ok_or(Error::Invalid)?;
+    }
+    Ok(info)
+}
+
 // Raw LZ4 block sequences: literal length, literals, LE offset, match length.
 // Length extensions and overlapping matches follow the LZ4 block format.
 // No unchecked input indexing or output growth beyond the declared/capped size.

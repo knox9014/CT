@@ -442,3 +442,62 @@ fn bounded_mutations_do_not_panic_and_record_count_is_limited() {
         assert!(extract_ptx(&image(&[r])).is_err());
     }
 }
+
+#[test]
+fn structural_inspection_is_not_executable_acceptance() {
+    use ct_fatbin::inspect_container;
+    let empty = image(&[]);
+    assert_eq!(inspect_container(&empty).unwrap().record_count, 0);
+    assert!(ct_fatbin::extract_candidates(&empty).is_err());
+    let machine = image(&vec![record(2, b"opaque"); 9]);
+    let info = inspect_container(&machine).unwrap();
+    assert_eq!(
+        (info.record_count, info.ptx_records, info.machine_records),
+        (9, 0, 9)
+    );
+    assert!(ct_fatbin::extract_candidates(&machine).is_err());
+    let ptx = image(&[nvcc_record(TEXT, false)]);
+    assert_eq!(inspect_container(&ptx).unwrap().ptx_records, 1);
+    assert_eq!(extract_ptx(&ptx).unwrap(), TEXT);
+}
+#[test]
+fn structural_limits_and_extents() {
+    use ct_fatbin::inspect_container;
+    let r = record(2, b"opaque");
+    assert_eq!(
+        inspect_container(&image(&vec![r.clone(); 256]))
+            .unwrap()
+            .record_count,
+        256
+    );
+    assert_eq!(
+        inspect_container(&image(&vec![r.clone(); 257])),
+        Err(Error::Unsupported)
+    );
+    for (offset, value, error) in [
+        (4, 63, Error::Invalid),
+        (4, 4104, Error::Invalid),
+        (8, 0, Error::Invalid),
+        (8, 7, Error::Invalid),
+        (8, u32::MAX, Error::Invalid),
+    ] {
+        let mut v = r.clone();
+        put32(&mut v, offset, value);
+        assert_eq!(inspect_container(&image(&[v])), Err(error));
+    }
+    let mut v = r.clone();
+    v[0] = 3;
+    assert_eq!(inspect_container(&image(&[v])), Err(Error::Unsupported));
+    let mut v = r.clone();
+    v[2] = 2;
+    assert_eq!(inspect_container(&image(&[v])), Err(Error::Unsupported));
+    let mut v = r.clone();
+    put64(&mut v, 8, u64::MAX - 7);
+    assert_eq!(inspect_container(&image(&[v])), Err(Error::Invalid));
+    let mut v = image(&[r]);
+    v.pop();
+    assert_eq!(inspect_container(&v), Err(Error::Invalid));
+    let mut v = image(&[]);
+    put64(&mut v, 8, MAX_IMAGE_SIZE as u64);
+    assert_eq!(inspect_container(&v), Err(Error::Unsupported));
+}
