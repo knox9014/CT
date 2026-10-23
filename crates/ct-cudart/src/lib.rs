@@ -314,3 +314,31 @@ pub unsafe extern "system" fn cudaLaunchKernel(
         }
     })
 }
+
+#[no_mangle]
+pub unsafe extern "system" fn __cudaRegisterVar(
+    token: *mut *mut c_void,
+    host: *mut c_char,
+    address: *mut c_char,
+    name: *const c_char,
+    external: i32,
+    size: usize,
+    constant: i32,
+    global: i32,
+) {
+    let registry = &kernel_runtime().registry;
+    let _ = callback_boundary(registry, Some(token as usize), || unsafe {
+        registry.variable(
+            token as usize,
+            host as usize,
+            address.cast(),
+            name.cast(),
+            registration_variables::VariableMetadata {
+                external,
+                size,
+                constant,
+                global,
+            },
+        )
+    });
+}

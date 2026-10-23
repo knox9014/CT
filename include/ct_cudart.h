@@ -31,6 +31,7 @@ void CT_RUNTIME_API __cudaRegisterFatBinaryEnd(void **);
 void CT_RUNTIME_API __cudaUnregisterFatBinary(void **);
 void CT_RUNTIME_API __cudaRegisterFunction(void **, const char *, char *, const char *, int,
                                          CT_uint3 *, CT_uint3 *, CT_dim3 *, CT_dim3 *, int *);
+void CT_RUNTIME_API __cudaRegisterVar(void **, char *, char *, const char *, int, size_t, int, int);
 unsigned CT_RUNTIME_API __cudaPushCallConfiguration(CT_dim3, CT_dim3, size_t, CT_cudaStream_t);
 int CT_RUNTIME_API __cudaPopCallConfiguration(CT_dim3 *, CT_dim3 *, size_t *, void *);
 int CT_RUNTIME_API cudaLaunchKernel(const void *, CT_dim3, CT_dim3, void **, size_t, CT_cudaStream_t);

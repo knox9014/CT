@@ -341,8 +341,6 @@ impl Registry {
         inner.mappings += 1;
         Ok(())
     }
-    // Internal until the independently verified ABI export is wired.
-    #[allow(dead_code)]
     pub unsafe fn variable(
         &self,
         token: Token,

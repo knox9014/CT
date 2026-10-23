@@ -21,3 +21,4 @@ __cudaRegisterFunction
 __cudaPushCallConfiguration
 __cudaPopCallConfiguration
 cudaLaunchKernel
+__cudaRegisterVar

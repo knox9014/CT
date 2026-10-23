@@ -376,3 +376,72 @@ fn exported_function_terminal_state_precedes_invalid_payload() {
         98
     );
 }
+
+#[test]
+fn exported_variable_callback_is_cpu_only_and_preserves_first_failure() {
+    use crate::*;
+    let b = crate::registration_tests::image();
+    let w = crate::registration_tests::wrapper(&b);
+    let t =
+        unsafe { __cudaRegisterFatBinary((&w as *const registration::Wrapper).cast_mut().cast()) };
+    let h = 0x65432112345678usize as *const c_char;
+    let n = c"value";
+    unsafe {
+        __cudaRegisterFunction(
+            t,
+            h,
+            n.as_ptr().cast_mut(),
+            n.as_ptr(),
+            -1,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        );
+    }
+    errors::record(21);
+    unsafe {
+        __cudaRegisterVar(
+            t,
+            999usize as *mut c_char,
+            n.as_ptr().cast_mut(),
+            n.as_ptr(),
+            0,
+            8,
+            0,
+            0,
+        );
+    }
+    assert_eq!(cudaGetLastError(), 21);
+    __cudaRegisterFatBinaryEnd(t);
+    let one = configuration::Dim3 { x: 1, y: 1, z: 1 };
+    assert_eq!(
+        unsafe {
+            cudaLaunchKernel(
+                h.cast(),
+                one,
+                one,
+                std::ptr::null_mut(),
+                0,
+                std::ptr::null_mut(),
+            )
+        },
+        801
+    );
+    __cudaUnregisterFatBinary(t);
+    cudaGetLastError();
+    unsafe {
+        __cudaRegisterVar(
+            t,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null(),
+            0,
+            0,
+            0,
+            0,
+        );
+    }
+    assert_eq!(cudaGetLastError(), 98);
+}

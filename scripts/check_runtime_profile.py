@@ -14,7 +14,7 @@ BASE_SIGNATURES = {
     'cudaGetErrorName':'const_char_ptr(i32)', 'cudaGetErrorString':'const_char_ptr(i32)',
     'cudaDriverGetVersion':'i32(out_i32)', 'cudaRuntimeGetVersion':'i32(out_i32)',
 }
-SIGNATURES = {**BASE_SIGNATURES,
+KERNEL_SIGNATURES = {**BASE_SIGNATURES,
     '__cudaRegisterFatBinary':'ptr_ptr(ptr)',
     '__cudaRegisterFatBinaryEnd':'void(ptr_ptr)',
     '__cudaUnregisterFatBinary':'void(ptr_ptr)',
@@ -23,6 +23,8 @@ SIGNATURES = {**BASE_SIGNATURES,
     '__cudaPopCallConfiguration':'i32(dim3_ptr,dim3_ptr,size_ptr,ptr)',
     'cudaLaunchKernel':'i32(const_ptr,dim3,dim3,ptr_ptr,size,stream)',
 }
+SIGNATURES = {**KERNEL_SIGNATURES,'__cudaRegisterVar':'void(ptr_ptr,char_ptr,char_ptr,const_char_ptr,i32,size,i32,i32)'}
+
 
 def validate(value):
     errors = []
@@ -52,17 +54,17 @@ def validate(value):
             target = REPO / file
             if not target.is_file() or test not in target.read_text(encoding='utf-8'):
                 errors.append('missing test reference')
-    if seen != set(SIGNATURES) or len(entries) != 21: errors.append('incomplete exports')
+    if seen != set(SIGNATURES) or len(entries) != 22: errors.append('incomplete exports')
     header = (REPO / 'include/ct_cudart.h').read_text()
     if set(re.findall(r'CT_RUNTIME_API ((?:__cuda|cuda)\w+)\(',header)) != set(SIGNATURES): errors.append('header drift')
     exports=(REPO/'tests/p09a_runtime.def').read_text().splitlines()[2:]
-    if len(exports)!=21 or set(exports)!=set(SIGNATURES):errors.append('import library drift')
+    if len(exports)!=22 or set(exports)!=set(SIGNATURES):errors.append('import library drift')
     return errors
 
 def main():
     errors = validate(json.loads((REPO / PROFILE).read_text()))
     for error in errors: print(error)
-    if not errors: print('Runtime profile: 21 bounded declarations checked; execution unproven')
+    if not errors: print('Runtime profile: 22 bounded declarations checked; execution unproven')
     return bool(errors)
 
 if __name__ == '__main__': raise SystemExit(main())
