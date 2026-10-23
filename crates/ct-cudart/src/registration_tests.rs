@@ -187,6 +187,7 @@ fn budgets_and_fallible_reservations() {
         mappings: 1,
         names: 4,
         raw_bytes: 4096,
+        ..Limits::default()
     };
     let reg = Registry::with_limits(limits);
     let b = image();

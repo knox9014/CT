@@ -25,6 +25,8 @@ pub struct Limits {
     pub mappings: usize,
     pub names: usize,
     pub raw_bytes: usize,
+    pub variables: usize,
+    pub variable_mappings: usize,
 }
 impl Default for Limits {
     fn default() -> Self {
@@ -35,6 +37,8 @@ impl Default for Limits {
             mappings: 4096,
             names: 1024,
             raw_bytes: 64 * 1024 * 1024,
+            variables: 256,
+            variable_mappings: 2048,
         }
     }
 }
@@ -61,10 +65,11 @@ pub struct RegistrationData {
 pub struct LaunchLease {
     pub data: Arc<RegistrationData>,
     pub(crate) symbol: Arc<Vec<u8>>,
+    has_variables: bool,
 }
 impl LaunchLease {
     pub fn image(&self) -> Result<&[u8], i32> {
-        if self.data.image.contents.version != 1 {
+        if self.data.image.contents.version != 1 || self.has_variables {
             return Err(801);
         }
         Ok(&self.data.image.contents.primary)
@@ -98,6 +103,7 @@ struct Record {
     state: Status,
     data: Option<Arc<RegistrationData>>,
     functions: Vec<Mapping>,
+    variables: Vec<crate::registration_variables::Variable>,
 }
 impl Record {
     fn identity(&self) -> Token {
@@ -108,6 +114,7 @@ struct Inner {
     records: Vec<Record>,
     live: usize,
     mappings: usize,
+    variable_mappings: usize,
 }
 pub struct Registry {
     inner: Mutex<Inner>,
@@ -160,6 +167,7 @@ impl Registry {
                 records: Vec::new(),
                 live: 0,
                 mappings: 0,
+                variable_mappings: 0,
             }),
             limits,
             raw_bytes: Arc::new(AtomicUsize::new(0)),
@@ -197,6 +205,7 @@ impl Registry {
             state: Status::Building,
             data: Some(data),
             functions,
+            variables: Vec::new(),
         });
         inner.live += 1;
         Ok(identity)
@@ -332,6 +341,71 @@ impl Registry {
         inner.mappings += 1;
         Ok(())
     }
+    // Internal until the independently verified ABI export is wired.
+    #[allow(dead_code)]
+    pub unsafe fn variable(
+        &self,
+        token: Token,
+        host: usize,
+        address: *const u8,
+        name: *const u8,
+        metadata: crate::registration_variables::VariableMetadata,
+    ) -> Result<(), i32> {
+        self.function_state(token)?;
+        let variable = match unsafe {
+            crate::registration_variables::prepare(host, address, name, metadata, self.limits.names)
+        } {
+            Ok(v) => v,
+            Err(code) => return Err(self.fail_mapping(token, 0, code)),
+        };
+        #[cfg(test)]
+        crate::registration_variables::PREPARE_BARRIER.with(|v| {
+            if let Some((a, b)) = v.borrow_mut().take() {
+                a.wait();
+                b.wait();
+            }
+        });
+        let mut inner = self.inner.lock().map_err(|_| 999)?;
+        let index = inner
+            .records
+            .iter()
+            .position(|r| r.identity() == token)
+            .ok_or(98)?;
+        match inner.records[index].state {
+            Status::Building => {}
+            Status::Failed(c) => return Err(c),
+            Status::Retired => return Err(98),
+            Status::Ready => {
+                inner.records[index].state = Status::Failed(1);
+                return Err(1);
+            }
+        }
+        let r = &mut inner.records[index];
+        if let Some(old) = r.variables.iter().find(|v| v.host == host) {
+            if old.address == variable.address
+                && old.name == variable.name
+                && old.metadata == variable.metadata
+            {
+                return Ok(());
+            }
+            r.state = Status::Failed(1);
+            return Err(1);
+        }
+        if r.variables.len() >= self.limits.variables
+            || inner.variable_mappings >= self.limits.variable_mappings
+        {
+            inner.records[index].state = Status::Failed(801);
+            return Err(801);
+        }
+        let r = &mut inner.records[index];
+        if let Err(c) = reserve(&mut r.variables, 1) {
+            r.state = Status::Failed(c);
+            return Err(c);
+        }
+        r.variables.push(variable);
+        inner.variable_mappings += 1;
+        Ok(())
+    }
     pub fn end(&self, token: Token) -> Result<(), i32> {
         let mut inner = self.inner.lock().map_err(|_| 999)?;
         let r = inner
@@ -365,6 +439,9 @@ impl Registry {
         }
         let count = r.functions.len();
         r.functions = Vec::new();
+        let variable_count = r.variables.len();
+        r.variables = Vec::new();
+        inner.variable_mappings -= variable_count;
         inner.live -= 1;
         inner.mappings -= count;
         Ok(())
@@ -397,6 +474,7 @@ impl Registry {
         Ok(LaunchLease {
             data,
             symbol: m.symbol.clone(),
+            has_variables: !r.variables.is_empty(),
         })
     }
 }

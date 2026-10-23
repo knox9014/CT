@@ -347,3 +347,60 @@ fn uncertain_load_failure_retains_capacity_after_retirement() {
     assert_eq!(unsafe { launch(&k, &rt) }, 801);
     assert_eq!(f.0.loads.load(SeqCst), 1);
 }
+
+#[test]
+fn variable_and_prelinked_modules_never_enter_driver() {
+    let k = KernelRuntime::new();
+    ready(&k);
+    let b = image();
+    let t = unsafe { register(&k.registry, &b) };
+    unsafe {
+        k.registry
+            .function(t, 901, c"blocked".as_ptr().cast(), metadata())
+    }
+    .unwrap();
+    unsafe {
+        k.registry.variable(
+            t,
+            900,
+            c"value".as_ptr().cast(),
+            c"value".as_ptr().cast(),
+            crate::registration_variables::VariableMetadata {
+                external: 0,
+                size: 8,
+                constant: 0,
+                global: 0,
+            },
+        )
+    }
+    .unwrap();
+    k.registry.end(t).unwrap();
+    let list = [b.as_ptr(), std::ptr::null()];
+    let mut w = crate::registration_tests::wrapper(&b);
+    w.version = 2;
+    w.extra = list.as_ptr() as usize;
+    let u = unsafe {
+        k.registry
+            .register((&w as *const crate::registration::Wrapper).cast())
+    }
+    .unwrap();
+    unsafe {
+        k.registry
+            .function(u, 902, c"blocked_v2".as_ptr().cast(), metadata())
+    }
+    .unwrap();
+    k.registry.end(u).unwrap();
+    let f = Fake::default();
+    f.0.current_error.store(999, SeqCst);
+    let rt = Runtime::new(f.clone());
+    for host in [901, 902] {
+        assert_eq!(
+            unsafe { k.launch(&rt, host, config(), std::ptr::null_mut()) },
+            801
+        );
+    }
+    assert_eq!((f.0.loads.load(SeqCst), f.0.launches.load(SeqCst)), (0, 0));
+    f.0.current_error.store(0, SeqCst);
+    assert_eq!(unsafe { launch(&k, &rt) }, 0);
+    assert_eq!(f.0.loads.load(SeqCst), 1);
+}

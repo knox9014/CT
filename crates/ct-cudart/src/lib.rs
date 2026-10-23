@@ -21,6 +21,9 @@ mod registration_image_tests;
 mod registration_images;
 #[cfg(test)]
 mod registration_tests;
+#[cfg(test)]
+mod registration_variable_tests;
+mod registration_variables;
 mod state;
 use driver::DriverBridge;
 use state::Runtime;
