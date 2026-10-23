@@ -1,8 +1,9 @@
 # P09a2-C: default device-runtime registrations
 
-Status: proposed detailed C design for review. The user approved the basic-then-default
-sequence and asked to continue. A/B results are in [P09a2 results](../../P09a2-RESULTS.md).
-This document does not claim C implementation, a22-export DLL, or default-build execution.
+Status: the user approved this C design/plan with "가보자" on2026-10-23.
+C is implemented; whole-C review fixes passed development/native replay checks.
+The fixed candidate passed44 clean required gates and independent artifact audit; see [C results](../../P09a2C-RESULTS.md).
+A/B historical results remain in [P09a2 results](../../P09a2-RESULTS.md).
 Implementation stays main-agent inline with independent review, as previously selected.
 
 ## 1. Intent and exact producer scope
@@ -198,9 +199,8 @@ implementation.
 
 Independent read-only builder check on2026-10-23 found no important unanswered
 planning question. The conservative module-level launch rule, flat dependency
-list, bounds, variable ABI subset and existing41 preservation are explicit author
-choices within the previously requested default-link stage, not separately
-user-approved implementation details. Self-review moved Result-returning lease
+list, bounds, variable ABI subset and existing41 preservation were author choices within the requested default-link stage and were included
+in the subsequently approved detailed design. Self-review moved Result-returning lease
 eligibility into the image-ownership task so version2 can never enter the native
 path in an intermediate committed task. Fresh producer/ABI/native outcomes may
-require revisiting the design; no implementation or passing C result is inferred.
+require revisiting the design; only actual acceptance evidence establishes a passing C result.

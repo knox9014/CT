@@ -1,5 +1,8 @@
 # P09a2: genuine nvcc Runtime kernel connection
 
+This records the historical A/B candidate. Later shared-cudart default
+device-runtime support is recorded in [C results](P09a2C-RESULTS.md).
+
 Verified 2026-10-22 on Windows x64 / Intel Arc B390.
 Native-tested code candidate: `bf36cff10a7b66221d339bf49de9f61c5209e9b6`.
 Execution-scope SHA-256:
