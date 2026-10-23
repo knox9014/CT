@@ -17,7 +17,7 @@ from run_validation import source_fingerprint
 MODES=('single','repeat','ordinary','two_contexts','parallel','multi_module','control','used_global','noop')
 INPUTS=['tests/fixtures/p09a2/'+s for s in ('kernel_oracle.cu','module_a.cu','module_b.cu')]+[
     'include/ct_cuda.h','tests/p09a_noop_driver.c','tests/p09a_driver_control.def',
-    'scripts/run_p09a2c_smoke.ps1','tests/p09a2c_default_check.py','tests/p09a2c_default_control.cpp','include/ct_cudart.h','tests/p09a2c_counting_driver.c','tests/fixtures/p09a2/default_used_global.cu','scripts/prepare_nvcc_default.py']
+    'scripts/run_p09a2c_smoke.ps1','tests/p09a2c_default_check.py','tests/p09a2c_default_control.cpp','include/ct_cudart.h','tests/p09a2c_counting_driver.c','tests/fixtures/p09a2/default_used_global.cu','scripts/prepare_nvcc_default.py','tests/p09a2_kernel_check.py']
 ROLES={'application':'host.exe','driver':'ct_cuda.dll','runtime':'ct_cudart.dll','noop':'noop.dll','control':'control.exe','image':'kernel_oracle.fatbin','counting':'counting.dll','negative':'negative.exe'}
 BOUNDARY_ERRORS=[9,9,801,1,98]
 

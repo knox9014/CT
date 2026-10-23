@@ -34,14 +34,14 @@ class RunnerTests(unittest.TestCase):
         for name in ('cpu.runtime_fmt','cpu.runtime_clippy','cpu.runtime_rust'):
             self.assertIn('crates/ct-cudart/Cargo.toml',cases[name])
         self.assertIn('--locked',cases['cpu.runtime_rust'])
-        self.assertEqual(len(allsteps),41)
-        for name in ('producer.nvcc_fatbin','arc.runtime_kernel_abi','arc.runtime_kernel'):
+        self.assertEqual(len(allsteps),44)
+        for name in ('producer.nvcc_fatbin','arc.runtime_kernel_abi','arc.runtime_kernel','producer.default_device_runtime','arc.runtime_default_abi','arc.runtime_default'):
             self.assertIn(name,cases)
 
     def test_kernel_child_success_without_bound_artifacts_is_rejected(self):
         with tempfile.TemporaryDirectory(dir=ROOT/'.cache') as name:
             directory=Path(name)
-            for case,label in [('arc.runtime_kernel_abi','kernel-abi'),('arc.runtime_kernel','kernel-native')]:
+            for case,label in [('arc.runtime_kernel_abi','kernel-abi'),('arc.runtime_kernel','kernel-native'),('arc.runtime_default_abi','default-abi'),('arc.runtime_default','default-native')]:
                 (directory/('runtime-'+label+'-manifest.json')).write_text('{"status":"pass"}')
                 self.assertTrue(runtime_evidence(directory,ROOT,case))
 
@@ -50,7 +50,7 @@ class RunnerTests(unittest.TestCase):
         self.assertTrue(hasattr(runner,'clear_runtime_evidence'))
         with tempfile.TemporaryDirectory(dir=ROOT/'.cache') as name:
             root=Path(name);(root/'.cache').mkdir()
-            for case,pointer in [('arc.runtime_kernel_abi','p09a2-abi-latest.json'),('arc.runtime_kernel','p09a2-kernel-latest.json')]:
+            for case,pointer in [('arc.runtime_kernel_abi','p09a2-abi-latest.json'),('arc.runtime_kernel','p09a2-kernel-latest.json'),('arc.runtime_default_abi','p09a2c-abi-latest.json'),('arc.runtime_default','p09a2c-default-latest.json')]:
                 p=root/'.cache'/pointer;p.write_text('{"status":"pass"}')
                 runner.clear_runtime_evidence(root,case);self.assertFalse(p.exists())
     def test_combined_ignored_decoder_test_uses_configured_inputs(self):
@@ -64,7 +64,9 @@ class RunnerTests(unittest.TestCase):
         import run_validation as runner
         for case,module,function,cache_name in [
             ('arc.runtime_kernel_abi','runtime_kernel_abi_evidence','audit','p09a2-build'),
-            ('arc.runtime_kernel','p09a2_kernel_check','audit_manifest','p09a2-kernel')]:
+            ('arc.runtime_kernel','p09a2_kernel_check','audit_manifest','p09a2-kernel'),
+            ('arc.runtime_default_abi','runtime_default_abi_evidence','audit','p09a2c-build'),
+            ('arc.runtime_default','p09a2c_default_check','audit_manifest','p09a2c-kernel')]:
             with self.subTest(case=case),tempfile.TemporaryDirectory(dir=ROOT/'.cache') as name:
                 root=Path(name);report=root/'report';report.mkdir();artifact=root/'.cache'/cache_name/'probe.json'
                 artifact.parent.mkdir(parents=True);artifact.write_text('{"status":"pass"}')
@@ -73,6 +75,16 @@ class RunnerTests(unittest.TestCase):
                 with patch(module+'.'+function,return_value=['independent failure']) as audit:
                     self.assertEqual(runtime_evidence(report,root,case,capture=True),['independent failure'])
                     audit.assert_called_once_with(report/('runtime-'+runner.RUNTIME_EVIDENCE[case][2]+'-manifest.json'),root,execute=True)
+
+    def test_default_producer_snapshot_rejects_new_child_claim(self):
+        from run_validation import default_producer_evidence
+        with tempfile.TemporaryDirectory(dir=ROOT/'.cache') as name:
+            root=Path(name);report=root/'report';report.mkdir();origin=root/'.cache/p09a2c-producer/manifest.json'
+            origin.parent.mkdir(parents=True);origin.write_text('{"scope":"original"}')
+            with patch('prepare_nvcc_default.audit_default_producer',return_value=[]):
+                self.assertEqual(default_producer_evidence(report,root,capture=True),[])
+                origin.write_text('{"status":"pass"}')
+                self.assertEqual(default_producer_evidence(report,root),['default producer evidence changed'])
 
     def test_producer_snapshot_cannot_be_replaced_by_new_child_claim(self):
         from run_validation import producer_evidence

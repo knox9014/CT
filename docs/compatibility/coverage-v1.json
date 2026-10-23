@@ -1157,13 +1157,16 @@
         "semantic": [
           "scripts/run_validation.py#cpu.runtime_rust",
           "scripts/run_validation.py#cpu.runtime_profile",
-          "scripts/run_validation.py#producer.nvcc_fatbin"
+          "scripts/run_validation.py#producer.nvcc_fatbin",
+          "scripts/run_validation.py#producer.default_device_runtime"
         ],
         "abi": [
-          "scripts/run_validation.py#arc.runtime_kernel_abi"
+          "scripts/run_validation.py#arc.runtime_kernel_abi",
+          "scripts/run_validation.py#arc.runtime_default_abi"
         ],
         "native": [
-          "scripts/run_validation.py#arc.runtime_kernel"
+          "scripts/run_validation.py#arc.runtime_kernel",
+          "scripts/run_validation.py#arc.runtime_default"
         ]
       }
     },
@@ -1683,13 +1686,16 @@
         "semantic": [
           "scripts/run_validation.py#cpu.runtime_rust",
           "scripts/run_validation.py#cpu.runtime_profile",
-          "scripts/run_validation.py#producer.nvcc_fatbin"
+          "scripts/run_validation.py#producer.nvcc_fatbin",
+          "scripts/run_validation.py#producer.default_device_runtime"
         ],
         "abi": [
-          "scripts/run_validation.py#arc.runtime_kernel_abi"
+          "scripts/run_validation.py#arc.runtime_kernel_abi",
+          "scripts/run_validation.py#arc.runtime_default_abi"
         ],
         "native": [
-          "scripts/run_validation.py#arc.runtime_kernel"
+          "scripts/run_validation.py#arc.runtime_kernel",
+          "scripts/run_validation.py#arc.runtime_default"
         ]
       }
     }
@@ -2165,6 +2171,18 @@
     },
     {
       "id": "scripts/run_validation.py#arc.runtime_kernel",
+      "kind": "native"
+    },
+    {
+      "id": "scripts/run_validation.py#producer.default_device_runtime",
+      "kind": "semantic"
+    },
+    {
+      "id": "scripts/run_validation.py#arc.runtime_default_abi",
+      "kind": "abi"
+    },
+    {
+      "id": "scripts/run_validation.py#arc.runtime_default",
       "kind": "native"
     }
   ]
