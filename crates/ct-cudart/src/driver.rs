@@ -23,6 +23,7 @@ pub struct DriverBridge {
     pub(crate) _owned: crate::platform::windows::Owned,
     table: [usize; 15],
     pub(crate) kernel: std::sync::OnceLock<Result<[usize; 5], i32>>,
+    pub(crate) global: std::sync::OnceLock<Result<usize, i32>>,
 }
 impl DriverBridge {
     pub fn open() -> Result<Self, i32> {
@@ -34,6 +35,7 @@ impl DriverBridge {
                 _owned: owned,
                 table,
                 kernel: std::sync::OnceLock::new(),
+                global: std::sync::OnceLock::new(),
             })
         }
         #[cfg(not(windows))]

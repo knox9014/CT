@@ -7,6 +7,8 @@ pub type Function = usize;
 pub trait KernelDriver: DriverCalls {
     /// Runtime-domain preparation error; preserve loader35 without Driver mapping.
     fn prepare_kernel(&self) -> Result<(), i32>;
+    fn prepare_globals(&self) -> Result<(), i32>;
+    fn global(&self, module: Module, symbol: &[u8]) -> DriverResult<(u64, usize)>;
     fn attribute(&self, attribute: i32, device: i32) -> DriverResult<i32>;
     fn load(&self, image: &[u8]) -> DriverResult<Module>;
     fn function(&self, module: Module, symbol: &[u8]) -> DriverResult<Function>;
@@ -14,6 +16,22 @@ pub trait KernelDriver: DriverCalls {
     unsafe fn launch(&self, function: Function, config: Config, args: *mut *mut c_void) -> i32;
 }
 impl DriverBridge {
+    fn global_function(&self) -> Result<usize, i32> {
+        crate::cached(&self.global, || {
+            #[cfg(windows)]
+            {
+                crate::platform::resolve_global(
+                    &crate::platform::windows::WinPlatform,
+                    &self._owned,
+                )
+            }
+            #[cfg(not(windows))]
+            {
+                Err(35)
+            }
+        })
+        .copied()
+    }
     fn kernel_table(&self) -> Result<&[usize; 5], i32> {
         crate::cached(&self.kernel, || {
             #[cfg(windows)]
@@ -47,6 +65,24 @@ fn output(code: i32, value: usize) -> DriverResult<usize> {
     }
 }
 impl KernelDriver for DriverBridge {
+    fn prepare_globals(&self) -> Result<(), i32> {
+        self.global_function().map(|_| ())
+    }
+    fn global(&self, module: Module, symbol: &[u8]) -> DriverResult<(u64, usize)> {
+        if symbol.last() != Some(&0) {
+            return Err(1);
+        }
+        let address = self.global_function().map_err(|_| 999)?;
+        let function: unsafe extern "system" fn(*mut u64, *mut usize, usize, *const u8) -> i32 =
+            unsafe { std::mem::transmute(address) };
+        let (mut pointer, mut size) = (0, 0);
+        let code = unsafe { function(&mut pointer, &mut size, module, symbol.as_ptr()) };
+        if code != 0 {
+            Err(code)
+        } else {
+            Ok((pointer, size))
+        }
+    }
     fn prepare_kernel(&self) -> Result<(), i32> {
         self.kernel_table().map(|_| ())
     }

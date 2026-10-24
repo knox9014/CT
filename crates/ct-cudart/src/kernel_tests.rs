@@ -22,6 +22,11 @@ struct Inner {
     prepare_error: AtomicI32,
     current_error: AtomicI32,
     bad_cap: AtomicI32,
+    global_error: AtomicI32,
+    global_prepare_error: AtomicI32,
+    global_size: Mutex<Option<usize>>,
+    global_names: Mutex<Vec<Vec<u8>>>,
+    global_barrier: Mutex<Option<(Arc<Barrier>, Arc<Barrier>)>>,
     barrier: Mutex<Option<(Arc<Barrier>, Arc<Barrier>)>>,
 }
 #[derive(Clone, Default)]
@@ -91,6 +96,24 @@ impl DriverCalls for Fake {
     }
 }
 impl KernelDriver for Fake {
+    fn prepare_globals(&self) -> Result<(), i32> {
+        match self.0.global_prepare_error.load(SeqCst) {
+            0 => Ok(()),
+            c => Err(c),
+        }
+    }
+    fn global(&self, _: Module, symbol: &[u8]) -> DriverResult<(u64, usize)> {
+        self.0.global_names.lock().unwrap().push(symbol.to_vec());
+        let barrier = self.0.global_barrier.lock().unwrap().clone();
+        if let Some((a, b)) = barrier {
+            a.wait();
+            b.wait();
+        }
+        match self.0.global_error.load(SeqCst) {
+            0 => Ok((4096, self.0.global_size.lock().unwrap().unwrap_or(4))),
+            c => Err(c),
+        }
+    }
     fn prepare_kernel(&self) -> Result<(), i32> {
         let c = self.0.prepare_error.load(SeqCst);
         if c == 0 {
@@ -403,4 +426,101 @@ fn variable_and_prelinked_modules_never_enter_driver() {
     f.0.current_error.store(0, SeqCst);
     assert_eq!(unsafe { launch(&k, &rt) }, 0);
     assert_eq!(f.0.loads.load(SeqCst), 1);
+}
+
+fn ready_globals(k: &KernelRuntime) -> usize {
+    let t = unsafe { register(&k.registry, &image()) };
+    unsafe {
+        k.registry
+            .function(t, 11, c"one".as_ptr().cast(), metadata())
+            .unwrap();
+        k.registry
+            .variable(
+                t,
+                91,
+                c"value".as_ptr().cast(),
+                c"value".as_ptr().cast(),
+                crate::registration_variables::VariableMetadata {
+                    external: 0,
+                    size: 4,
+                    constant: 0,
+                    global: 0,
+                },
+            )
+            .unwrap();
+    }
+    k.registry.end(t).unwrap();
+    t
+}
+#[test]
+fn global_validation_failure_keeps_module_owned() {
+    for (error, size) in [(500, 4), (801, 4), (0, 8)] {
+        let k = KernelRuntime::new();
+        let token = ready_globals(&k);
+        let f = Fake::default();
+        let rt = Runtime::new(f.clone());
+        f.0.global_error.store(error, SeqCst);
+        *f.0.global_size.lock().unwrap() = Some(size);
+        assert_eq!(unsafe { launch(&k, &rt) }, 801);
+        f.0.global_error.store(0, SeqCst);
+        *f.0.global_size.lock().unwrap() = Some(4);
+        assert_eq!(unsafe { launch(&k, &rt) }, 801);
+        assert_eq!(f.0.loads.load(SeqCst), 1);
+        assert_eq!(f.0.lookups.load(SeqCst), 0);
+        assert_eq!(f.0.global_names.lock().unwrap().len(), 1);
+        k.registry.retire(token).unwrap();
+        k.drain(&f, 77).unwrap();
+        assert_eq!(f.0.unloads.load(SeqCst), 1);
+    }
+}
+#[test]
+fn unregister_during_global_validation_owns_late_handle() {
+    let k = Arc::new(KernelRuntime::new());
+    let t = ready_globals(&k);
+    let f = Fake::default();
+    let rt = Arc::new(Runtime::new(f.clone()));
+    let a = Arc::new(Barrier::new(2));
+    let b = Arc::new(Barrier::new(2));
+    *f.0.global_barrier.lock().unwrap() = Some((a.clone(), b.clone()));
+    let (kk, rr) = (k.clone(), rt.clone());
+    let worker = std::thread::spawn(move || unsafe { launch(&kk, &rr) });
+    a.wait();
+    k.registry.retire(t).unwrap();
+    k.drain(&f, 77).unwrap();
+    assert_eq!(f.0.unloads.load(SeqCst), 0);
+    b.wait();
+    assert_eq!(worker.join().unwrap(), 0);
+    k.drain(&f, 77).unwrap();
+    assert_eq!(f.0.unloads.load(SeqCst), 1);
+}
+#[test]
+fn missing_global_extension_does_not_poison_old_paths() {
+    let k = KernelRuntime::new();
+    ready_globals(&k);
+    let f = Fake::default();
+    let rt = Runtime::new(f.clone());
+    f.0.global_prepare_error.store(35, SeqCst);
+    assert_eq!(unsafe { launch(&k, &rt) }, 35);
+    assert_eq!(f.0.loads.load(SeqCst), 0);
+    assert_eq!(f.allocate(4), Ok(4096));
+    let old = KernelRuntime::new();
+    ready(&old);
+    assert_eq!(unsafe { launch(&old, &rt) }, 0);
+    assert!(f.0.global_names.lock().unwrap().is_empty());
+}
+#[test]
+fn global_bindings_validate_once_per_context() {
+    let k = KernelRuntime::new();
+    ready_globals(&k);
+    let f = Fake::default();
+    let rt = Runtime::new(f.clone());
+    for context in [77, 77, 88, 88] {
+        f.set_current(context);
+        assert_eq!(unsafe { launch(&k, &rt) }, 0);
+    }
+    assert_eq!(
+        f.0.global_names.lock().unwrap().as_slice(),
+        [b"value\0".to_vec(), b"value\0".to_vec()]
+    );
+    assert_eq!(f.0.loads.load(SeqCst), 2);
 }

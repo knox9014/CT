@@ -125,3 +125,26 @@ fn variable_blocks_only_its_registration() {
     assert_eq!(r.lease(11).unwrap().image().err(), Some(801));
     assert!(r.lease(12).unwrap().image().is_ok());
 }
+
+#[test]
+fn u32_bindings_live_through_unregister() {
+    let r = Registry::with_limits(Limits {
+        variable_mappings: 1,
+        ..Limits::default()
+    });
+    let t = unsafe { register(&r, &image()) };
+    unsafe { r.function(t, 11, c"kernel".as_ptr().cast(), metadata()) }.unwrap();
+    unsafe { add(&r, t, 91, VariableMetadata { size: 4, ..m() }) }.unwrap();
+    r.end(t).unwrap();
+    r.end(t).unwrap();
+    let lease = r.lease(11).unwrap();
+    assert!(lease.image().is_ok());
+    assert_eq!(lease.variables()[0].name, b"value\0");
+    r.retire(t).unwrap();
+    r.retire(t).unwrap();
+    assert_eq!(lease.variables()[0].metadata.size, 4);
+    assert!(lease.retired());
+    assert!(lease.image().is_ok());
+    let next = unsafe { register(&r, &image()) };
+    unsafe { add(&r, next, 92, VariableMetadata { size: 4, ..m() }) }.unwrap();
+}

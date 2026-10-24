@@ -131,6 +131,9 @@ impl KernelRuntime {
             .ensure_current()
             .map_err(crate::errors::from_driver)?;
         runtime.driver.prepare_kernel()?;
+        if !lease.variables().is_empty() {
+            runtime.driver.prepare_globals()?;
+        }
         let device = runtime
             .driver
             .context_device()
@@ -172,7 +175,26 @@ impl KernelRuntime {
             state.reserved = true;
             match runtime.driver.load(image) {
                 Ok(module) => {
+                    // Own the native handle before any binding lookup can fail or block.
                     state.module = Some(module);
+                    for variable in lease.variables() {
+                        let binding = runtime.driver.global(module, &variable.name);
+                        let failure = match binding {
+                            Ok((pointer, size))
+                                if pointer != 0
+                                    && pointer.is_multiple_of(4)
+                                    && size == variable.metadata.size =>
+                            {
+                                None
+                            }
+                            Ok(_) | Err(500 | 801) => Some(801),
+                            Err(code) => Some(crate::errors::from_driver(code)),
+                        };
+                        if let Some(code) = failure {
+                            state.phase = Phase::Failed(code);
+                            return Err(code);
+                        }
+                    }
                     state.phase = if lease.retired() {
                         Phase::Retired
                     } else {

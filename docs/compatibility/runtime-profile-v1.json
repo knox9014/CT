@@ -208,7 +208,7 @@
     {
       "symbol": "__cudaRegisterVar",
       "signature_id": "void(ptr_ptr,char_ptr,char_ptr,const_char_ptr,i32,size,i32,i32)",
-      "behavior": "Owned bounded CPU variable metadata; containing module launch returns801 before Driver use. No device storage/global linking.",
+      "behavior": "Owned bounded CPU metadata frozen at End; version1 flags0 size4 bindings verified through the same pinned Driver before launch. Other sizes/version2 remain801; no symbol-copy APIs.",
       "test_ids": [
         "crates/ct-cudart/src/tests.rs#exported_variable_callback_is_cpu_only_and_preserves_first_failure",
         "tests/runtime_default_reference_abi.cpp#main",

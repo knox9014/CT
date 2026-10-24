@@ -29,6 +29,9 @@ pub fn resolve_kernel<P: Platform>(platform: &P, owned: &P::Owned) -> Result<[us
     }
     Ok(table)
 }
+pub fn resolve_global<P: Platform>(platform: &P, owned: &P::Owned) -> Result<usize, i32> {
+    platform.resolve(owned, b"cuModuleGetGlobal_v2\0")
+}
 pub trait Platform {
     type Owned;
     fn load_owned(&self) -> Result<Self::Owned, i32>;

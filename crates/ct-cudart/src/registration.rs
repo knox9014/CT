@@ -1,7 +1,7 @@
 //! CPU-only compiler registration. No platform/Driver imports or native cleanup.
 use std::ffi::c_void;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering::SeqCst};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 
 pub type Token = usize;
 pub type RegistrationId = u64;
@@ -61,18 +61,29 @@ pub struct RegistrationData {
     pub image: Image,
     pub retired: AtomicBool,
     pub active: AtomicUsize,
+    pub variables: OnceLock<Vec<crate::registration_variables::Variable>>,
 }
 pub struct LaunchLease {
     pub data: Arc<RegistrationData>,
     pub(crate) symbol: Arc<Vec<u8>>,
-    has_variables: bool,
 }
 impl LaunchLease {
     pub fn image(&self) -> Result<&[u8], i32> {
-        if self.data.image.contents.version != 1 || self.has_variables {
+        let variables = self.data.variables.get().ok_or(98)?;
+        if self.data.image.contents.version != 1
+            || variables.iter().any(|v| {
+                v.metadata.size != 4
+                    || v.metadata.external != 0
+                    || v.metadata.constant != 0
+                    || v.metadata.global != 0
+            })
+        {
             return Err(801);
         }
         Ok(&self.data.image.contents.primary)
+    }
+    pub fn variables(&self) -> &[crate::registration_variables::Variable] {
+        self.data.variables.get().map(Vec::as_slice).unwrap_or(&[])
     }
     pub fn symbol(&self) -> &[u8] {
         &self.symbol
@@ -104,6 +115,7 @@ struct Record {
     data: Option<Arc<RegistrationData>>,
     functions: Vec<Mapping>,
     variables: Vec<crate::registration_variables::Variable>,
+    variable_count: usize,
 }
 impl Record {
     fn identity(&self) -> Token {
@@ -198,6 +210,7 @@ impl Registry {
             },
             retired: AtomicBool::new(false),
             active: AtomicUsize::new(0),
+            variables: OnceLock::new(),
         });
         self.raw_bytes.fetch_add(size, SeqCst);
         inner.records.push(Record {
@@ -206,6 +219,7 @@ impl Registry {
             data: Some(data),
             functions,
             variables: Vec::new(),
+            variable_count: 0,
         });
         inner.live += 1;
         Ok(identity)
@@ -401,6 +415,7 @@ impl Registry {
             return Err(c);
         }
         r.variables.push(variable);
+        r.variable_count += 1;
         inner.variable_mappings += 1;
         Ok(())
     }
@@ -413,6 +428,15 @@ impl Registry {
             .ok_or(98)?;
         match r.state {
             Status::Building => {
+                let data = r.data.as_ref().ok_or(98)?;
+                if data
+                    .variables
+                    .set(std::mem::take(&mut r.variables))
+                    .is_err()
+                {
+                    r.state = Status::Failed(999);
+                    return Err(999);
+                }
                 r.state = Status::Ready;
                 Ok(())
             }
@@ -437,7 +461,8 @@ impl Registry {
         }
         let count = r.functions.len();
         r.functions = Vec::new();
-        let variable_count = r.variables.len();
+        let variable_count = r.variable_count;
+        r.variable_count = 0;
         r.variables = Vec::new();
         inner.variable_mappings -= variable_count;
         inner.live -= 1;
@@ -472,7 +497,6 @@ impl Registry {
         Ok(LaunchLease {
             data,
             symbol: m.symbol.clone(),
-            has_variables: !r.variables.is_empty(),
         })
     }
 }

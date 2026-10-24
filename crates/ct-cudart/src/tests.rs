@@ -445,3 +445,31 @@ fn exported_variable_callback_is_cpu_only_and_preserves_first_failure() {
     }
     assert_eq!(cudaGetLastError(), 98);
 }
+
+#[test]
+fn global_extension_is_separate_and_uses_the_owned_driver() {
+    use crate::platform::*;
+    struct Fake;
+    impl Platform for Fake {
+        type Owned = usize;
+        fn load_owned(&self) -> Result<usize, i32> {
+            panic!("optional extension must not load another DLL")
+        }
+        fn check_identity(&self, _: &usize) -> Result<(), i32> {
+            Ok(())
+        }
+        fn resolve(&self, owned: &usize, name: &[u8]) -> Result<usize, i32> {
+            assert_eq!(*owned, 1234);
+            if name == b"cuModuleGetGlobal_v2\0" {
+                Err(35)
+            } else {
+                Ok(1)
+            }
+        }
+        fn pin(&self, _: &usize) -> Result<(), i32> {
+            panic!("already pinned")
+        }
+    }
+    assert_eq!(resolve_global(&Fake, &1234), Err(35));
+    assert_eq!(resolve_kernel(&Fake, &1234), Ok([1; 5]));
+}
