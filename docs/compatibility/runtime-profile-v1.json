@@ -145,7 +145,7 @@
     {
       "symbol": "__cudaRegisterFatBinary",
       "signature_id": "ptr_ptr(ptr)",
-      "behavior": "Bounded CPU registration/configuration and synchronous context-specific kernel launch; non-RDC nvcc PTX with cudadevrt=none only.",
+      "behavior": "Bounded CPU registration/configuration and synchronous context-specific module launch; version1 non-RDC PTX with default device-runtime registration. No device-runtime function calls or device linking.",
       "test_ids": [
         "tests/runtime_kernel_native_abi.cpp#main",
         "crates/ct-cudart/src/tests.rs#exported_registration_and_configuration_are_gpu_free"
@@ -154,7 +154,7 @@
     {
       "symbol": "__cudaRegisterFatBinaryEnd",
       "signature_id": "void(ptr_ptr)",
-      "behavior": "Bounded CPU registration/configuration and synchronous context-specific kernel launch; non-RDC nvcc PTX with cudadevrt=none only.",
+      "behavior": "Bounded CPU registration/configuration and synchronous context-specific module launch; version1 non-RDC PTX with default device-runtime registration. No device-runtime function calls or device linking.",
       "test_ids": [
         "tests/runtime_kernel_native_abi.cpp#main",
         "crates/ct-cudart/src/tests.rs#exported_registration_and_configuration_are_gpu_free"
@@ -163,7 +163,7 @@
     {
       "symbol": "__cudaUnregisterFatBinary",
       "signature_id": "void(ptr_ptr)",
-      "behavior": "Bounded CPU registration/configuration and synchronous context-specific kernel launch; non-RDC nvcc PTX with cudadevrt=none only.",
+      "behavior": "Bounded CPU registration/configuration and synchronous context-specific module launch; version1 non-RDC PTX with default device-runtime registration. No device-runtime function calls or device linking.",
       "test_ids": [
         "tests/runtime_kernel_native_abi.cpp#main",
         "crates/ct-cudart/src/tests.rs#exported_registration_and_configuration_are_gpu_free"
@@ -172,7 +172,7 @@
     {
       "symbol": "__cudaRegisterFunction",
       "signature_id": "void(ptr_ptr,const_char_ptr,char_ptr,const_char_ptr,i32,uint3_ptr,uint3_ptr,dim3_ptr,dim3_ptr,i32_ptr)",
-      "behavior": "Bounded CPU registration/configuration and synchronous context-specific kernel launch; non-RDC nvcc PTX with cudadevrt=none only.",
+      "behavior": "Bounded CPU registration/configuration and synchronous context-specific module launch; version1 non-RDC PTX with default device-runtime registration. No device-runtime function calls or device linking.",
       "test_ids": [
         "tests/runtime_kernel_native_abi.cpp#main",
         "crates/ct-cudart/src/tests.rs#exported_registration_and_configuration_are_gpu_free"
@@ -181,7 +181,7 @@
     {
       "symbol": "__cudaPushCallConfiguration",
       "signature_id": "u32(dim3,dim3,size,stream)",
-      "behavior": "Bounded CPU registration/configuration and synchronous context-specific kernel launch; non-RDC nvcc PTX with cudadevrt=none only.",
+      "behavior": "Bounded CPU registration/configuration and synchronous context-specific module launch; version1 non-RDC PTX with default device-runtime registration. No device-runtime function calls or device linking.",
       "test_ids": [
         "tests/runtime_kernel_native_abi.cpp#main",
         "crates/ct-cudart/src/tests.rs#exported_registration_and_configuration_are_gpu_free"
@@ -190,7 +190,7 @@
     {
       "symbol": "__cudaPopCallConfiguration",
       "signature_id": "i32(dim3_ptr,dim3_ptr,size_ptr,ptr)",
-      "behavior": "Bounded CPU registration/configuration and synchronous context-specific kernel launch; non-RDC nvcc PTX with cudadevrt=none only.",
+      "behavior": "Bounded CPU registration/configuration and synchronous context-specific module launch; version1 non-RDC PTX with default device-runtime registration. No device-runtime function calls or device linking.",
       "test_ids": [
         "tests/runtime_kernel_native_abi.cpp#main",
         "crates/ct-cudart/src/tests.rs#exported_registration_and_configuration_are_gpu_free"
@@ -199,7 +199,7 @@
     {
       "symbol": "cudaLaunchKernel",
       "signature_id": "i32(const_ptr,dim3,dim3,ptr_ptr,size,stream)",
-      "behavior": "Bounded CPU registration/configuration and synchronous context-specific kernel launch; non-RDC nvcc PTX with cudadevrt=none only.",
+      "behavior": "Bounded CPU registration/configuration and synchronous context-specific module launch; version1 non-RDC PTX with default device-runtime registration. No device-runtime function calls or device linking.",
       "test_ids": [
         "tests/runtime_kernel_native_abi.cpp#main",
         "crates/ct-cudart/src/tests.rs#exported_registration_and_configuration_are_gpu_free"
@@ -208,23 +208,65 @@
     {
       "symbol": "__cudaRegisterVar",
       "signature_id": "void(ptr_ptr,char_ptr,char_ptr,const_char_ptr,i32,size,i32,i32)",
-      "behavior": "Owned bounded CPU metadata frozen at End; version1 flags0 size4 bindings verified through the same pinned Driver before launch. Other sizes/version2 remain801; no symbol-copy APIs.",
+      "behavior": "Owned CPU metadata frozen at End; version1 flags0 size4 bindings verified once through the same pinned Driver and shared by launch and synchronous symbol APIs. Other sizes/version2 remain801.",
       "test_ids": [
         "crates/ct-cudart/src/tests.rs#exported_variable_callback_is_cpu_only_and_preserves_first_failure",
         "tests/runtime_default_reference_abi.cpp#main",
         "tests/runtime_default_native_abi.cpp#main"
       ]
+    },
+    {
+      "symbol": "cudaGetSymbolAddress",
+      "signature_id": "i32(out_ptr,const_ptr)",
+      "behavior": "Opaque registered host symbol; same context/module-owned size4 storage. Queries preserve outputs on errors; copies check direction, offset and extent; no UVA/async. Unknown/retired/ambiguous13.",
+      "test_ids": [
+        "crates/ct-cudart/src/symbol_tests.rs#symbol_export_preflight_and_tls",
+        "crates/ct-cudart/src/symbol_tests.rs#symbol_copy_bounds_and_zero",
+        "crates/ct-cudart/src/symbol_tests.rs#symbol_query_outputs_unchanged"
+      ]
+    },
+    {
+      "symbol": "cudaGetSymbolSize",
+      "signature_id": "i32(size_ptr,const_ptr)",
+      "behavior": "Opaque registered host symbol; same context/module-owned size4 storage. Queries preserve outputs on errors; copies check direction, offset and extent; no UVA/async. Unknown/retired/ambiguous13.",
+      "test_ids": [
+        "crates/ct-cudart/src/symbol_tests.rs#symbol_export_preflight_and_tls",
+        "crates/ct-cudart/src/symbol_tests.rs#symbol_copy_bounds_and_zero",
+        "crates/ct-cudart/src/symbol_tests.rs#symbol_query_outputs_unchanged"
+      ]
+    },
+    {
+      "symbol": "cudaMemcpyToSymbol",
+      "signature_id": "i32(const_ptr,const_ptr,size,size,i32)",
+      "behavior": "Opaque registered host symbol; same context/module-owned size4 storage. Queries preserve outputs on errors; copies check direction, offset and extent; no UVA/async. Unknown/retired/ambiguous13.",
+      "test_ids": [
+        "crates/ct-cudart/src/symbol_tests.rs#symbol_export_preflight_and_tls",
+        "crates/ct-cudart/src/symbol_tests.rs#symbol_copy_bounds_and_zero",
+        "crates/ct-cudart/src/symbol_tests.rs#symbol_query_outputs_unchanged"
+      ]
+    },
+    {
+      "symbol": "cudaMemcpyFromSymbol",
+      "signature_id": "i32(ptr,const_ptr,size,size,i32)",
+      "behavior": "Opaque registered host symbol; same context/module-owned size4 storage. Queries preserve outputs on errors; copies check direction, offset and extent; no UVA/async. Unknown/retired/ambiguous13.",
+      "test_ids": [
+        "crates/ct-cudart/src/symbol_tests.rs#symbol_export_preflight_and_tls",
+        "crates/ct-cudart/src/symbol_tests.rs#symbol_copy_bounds_and_zero",
+        "crates/ct-cudart/src/symbol_tests.rs#symbol_query_outputs_unchanged"
+      ]
     }
   ],
   "limits": [
-    "Windows x64 EXE constructors; app-local single Driver; Runtime21 diagnostic preview.",
-    "nvcc12 non-RDC PTX8.0/sm52, cudart=shared, cudadevrt=none; default22/prelinked/Var excluded.",
+    "Windows x64 EXE constructors; app-local single owned/pinned Driver; Runtime26 diagnostic preview.",
+    "nvcc12 non-RDC PTX8.0/sm52, cudart=shared; bounded default device-runtime registration, no device-runtime function calls or device linking.",
     "Zero shared memory and null/default stream only; no UVA, streams/PTDS, reset recovery or framework claim.",
     "Registration64 live/1024 lifetime,512 functions each/4096 host mappings,1024-byte names,16MiB images/64MiB owned raw total.",
     "128 native ownership records and module slots,64 TLS configurations; detected fallible reservation errors2, budget exhaustion801.",
-    "No native cleanup in callbacks/destructors; matching-context retirement drain only on explicit Launch or Synchronize.",
+    "No native cleanup in callbacks/destructors; matching-context retirement drain on explicit Launch, symbol operation or Synchronize.",
     "Unsupported MSVC producer is diagnostic; no supported-host compiler pin registered.",
     "Version2: up to32 raw prelinked images,33 unique including primary, no linking; version2 launch801.",
-    "Variable metadata:256 per token/2048 live,1024-byte names,size1..16MiB metadata only; any variable blocks containing module launch801."
+    "Variable metadata:256 per token/2048 live,1024-byte names,size1..16MiB metadata; native launch/symbol eligibility version1 flags0 size4 u32 only.",
+    "Synchronous symbol To kinds1/3, From2/3; Default4 returns801, wrong direction21; offset+count<=4 including zero count which still resolves the symbol.",
+    "Symbol queries preserve outputs on all errors; opaque unknown/retired/ambiguous13; CT combined-error precedence is specified by the P04b design, not a general NVIDIA parity claim."
   ]
 }

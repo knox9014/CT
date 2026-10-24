@@ -2,7 +2,7 @@
 use crate::configuration::{preflight, Config};
 use crate::driver::Context;
 use crate::kernel_driver::{Function, KernelDriver, Module};
-use crate::registration::{LaunchLease, RegistrationData, Registry};
+use crate::registration::{RegistrationData, Registry, SymbolLease};
 use crate::state::Runtime;
 use std::ffi::c_void;
 use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
@@ -20,12 +20,18 @@ struct FunctionSlot {
     symbol: Arc<Vec<u8>>,
     result: Result<Function, i32>,
 }
+#[derive(Clone, Copy)]
+struct Binding {
+    pointer: u64,
+    size: usize,
+}
 struct EntryState {
     phase: Phase,
     module: Option<Module>,
     reserved: bool,
     cleanup_error: Option<i32>,
     functions: Vec<FunctionSlot>,
+    bindings: Vec<Binding>,
 }
 struct Entry {
     context: Context,
@@ -64,11 +70,11 @@ impl KernelRuntime {
             capacity: capacity.min(128),
         }
     }
-    fn entry(&self, lease: &LaunchLease, context: Context) -> Result<Arc<Entry>, i32> {
+    fn entry(&self, data: &Arc<RegistrationData>, context: Context) -> Result<Arc<Entry>, i32> {
         let mut cache = self.cache.lock().map_err(|_| 999)?;
         if let Some(entry) = cache
             .iter()
-            .find(|e| e.context == context && e.data.id == lease.data.id)
+            .find(|e| e.context == context && e.data.id == data.id)
         {
             return Ok(entry.clone());
         }
@@ -82,15 +88,20 @@ impl KernelRuntime {
         cache.try_reserve_exact(1).map_err(|_| 2)?;
         let mut functions = Vec::new();
         functions.try_reserve_exact(512).map_err(|_| 2)?;
+        let mut bindings = Vec::new();
+        bindings
+            .try_reserve_exact(data.variables().len())
+            .map_err(|_| 2)?;
         let entry = Arc::new(Entry {
             context,
-            data: lease.data.clone(),
+            data: data.clone(),
             gate: Mutex::new(EntryState {
                 phase: Phase::Fresh,
                 module: None,
                 reserved: false,
                 cleanup_error: None,
                 functions,
+                bindings,
             }),
         });
         cache.push(entry.clone());
@@ -122,7 +133,7 @@ impl KernelRuntime {
         args: *mut *mut c_void,
     ) -> Result<(), i32> {
         let lease = self.registry.lease(host)?;
-        let image = lease.image()?;
+        lease.image()?;
         let code = preflight(config);
         if code != 0 {
             return Err(code);
@@ -163,60 +174,9 @@ impl KernelRuntime {
             return Err(9);
         }
         self.drain(&runtime.driver, context)?;
-        let entry = self.entry(&lease, context)?;
+        let entry = self.entry(&lease.data, context)?;
         let mut state = entry.gate.lock().map_err(|_| 999)?;
-        match state.phase {
-            Phase::Failed(code) => return Err(code),
-            Phase::Cleaned => return Err(98),
-            _ => {}
-        }
-        if matches!(state.phase, Phase::Fresh) {
-            self.reserve_slot()?;
-            state.reserved = true;
-            match runtime.driver.load(image) {
-                Ok(module) => {
-                    // Own the native handle before any binding lookup can fail or block.
-                    state.module = Some(module);
-                    for variable in lease.variables() {
-                        let binding = runtime.driver.global(module, &variable.name);
-                        let failure = match binding {
-                            Ok((pointer, size))
-                                if pointer != 0
-                                    && pointer.is_multiple_of(4)
-                                    && size == variable.metadata.size =>
-                            {
-                                None
-                            }
-                            Ok(_) | Err(500 | 801) => Some(801),
-                            Err(code) => Some(crate::errors::from_driver(code)),
-                        };
-                        if let Some(code) = failure {
-                            state.phase = Phase::Failed(code);
-                            return Err(code);
-                        }
-                    }
-                    state.phase = if lease.retired() {
-                        Phase::Retired
-                    } else {
-                        Phase::Live
-                    };
-                }
-                Err(code) => {
-                    let mapped = native_error(code, Operation::Load);
-                    state.phase = Phase::Failed(mapped);
-                    // Only the CT Driver's defined no-output error paths release a slot.
-                    if matches!(
-                        code,
-                        1 | 2 | 3 | 100 | 101 | 201 | 218 | 400 | 500 | 709 | 801
-                    ) {
-                        state.reserved = false;
-                        self.slots.fetch_sub(1, SeqCst);
-                    }
-                    return Err(mapped);
-                }
-            }
-        }
-        let module = state.module.ok_or(999)?;
+        let module = self.ensure_module(&runtime.driver, &lease.data, &mut state)?;
         let function = if let Some(slot) = state
             .functions
             .iter()
@@ -247,6 +207,96 @@ impl KernelRuntime {
             return Err(mapped);
         }
         Ok(())
+    }
+    fn ensure_module<D: KernelDriver>(
+        &self,
+        driver: &D,
+        data: &Arc<RegistrationData>,
+        state: &mut EntryState,
+    ) -> Result<Module, i32> {
+        match state.phase {
+            Phase::Failed(code) => return Err(code),
+            Phase::Cleaned => return Err(98),
+            _ => {}
+        }
+        if matches!(state.phase, Phase::Fresh) {
+            self.reserve_slot()?;
+            state.reserved = true;
+            match driver.load(data.image()?) {
+                Ok(module) => {
+                    // Own the native handle before any binding lookup can fail or block.
+                    state.module = Some(module);
+                    for variable in data.variables() {
+                        let binding = driver.global(module, &variable.name);
+                        let failure = match binding {
+                            Ok((pointer, size))
+                                if pointer != 0
+                                    && pointer.is_multiple_of(4)
+                                    && size == variable.metadata.size
+                                    && pointer.checked_add(size as u64).is_some() =>
+                            {
+                                state.bindings.push(Binding { pointer, size });
+                                None
+                            }
+                            Ok(_) | Err(500 | 801) => Some(801),
+                            Err(code) => Some(crate::errors::from_driver(code)),
+                        };
+                        if let Some(code) = failure {
+                            state.bindings.clear();
+                            state.phase = Phase::Failed(code);
+                            return Err(code);
+                        }
+                    }
+                    state.phase = if data.retired() {
+                        Phase::Retired
+                    } else {
+                        Phase::Live
+                    };
+                }
+                Err(code) => {
+                    let mapped = native_error(code, Operation::Load);
+                    state.phase = Phase::Failed(mapped);
+                    // Only the CT Driver's defined no-output error paths release a slot.
+                    if matches!(
+                        code,
+                        1 | 2 | 3 | 100 | 101 | 201 | 218 | 400 | 500 | 709 | 801
+                    ) {
+                        state.reserved = false;
+                        self.slots.fetch_sub(1, SeqCst);
+                    }
+                    return Err(mapped);
+                }
+            }
+        }
+        state.module.ok_or(999)
+    }
+    pub fn with_symbol<D: KernelDriver, T>(
+        &self,
+        runtime: &Runtime<D>,
+        lease: &SymbolLease,
+        action: impl FnOnce(&D, u64, usize) -> Result<T, i32>,
+    ) -> Result<T, i32> {
+        lease.data.image()?;
+        let context = runtime
+            .ensure_current()
+            .map_err(crate::errors::from_driver)?;
+        runtime.driver.prepare_kernel()?;
+        runtime.driver.prepare_globals()?;
+        self.drain(&runtime.driver, context)?;
+        let entry = self.entry(&lease.data, context)?;
+        let mut state = entry.gate.lock().map_err(|_| 999)?;
+        self.ensure_module(&runtime.driver, &lease.data, &mut state)?;
+        let binding = *state.bindings.get(lease.variable_index).ok_or(801)?;
+        match action(&runtime.driver, binding.pointer, binding.size) {
+            Ok(value) => Ok(value),
+            Err(code) => {
+                let mapped = native_error(code, Operation::Launch);
+                if matches!(code, 400 | 709) {
+                    state.phase = Phase::Failed(mapped);
+                }
+                Err(mapped)
+            }
+        }
     }
     pub fn drain<D: KernelDriver>(&self, driver: &D, current: Context) -> Result<(), i32> {
         let entries = {
@@ -291,6 +341,7 @@ impl KernelRuntime {
             }
             state.phase = Phase::Cleaned;
             state.functions.clear();
+            state.bindings.clear();
             let mut cache = self.cache.lock().map_err(|_| 999)?;
             cache.retain(|candidate| !Arc::ptr_eq(candidate, &entry));
         }

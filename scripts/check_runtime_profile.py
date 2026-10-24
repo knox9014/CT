@@ -23,7 +23,14 @@ KERNEL_SIGNATURES = {**BASE_SIGNATURES,
     '__cudaPopCallConfiguration':'i32(dim3_ptr,dim3_ptr,size_ptr,ptr)',
     'cudaLaunchKernel':'i32(const_ptr,dim3,dim3,ptr_ptr,size,stream)',
 }
-SIGNATURES = {**KERNEL_SIGNATURES,'__cudaRegisterVar':'void(ptr_ptr,char_ptr,char_ptr,const_char_ptr,i32,size,i32,i32)'}
+REGISTRATION_SIGNATURES = {**KERNEL_SIGNATURES,'__cudaRegisterVar':'void(ptr_ptr,char_ptr,char_ptr,const_char_ptr,i32,size,i32,i32)'}
+SYMBOL_SIGNATURES = {
+    "cudaGetSymbolAddress":"i32(out_ptr,const_ptr)",
+    "cudaGetSymbolSize":"i32(size_ptr,const_ptr)",
+    "cudaMemcpyToSymbol":"i32(const_ptr,const_ptr,size,size,i32)",
+    "cudaMemcpyFromSymbol":"i32(ptr,const_ptr,size,size,i32)",
+}
+SIGNATURES = {**REGISTRATION_SIGNATURES, **SYMBOL_SIGNATURES}
 
 
 def validate(value):
@@ -54,17 +61,17 @@ def validate(value):
             target = REPO / file
             if not target.is_file() or test not in target.read_text(encoding='utf-8'):
                 errors.append('missing test reference')
-    if seen != set(SIGNATURES) or len(entries) != 22: errors.append('incomplete exports')
+    if seen != set(SIGNATURES) or len(entries) != 26: errors.append('incomplete exports')
     header = (REPO / 'include/ct_cudart.h').read_text()
     if set(re.findall(r'CT_RUNTIME_API ((?:__cuda|cuda)\w+)\(',header)) != set(SIGNATURES): errors.append('header drift')
     exports=(REPO/'tests/p09a_runtime.def').read_text().splitlines()[2:]
-    if len(exports)!=22 or set(exports)!=set(SIGNATURES):errors.append('import library drift')
+    if len(exports)!=26 or set(exports)!=set(SIGNATURES):errors.append('import library drift')
     return errors
 
 def main():
     errors = validate(json.loads((REPO / PROFILE).read_text()))
     for error in errors: print(error)
-    if not errors: print('Runtime profile: 22 bounded declarations checked; execution unproven')
+    if not errors: print('Runtime profile: 26 bounded declarations checked; execution unproven')
     return bool(errors)
 
 if __name__ == '__main__': raise SystemExit(main())

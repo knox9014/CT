@@ -25,6 +25,7 @@ mod registration_tests;
 mod registration_variable_tests;
 mod registration_variables;
 mod state;
+mod symbols;
 use driver::DriverBridge;
 use state::Runtime;
 static BRIDGE: std::sync::OnceLock<Result<Runtime<DriverBridge>, i32>> = std::sync::OnceLock::new();
@@ -171,6 +172,67 @@ pub unsafe extern "system" fn cudaDriverGetVersion(out: *mut i32) -> i32 {
 #[no_mangle]
 pub unsafe extern "system" fn cudaRuntimeGetVersion(out: *mut i32) -> i32 {
     boundary(|| unsafe { scalar(out) })
+}
+#[no_mangle]
+pub unsafe extern "system" fn cudaGetSymbolAddress(
+    out: *mut *mut c_void,
+    symbol: *const c_void,
+) -> i32 {
+    boundary(|| unsafe {
+        symbols::query(kernel_runtime(), bridge, symbol as usize, out, |p, _| {
+            p as *mut c_void
+        })
+    })
+}
+#[no_mangle]
+pub unsafe extern "system" fn cudaGetSymbolSize(out: *mut usize, symbol: *const c_void) -> i32 {
+    boundary(|| unsafe { symbols::query(kernel_runtime(), bridge, symbol as usize, out, |_, n| n) })
+}
+#[no_mangle]
+pub unsafe extern "system" fn cudaMemcpyToSymbol(
+    symbol: *const c_void,
+    src: *const c_void,
+    count: usize,
+    offset: usize,
+    kind: i32,
+) -> i32 {
+    boundary(|| unsafe {
+        symbols::copy(
+            kernel_runtime(),
+            bridge,
+            symbol as usize,
+            symbols::Transfer {
+                data: src.cast_mut(),
+                count,
+                offset,
+                kind,
+                to: true,
+            },
+        )
+    })
+}
+#[no_mangle]
+pub unsafe extern "system" fn cudaMemcpyFromSymbol(
+    dst: *mut c_void,
+    symbol: *const c_void,
+    count: usize,
+    offset: usize,
+    kind: i32,
+) -> i32 {
+    boundary(|| unsafe {
+        symbols::copy(
+            kernel_runtime(),
+            bridge,
+            symbol as usize,
+            symbols::Transfer {
+                data: dst,
+                count,
+                offset,
+                kind,
+                to: false,
+            },
+        )
+    })
 }
 #[cfg(test)]
 mod tests;

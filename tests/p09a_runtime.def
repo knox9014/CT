@@ -22,3 +22,7 @@ __cudaPushCallConfiguration
 __cudaPopCallConfiguration
 cudaLaunchKernel
 __cudaRegisterVar
+cudaGetSymbolAddress
+cudaGetSymbolSize
+cudaMemcpyToSymbol
+cudaMemcpyFromSymbol

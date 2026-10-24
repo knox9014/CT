@@ -148,3 +148,70 @@ fn u32_bindings_live_through_unregister() {
     let next = unsafe { register(&r, &image()) };
     unsafe { add(&r, next, 92, VariableMetadata { size: 4, ..m() }) }.unwrap();
 }
+
+#[test]
+fn symbol_lookup_state_matrix() {
+    let r = Registry::new();
+    for host in [0, 91, usize::MAX] {
+        assert_eq!(r.symbol(host).err(), Some(13));
+    }
+    let t = unsafe { register(&r, &image()) };
+    unsafe { add(&r, t, 91, VariableMetadata { size: 4, ..m() }) }.unwrap();
+    assert_eq!(r.symbol(91).err(), Some(13));
+    r.fail(t, 2);
+    assert_eq!(r.symbol(91).err(), Some(2)); // pending variables survive failure
+    r.retire(t).unwrap();
+    for (first_ready, second_failed) in [(true, false), (true, true), (false, true)] {
+        let a = unsafe { register(&r, &image()) };
+        let b = unsafe { register(&r, &image()) };
+        for t in [a, b] {
+            unsafe { add(&r, t, 91, VariableMetadata { size: 4, ..m() }) }.unwrap();
+        }
+        if first_ready {
+            r.end(a).unwrap();
+        } else {
+            r.fail(a, 801);
+        }
+        if second_failed {
+            r.fail(b, 2);
+        }
+        assert_eq!(r.symbol(91).err(), Some(13)); // ambiguity outranks record state
+        r.retire(b).unwrap();
+        if first_ready {
+            assert!(r.symbol(91).is_ok());
+            r.fail(a, 801);
+            assert_eq!(r.symbol(91).err(), Some(801)); // frozen failure
+        } else {
+            assert_eq!(r.symbol(91).err(), Some(801));
+        }
+        r.retire(a).unwrap();
+        assert_eq!(r.symbol(91).err(), Some(13));
+    }
+    let t = unsafe { register(&r, &image()) };
+    assert_eq!(
+        unsafe { add(&r, t, 92, VariableMetadata { external: 1, ..m() }) },
+        Err(801)
+    );
+    assert_eq!(r.symbol(92).err(), Some(13)); // rejected callback never published
+}
+
+#[test]
+fn symbol_lease_survives_retire() {
+    let r = Registry::new();
+    let t = unsafe { register(&r, &image()) };
+    unsafe { add(&r, t, 91, VariableMetadata { size: 4, ..m() }) }.unwrap();
+    r.end(t).unwrap();
+    let lease = r.symbol(91).unwrap();
+    let data = lease.data.clone();
+    assert_eq!(data.active.load(std::sync::atomic::Ordering::SeqCst), 1);
+    r.retire(t).unwrap();
+    assert_eq!(r.symbol(91).err(), Some(13));
+    assert!(lease.data.retired());
+    assert!(lease.data.image().is_ok());
+    assert_eq!(
+        lease.data.variables()[lease.variable_index].name,
+        b"value\0"
+    );
+    drop(lease);
+    assert_eq!(data.active.load(std::sync::atomic::Ordering::SeqCst), 0);
+}

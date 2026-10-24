@@ -25,6 +25,11 @@ struct Inner {
     global_error: AtomicI32,
     global_prepare_error: AtomicI32,
     global_size: Mutex<Option<usize>>,
+    global_pointer: Mutex<Option<u64>>,
+    native_value: AtomicUsize,
+    copy_error: AtomicI32,
+    copies: Mutex<Vec<(i32, u64, u64, usize)>>,
+    copy_barrier: Mutex<Option<(Arc<Barrier>, Arc<Barrier>)>>,
     global_names: Mutex<Vec<Vec<u8>>>,
     global_barrier: Mutex<Option<(Arc<Barrier>, Arc<Barrier>)>>,
     barrier: Mutex<Option<(Arc<Barrier>, Arc<Barrier>)>>,
@@ -82,19 +87,31 @@ impl DriverCalls for Fake {
     fn free(&self, _: u64) -> i32 {
         0
     }
-    unsafe fn copy_htod(&self, _: u64, _: *const u8, _: usize) -> i32 {
-        0
+    unsafe fn copy_htod(&self, dst: u64, src: *const u8, n: usize) -> i32 {
+        self.transfer(1, dst, src as u64, n)
     }
-    unsafe fn copy_dtoh(&self, _: *mut u8, _: u64, _: usize) -> i32 {
-        0
+    unsafe fn copy_dtoh(&self, dst: *mut u8, src: u64, n: usize) -> i32 {
+        self.transfer(2, dst as u64, src, n)
     }
-    fn copy_dtod(&self, _: u64, _: u64, _: usize) -> i32 {
-        0
+    fn copy_dtod(&self, dst: u64, src: u64, n: usize) -> i32 {
+        self.transfer(3, dst, src, n)
     }
     fn fill8(&self, _: u64, _: u8, _: usize) -> i32 {
         0
     }
 }
+impl Fake {
+    fn transfer(&self, kind: i32, dst: u64, src: u64, n: usize) -> i32 {
+        self.0.copies.lock().unwrap().push((kind, dst, src, n));
+        if let Some((a, b)) = self.0.copy_barrier.lock().unwrap().clone() {
+            a.wait();
+            b.wait();
+        }
+        self.0.copy_error.load(SeqCst)
+    }
+}
+#[path = "symbol_tests.rs"]
+mod symbol_tests;
 impl KernelDriver for Fake {
     fn prepare_globals(&self) -> Result<(), i32> {
         match self.0.global_prepare_error.load(SeqCst) {
@@ -110,7 +127,11 @@ impl KernelDriver for Fake {
             b.wait();
         }
         match self.0.global_error.load(SeqCst) {
-            0 => Ok((4096, self.0.global_size.lock().unwrap().unwrap_or(4))),
+            0 if symbol == b"late\0" => Err(500),
+            0 => Ok((
+                self.0.global_pointer.lock().unwrap().unwrap_or(4096),
+                self.0.global_size.lock().unwrap().unwrap_or(4),
+            )),
             c => Err(c),
         }
     }
@@ -132,6 +153,7 @@ impl KernelDriver for Fake {
         })
     }
     fn load(&self, _: &[u8]) -> DriverResult<Module> {
+        self.0.native_value.store(0, SeqCst);
         let id = self.0.loads.fetch_add(1, SeqCst) + 1;
         let barrier = self.0.barrier.lock().unwrap().clone();
         if let Some((start, end)) = barrier {
@@ -159,6 +181,7 @@ impl KernelDriver for Fake {
         self.0.unload_error.load(SeqCst)
     }
     unsafe fn launch(&self, _: Function, _: Config, _: *mut *mut c_void) -> i32 {
+        self.0.native_value.store(123, SeqCst);
         self.0.launches.fetch_add(1, SeqCst);
         self.0.launch_error.load(SeqCst)
     }
@@ -523,4 +546,90 @@ fn global_bindings_validate_once_per_context() {
         [b"value\0".to_vec(), b"value\0".to_vec()]
     );
     assert_eq!(f.0.loads.load(SeqCst), 2);
+}
+
+fn shared_symbol_order(symbol_first: bool) {
+    let k = KernelRuntime::new();
+    ready_globals(&k);
+    let f = Fake::default();
+    let rt = Runtime::new(f.clone());
+    let lease = k.registry.symbol(91).unwrap();
+    if symbol_first {
+        k.with_symbol(&rt, &lease, |d, p, n| {
+            assert_eq!((p, n), (4096, 4));
+            d.0.native_value.store(122, SeqCst);
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(f.0.lookups.load(SeqCst), 0);
+    }
+    assert_eq!(unsafe { launch(&k, &rt) }, 0);
+    assert_eq!(
+        k.with_symbol(&rt, &lease, |d, _, _| Ok(d.0.native_value.load(SeqCst))),
+        Ok(123)
+    );
+    assert_eq!(f.0.loads.load(SeqCst), 1);
+    assert_eq!(f.0.global_names.lock().unwrap().len(), 1);
+}
+#[test]
+fn symbol_first_and_launch_share_module() {
+    shared_symbol_order(true);
+}
+#[test]
+fn launch_first_and_symbol_share_module() {
+    shared_symbol_order(false);
+}
+
+#[test]
+fn native_binding_span_overflow() {
+    let k = KernelRuntime::new();
+    let t = ready_globals(&k);
+    let f = Fake::default();
+    let rt = Runtime::new(f.clone());
+    *f.0.global_pointer.lock().unwrap() = Some(u64::MAX - 3);
+    let lease = k.registry.symbol(91).unwrap();
+    assert_eq!(k.with_symbol(&rt, &lease, |_, _, _| Ok(())), Err(801));
+    assert_eq!(unsafe { launch(&k, &rt) }, 801);
+    assert_eq!(f.0.lookups.load(SeqCst), 0);
+    k.registry.retire(t).unwrap();
+    drop(lease);
+    k.drain(&f, 77).unwrap();
+    assert_eq!(f.0.unloads.load(SeqCst), 1);
+}
+#[test]
+fn symbol_late_binding_failure_publishes_nothing() {
+    let k = KernelRuntime::new();
+    let t = unsafe { register(&k.registry, &image()) };
+    for (host, name) in [(91, c"value"), (92, c"late")] {
+        unsafe {
+            k.registry.variable(
+                t,
+                host,
+                name.as_ptr().cast(),
+                name.as_ptr().cast(),
+                crate::registration_variables::VariableMetadata {
+                    external: 0,
+                    size: 4,
+                    constant: 0,
+                    global: 0,
+                },
+            )
+        }
+        .unwrap();
+    }
+    k.registry.end(t).unwrap();
+    let f = Fake::default();
+    let rt = Runtime::new(f.clone());
+    for host in [91, 92, 91] {
+        let lease = k.registry.symbol(host).unwrap();
+        assert_eq!(
+            k.with_symbol(&rt, &lease, |_, _, _| panic!("partial binding escaped")),
+            Err::<(), _>(801)
+        );
+    }
+    assert_eq!(f.0.loads.load(SeqCst), 1);
+    assert_eq!(f.0.global_names.lock().unwrap().len(), 2);
+    k.registry.retire(t).unwrap();
+    k.drain(&f, 77).unwrap();
+    assert_eq!(f.0.unloads.load(SeqCst), 1);
 }

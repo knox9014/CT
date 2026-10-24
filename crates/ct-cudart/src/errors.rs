@@ -30,6 +30,7 @@ pub fn text(code: i32, description: bool) -> *const c_char {
             b"cudaErrorInvalidConfiguration\0",
             b"invalid launch configuration\0",
         ),
+        13 => (b"cudaErrorInvalidSymbol\0", b"invalid symbol\0"),
         21 => (
             b"cudaErrorInvalidMemcpyDirection\0",
             b"invalid copy direction\0",

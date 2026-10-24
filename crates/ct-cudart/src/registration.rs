@@ -67,10 +67,14 @@ pub struct LaunchLease {
     pub data: Arc<RegistrationData>,
     pub(crate) symbol: Arc<Vec<u8>>,
 }
-impl LaunchLease {
+pub struct SymbolLease {
+    pub data: Arc<RegistrationData>,
+    pub variable_index: usize,
+}
+impl RegistrationData {
     pub fn image(&self) -> Result<&[u8], i32> {
-        let variables = self.data.variables.get().ok_or(98)?;
-        if self.data.image.contents.version != 1
+        let variables = self.variables.get().ok_or(98)?;
+        if self.image.contents.version != 1
             || variables.iter().any(|v| {
                 v.metadata.size != 4
                     || v.metadata.external != 0
@@ -80,19 +84,36 @@ impl LaunchLease {
         {
             return Err(801);
         }
-        Ok(&self.data.image.contents.primary)
+        Ok(&self.image.contents.primary)
     }
     pub fn variables(&self) -> &[crate::registration_variables::Variable] {
-        self.data.variables.get().map(Vec::as_slice).unwrap_or(&[])
+        self.variables.get().map(Vec::as_slice).unwrap_or(&[])
+    }
+    pub fn retired(&self) -> bool {
+        self.retired.load(SeqCst)
+    }
+}
+impl LaunchLease {
+    pub fn image(&self) -> Result<&[u8], i32> {
+        self.data.image()
+    }
+    pub fn variables(&self) -> &[crate::registration_variables::Variable] {
+        self.data.variables()
+    }
+    #[cfg(test)]
+    pub fn retired(&self) -> bool {
+        self.data.retired()
     }
     pub fn symbol(&self) -> &[u8] {
         &self.symbol
     }
-    pub fn retired(&self) -> bool {
-        self.data.retired.load(SeqCst)
-    }
 }
 impl Drop for LaunchLease {
+    fn drop(&mut self) {
+        self.data.active.fetch_sub(1, SeqCst);
+    }
+}
+impl Drop for SymbolLease {
     fn drop(&mut self) {
         self.data.active.fetch_sub(1, SeqCst);
     }
@@ -497,6 +518,41 @@ impl Registry {
         Ok(LaunchLease {
             data,
             symbol: m.symbol.clone(),
+        })
+    }
+    pub fn symbol(&self, host: usize) -> Result<SymbolLease, i32> {
+        if host == 0 {
+            return Err(13);
+        }
+        let inner = self.inner.lock().map_err(|_| 999)?;
+        let mut found = None;
+        for r in &inner.records {
+            if matches!(r.state, Status::Retired) {
+                continue;
+            }
+            let variables = r
+                .data
+                .as_ref()
+                .and_then(|d| d.variables.get())
+                .unwrap_or(&r.variables);
+            if let Some(index) = variables.iter().position(|v| v.host == host) {
+                if found.is_some() {
+                    return Err(13);
+                }
+                found = Some((r, index));
+            }
+        }
+        let (r, variable_index) = found.ok_or(13)?;
+        match r.state {
+            Status::Ready => {}
+            Status::Failed(code) => return Err(code),
+            _ => return Err(13),
+        }
+        let data = r.data.as_ref().ok_or(13)?.clone();
+        data.active.fetch_add(1, SeqCst);
+        Ok(SymbolLease {
+            data,
+            variable_index,
         })
     }
 }
