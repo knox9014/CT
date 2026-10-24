@@ -49,3 +49,13 @@ fn global_volatile_memory_operands() {
         .iter()
         .any(|v| v[0] & 65535 == 62 && v.len() == 5 && v[3] == 2 && v[4] == 4));
 }
+
+#[test]
+fn unused_globals_have_explicit_host_access() {
+    let compiled=translate_module(".version 8.0\n.target sm_52\n.address_size 64\n.global .align 4 .u32 unused; .entry test() { ret; }").unwrap();
+    let w = words(&compiled.spirv);
+    assert!(w.iter().any(|v| v[0] & 65535 == 17 && v[1] == 6187));
+    assert!(w
+        .iter()
+        .any(|v| v[0] & 65535 == 71 && v[2] == 6188 && v[3] == 3));
+}

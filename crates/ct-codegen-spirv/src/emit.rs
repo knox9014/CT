@@ -284,6 +284,11 @@ pub(super) fn generate_module(kernels: &[Kernel]) -> Result<Vec<u8>, Error> {
             linkage.extend(string_words(&global.name));
             linkage.push(0); // LinkageType Export
             inst(&mut w.annotations, 71, &linkage);
+            // Linkage alone does not preserve globals unused by kernels on Intel.
+            // Level Zero's host-access extension makes each exported name observable.
+            let mut host_access = vec![id, 6188, 3]; // HostAccessINTEL, ReadWriteINTEL
+            host_access.extend(string_words(&global.name));
+            inst(&mut w.annotations, 71, &host_access);
             w.module_globals.insert(global.name.clone(), id);
         }
     }
@@ -301,6 +306,12 @@ pub(super) fn generate_module(kernels: &[Kernel]) -> Result<Vec<u8>, Error> {
     }
     if !w.module_globals.is_empty() {
         inst(&mut out, 17, &[5]);
+        inst(&mut out, 17, &[6187]); // GlobalVariableHostAccessINTEL
+        inst(
+            &mut out,
+            10,
+            &string_words("SPV_INTEL_global_variable_host_access"),
+        );
     }
     inst(&mut out, 14, &[2, 2]);
     for entry in &entries {

@@ -38,3 +38,21 @@ lookup via HostAccessINTEL or LinkageAttributes. The [module API](https://oneapi
 defines zeModuleGetGlobalPointer. The [CUDA module API](https://docs.nvidia.com/cuda/archive/12.1.1/cuda-driver-api/group__CUDA__MODULE.html)
 defines CUDA global lookup including allowing one output to be null. These describe
 contracts; only the bounded experiment above was run here.
+
+## Implementation finding: preserve host-visible unused globals
+
+The first product Driver test found that Linkage Export alone preserved a used
+u32 but Intel's native compiler removed an unused u32. Native GetGlobal returned
+0x78000003 for the unused name. Adding GlobalVariableHostAccessINTEL capability
+6187, SPV_INTEL_global_variable_host_access, and HostAccessINTEL ReadWrite (6188,
+qualifier3, exact exported name) preserved both names. The patched binary passed
+pinned spirv-val under opencl1.2 and native typed lookup for both4-byte addresses.
+
+This supersedes the earlier assumption that Linkage alone sufficed. CT emits the
+host-access decoration for all stored globals, alongside Linkage Export, while
+no-global modules retain their old output. The current SPIR-V backend targets
+Intel Level Zero; a future AMD backend must choose its own compatible lowering.
+No dummy volatile reads or hidden user parameters are introduced.
+
+Primary reference: [Level Zero SPIR-V environment](https://oneapi-src.github.io/level-zero-spec/level-zero/latest/core/SPIRV.html)
+and [Khronos host-access extension](https://github.com/KhronosGroup/SPIRV-Registry/blob/main/extensions/INTEL/SPV_INTEL_global_variable_host_access.asciidoc).
