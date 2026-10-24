@@ -34,7 +34,7 @@ class RunnerTests(unittest.TestCase):
         for name in ('cpu.runtime_fmt','cpu.runtime_clippy','cpu.runtime_rust'):
             self.assertIn('crates/ct-cudart/Cargo.toml',cases[name])
         self.assertIn('--locked',cases['cpu.runtime_rust'])
-        self.assertEqual(len(allsteps),44)
+        self.assertEqual(len(allsteps),48)
         for name in ('producer.nvcc_fatbin','arc.runtime_kernel_abi','arc.runtime_kernel','producer.default_device_runtime','arc.runtime_default_abi','arc.runtime_default'):
             self.assertIn(name,cases)
 
@@ -66,7 +66,10 @@ class RunnerTests(unittest.TestCase):
             ('arc.runtime_kernel_abi','runtime_kernel_abi_evidence','audit','p09a2-build'),
             ('arc.runtime_kernel','p09a2_kernel_check','audit_manifest','p09a2-kernel'),
             ('arc.runtime_default_abi','runtime_default_abi_evidence','audit','p09a2c-build'),
-            ('arc.runtime_default','p09a2c_default_check','audit_manifest','p09a2c-kernel')]:
+            ('arc.runtime_default','p09a2c_default_check','audit_manifest','p09a2c-kernel'),
+            ('arc.global_abi','p04a_abi_evidence','audit','p04a-abi'),
+            ('arc.global_driver','p04a_evidence','audit_manifest','p04a-smoke'),
+            ('arc.runtime_global','p04a_evidence','audit_manifest','p04a-smoke')]:
             with self.subTest(case=case),tempfile.TemporaryDirectory(dir=ROOT/'.cache') as name:
                 root=Path(name);report=root/'report';report.mkdir();artifact=root/'.cache'/cache_name/'probe.json'
                 artifact.parent.mkdir(parents=True);artifact.write_text('{"status":"pass"}')

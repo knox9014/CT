@@ -2224,6 +2224,22 @@
     {
       "id": "tests/p04a_driver_check.py#observe",
       "kind": "native"
+    },
+    {
+      "id": "scripts/run_validation.py#validator.global_u32",
+      "kind": "validator"
+    },
+    {
+      "id": "scripts/run_validation.py#arc.global_abi",
+      "kind": "abi"
+    },
+    {
+      "id": "scripts/run_validation.py#arc.global_driver",
+      "kind": "native"
+    },
+    {
+      "id": "scripts/run_validation.py#arc.runtime_global",
+      "kind": "native"
     }
   ]
 }
