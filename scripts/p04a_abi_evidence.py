@@ -1,16 +1,21 @@
 """Independent original-header Driver39 plus existing Runtime22 ABI evidence."""
 import json,shutil,subprocess,tempfile
 from pathlib import Path
-from prepare_nvcc_probe import digest
+from prepare_nvcc_probe import digest,audit_probe
 from run_validation import source_fingerprint
 from compatibility_registry import validate_toolchain,validate_tool_execution
 from check_toolchain_files import observed_platform
 from runtime_default_abi_evidence import audit as runtime_audit
 ROOT=Path(__file__).resolve().parents[1]
-INPUTS=['include/ct_cuda.h','tests/cuda_reference_abi.cpp','tests/cuda_declared_abi.cpp','tests/cuda_reference_consumer.cpp','tests/cuda_abi_probe.hpp','scripts/check_cuda_abi.ps1','scripts/run_p04a_abi.py','scripts/p04a_abi_evidence.py','docs/compatibility/toolchain-lock-v1.json']
+INPUTS=['include/ct_cuda.h','tests/cuda_reference_abi.cpp','tests/cuda_declared_abi.cpp','tests/cuda_reference_consumer.cpp','tests/cuda_abi_probe.hpp','scripts/check_cuda_abi.ps1','scripts/run_p04a_abi.py','scripts/p04a_abi_evidence.py','docs/compatibility/toolchain-lock-v1.json','scripts/prepare_nvcc_probe.py','scripts/prepare_nvcc_default.py']
 NAMES=('ct_cuda.dll','cuda_reference_abi.exe','cuda_declared_abi.exe','cuda_reference_consumer.exe')
 GLOBAL=b'cuModuleGetGlobal_v2:int:4:4(ptr[uint:8:8];ptr[uint:8:8];ptr[opaque];ptr[const-int:1:1];)'
 CONSUMER=b'Official PFN consumer: error mapping, resolver ABI versions and primary calls passed.\n'
+def abi_commands(folder,producer,base,root=ROOT):
+ compiler=Path(base['host']['tools']['cl.exe']['path']).parent
+ return [['cargo','build','-p','ct-cuda','--locked'],
+  ['pwsh','-NoProfile','-File','scripts/check_cuda_abi.ps1','-CtDll',str(folder/'target/debug/ct_cuda.dll'),'-CompilerDirectory',str(compiler)],
+  ['pwsh','-NoProfile','-File','scripts/check_runtime_default_abi.ps1','-ProducerManifest',str(producer)]]
 def local(root,name):
  p=(root/name).resolve()
  if not p.is_relative_to(root/'.cache/p04a-abi'):raise ValueError('ABI artifact escape')
@@ -23,7 +28,7 @@ def item(root,row):
 def audit(path,root=ROOT,*,execute=False):
  try:
   m=json.loads(Path(path).read_bytes())
-  if set(m)!={'schema_version','case_id','source_tree','inputs','headers','artifacts','observations','runtime_abi'} or type(m['schema_version']) is not int or m['schema_version']!=1 or m['case_id']!='arc.global_abi':return ['global ABI schema']
+  if set(m)!={'schema_version','case_id','source_tree','inputs','headers','artifacts','observations','runtime_abi','producer','compiler','commands'} or type(m['schema_version']) is not int or m['schema_version']!=1 or m['case_id']!='arc.global_abi':return ['global ABI schema']
   if m['source_tree']!=source_fingerprint(root) or m['inputs']!={n:digest(root/n) for n in INPUTS}:return ['global ABI source']
   lock=json.loads((root/'docs/compatibility/toolchain-lock-v1.json').read_bytes())
   if validate_toolchain(lock):return ['global ABI lock']
@@ -39,6 +44,13 @@ def audit(path,root=ROOT,*,execute=False):
   if set(m['artifacts'])!=set(NAMES) or set(m['observations'])!={'reference','declared','consumer'}:return ['global ABI roles']
   files={n:item(root,r) for n,r in m['artifacts'].items()};folder=files['ct_cuda.dll'].parent
   if any(p.parent!=folder or p.name!=n for n,p in files.items()):return ['global ABI artifact role paths']
+  if digest(folder/'target/debug/ct_cuda.dll')!=digest(files['ct_cuda.dll']):return ['global ABI Cargo output changed']
+  producer=m['producer']
+  if set(producer)!={'path','sha256'}:return ['global ABI producer schema']
+  p=(root/producer['path']).resolve()
+  if not p.is_relative_to(root/'.cache') or digest(p)!=producer['sha256'] or audit_probe(p):return ['global ABI producer identity']
+  base=json.loads(p.read_bytes());host=base['host']
+  if host['profile']!='diagnostic' or m['compiler']!={**host['tools'],'vcvars':host['vcvars']} or m['commands']!=abi_commands(folder,p,base,root):return ['global ABI compiler/recipe identity']
   outputs={}
   for name,row in m['observations'].items():
    if set(row)!={'exit_code','stdout','stderr'} or type(row['exit_code']) is not int or row['exit_code']!=0:return ['global ABI observation']
