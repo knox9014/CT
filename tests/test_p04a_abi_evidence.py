@@ -40,3 +40,7 @@ class AbiClosureTests(unittest.TestCase):
   self.assertEqual(audit(self.path,self.root),[])
   for mutate in [lambda m:m['commands'][1].pop(),lambda m:m['compiler']['cl.exe'].update(sha256='d'*64),lambda m:m.pop('compiler')]:
    m=copy.deepcopy(self.good);mutate(m);self.save(m);self.assertTrue(audit(self.path,self.root))
+
+ def test_runtime_abi_recipe_uses_repository_relative_producer(self):
+  command=self.good['commands'][2]
+  self.assertEqual(command[command.index('-ProducerManifest')+1],'.cache/p09a2-producer/manifest.json')

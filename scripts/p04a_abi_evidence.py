@@ -15,7 +15,7 @@ def abi_commands(folder,producer,base,root=ROOT):
  compiler=Path(base['host']['tools']['cl.exe']['path']).parent
  return [['cargo','build','-p','ct-cuda','--locked'],
   ['pwsh','-NoProfile','-File','scripts/check_cuda_abi.ps1','-CtDll',str(folder/'target/debug/ct_cuda.dll'),'-CompilerDirectory',str(compiler)],
-  ['pwsh','-NoProfile','-File','scripts/check_runtime_default_abi.ps1','-ProducerManifest',str(producer)]]
+  ['pwsh','-NoProfile','-File','scripts/check_runtime_default_abi.ps1','-ProducerManifest',producer.relative_to(root).as_posix()]]
 def local(root,name):
  p=(root/name).resolve()
  if not p.is_relative_to(root/'.cache/p04a-abi'):raise ValueError('ABI artifact escape')
