@@ -53,6 +53,24 @@ pub struct Context {
 pub struct Module {
     native: usize,
     kernels: Vec<usize>,
+    globals: Vec<(std::ffi::CString, NativeGlobal)>,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct NativeGlobal {
+    pub pointer: u64,
+    pub size: usize,
+}
+impl Module {
+    /// The native module owns these addresses; they must never be freed separately.
+    pub fn global(&self, name: &str) -> Option<NativeGlobal> {
+        if self.native == 0 {
+            return None;
+        }
+        self.globals
+            .iter()
+            .find(|(n, _)| n.as_bytes() == name.as_bytes())
+            .map(|(_, g)| *g)
+    }
 }
 
 impl Context {
