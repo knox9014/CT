@@ -6,9 +6,11 @@ from run_validation import steps,runtime_evidence,clear_runtime_evidence
 OLD_CASES=('cpu.fmt', 'cpu.clippy', 'cpu.rust', 'cpu.python', 'cpu.registry', 'cpu.profile', 'cpu.publication', 'cpu.runtime_fmt', 'cpu.runtime_clippy', 'cpu.runtime_rust', 'cpu.runtime_profile', 'validator.build', 'validator.real', 'producer.build', 'producer.scalar', 'producer.multi_entry', 'producer.address_control', 'producer.block_candidate', 'producer.vector_add', 'producer.nvcc_fatbin', 'producer.default_device_runtime', 'arc.build', 'arc.levelzero.abi', 'arc.cuda.abi', 'arc.native', 'arc.m3k_memory', 'arc.m3l_arithmetic', 'arc.m3m_predicates', 'arc.m3n_minmax', 'arc.m3o_immediates', 'arc.consumers', 'arc.primary', 'arc.reset', 'arc.libraries', 'arc.context_destroy', 'arc.device_memory', 'arc.memory_queries', 'arc.runtime_abi', 'arc.runtime', 'arc.runtime_kernel_abi', 'arc.runtime_kernel', 'arc.runtime_default_abi', 'arc.runtime_default', 'combined.all')
 NEW={'validator.global_u32','arc.global_abi','arc.global_driver','arc.runtime_global'}
 class GlobalGateTests(unittest.TestCase):
-    def test_exact_48_retains_every_old_id(self):
+    def test_existing48_remain_required_subset(self):
         selected=steps('combined',Path('validator'),Path('lock'));ids=[n for n,_,_ in selected]
-        self.assertEqual(len(ids),48);self.assertEqual(set(ids),set(OLD_CASES)|NEW)
+        self.assertEqual(len(set(OLD_CASES)|NEW),48)
+        self.assertEqual(len(ids),50)
+        self.assertEqual(set(ids)-{'arc.runtime_symbol_abi','arc.runtime_symbol'},set(OLD_CASES)|NEW)
         commands={n:c for n,_,c in selected};self.assertIn('scripts/check_global_spirv.py',commands['validator.global_u32'])
     def test_forged_success_and_stale_pointers(self):
         with tempfile.TemporaryDirectory(dir=ROOT/'.cache') as d:

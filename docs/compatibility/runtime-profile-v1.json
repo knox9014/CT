@@ -222,7 +222,10 @@
       "test_ids": [
         "crates/ct-cudart/src/symbol_tests.rs#symbol_export_preflight_and_tls",
         "crates/ct-cudart/src/symbol_tests.rs#symbol_copy_bounds_and_zero",
-        "crates/ct-cudart/src/symbol_tests.rs#symbol_query_outputs_unchanged"
+        "crates/ct-cudart/src/symbol_tests.rs#symbol_query_outputs_unchanged",
+        "tests/runtime_symbol_reference_abi.cpp#SymbolError",
+        "tests/runtime_symbol_native_abi.cpp#main",
+        "tests/fixtures/p04b/symbol_runtime.cu#main"
       ]
     },
     {
@@ -232,7 +235,10 @@
       "test_ids": [
         "crates/ct-cudart/src/symbol_tests.rs#symbol_export_preflight_and_tls",
         "crates/ct-cudart/src/symbol_tests.rs#symbol_copy_bounds_and_zero",
-        "crates/ct-cudart/src/symbol_tests.rs#symbol_query_outputs_unchanged"
+        "crates/ct-cudart/src/symbol_tests.rs#symbol_query_outputs_unchanged",
+        "tests/runtime_symbol_reference_abi.cpp#SymbolError",
+        "tests/runtime_symbol_native_abi.cpp#main",
+        "tests/fixtures/p04b/symbol_runtime.cu#main"
       ]
     },
     {
@@ -242,7 +248,10 @@
       "test_ids": [
         "crates/ct-cudart/src/symbol_tests.rs#symbol_export_preflight_and_tls",
         "crates/ct-cudart/src/symbol_tests.rs#symbol_copy_bounds_and_zero",
-        "crates/ct-cudart/src/symbol_tests.rs#symbol_query_outputs_unchanged"
+        "crates/ct-cudart/src/symbol_tests.rs#symbol_query_outputs_unchanged",
+        "tests/runtime_symbol_reference_abi.cpp#SymbolError",
+        "tests/runtime_symbol_native_abi.cpp#main",
+        "tests/fixtures/p04b/symbol_runtime.cu#main"
       ]
     },
     {
@@ -252,7 +261,10 @@
       "test_ids": [
         "crates/ct-cudart/src/symbol_tests.rs#symbol_export_preflight_and_tls",
         "crates/ct-cudart/src/symbol_tests.rs#symbol_copy_bounds_and_zero",
-        "crates/ct-cudart/src/symbol_tests.rs#symbol_query_outputs_unchanged"
+        "crates/ct-cudart/src/symbol_tests.rs#symbol_query_outputs_unchanged",
+        "tests/runtime_symbol_reference_abi.cpp#SymbolError",
+        "tests/runtime_symbol_native_abi.cpp#main",
+        "tests/fixtures/p04b/symbol_runtime.cu#main"
       ]
     }
   ],

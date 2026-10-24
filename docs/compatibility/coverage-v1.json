@@ -1151,7 +1151,7 @@
       "category": "runtime",
       "implementation": "partial",
       "limits": {
-        "contract": "Runtime21 Windows x64 EXE registration/configuration and synchronous kernels; nvcc12 PTX with cudadevrt=none only; diagnostic unsupported host, no default22 or general CUDA claim"
+        "contract": "Runtime26 Windows x64 bounded version1/default-device-runtime registration and synchronous kernels/symbol APIs; nvcc12 non-RDC PTX8.0/sm52/shared cudart; unsupported diagnostic host, no device-runtime function calls or general CUDA claim"
       },
       "test_ids": {
         "semantic": [
@@ -1640,7 +1640,7 @@
       "category": "runtime",
       "implementation": "partial",
       "limits": {
-        "contract": "P09a1 memory/error subset remains separately tested within bounded Runtime21; no general CUDA version claim"
+        "contract": "P09a1 memory/error subset remains separately tested within bounded Runtime26; no general CUDA version claim"
       },
       "test_ids": {
         "semantic": [
@@ -1660,7 +1660,7 @@
       "category": "runtime",
       "implementation": "partial",
       "limits": {
-        "contract": "P09a1 memory/error subset remains separately tested within bounded Runtime21; no general CUDA version claim"
+        "contract": "P09a1 memory/error subset remains separately tested within bounded Runtime26; no general CUDA version claim"
       },
       "test_ids": {
         "semantic": [
@@ -1724,6 +1724,27 @@
         ],
         "native": [
           "tests/p04a_driver_check.py#observe"
+        ]
+      }
+    },
+    {
+      "id": "runtime.symbols",
+      "category": "runtime",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Version1 flags0 size4 stored u32 only; four synchronous APIs share context-keyed module with kernel launch; unknown/retired/ambiguous13; no arrays/constants/UVA/async",
+        "scope": "Diagnostic Windows x64/Intel Arc preview; no AMD/NVIDIA/framework/release claim"
+      },
+      "test_ids": {
+        "semantic": [
+          "scripts/run_validation.py#cpu.runtime_rust",
+          "scripts/run_validation.py#cpu.runtime_profile"
+        ],
+        "abi": [
+          "scripts/run_validation.py#arc.runtime_symbol_abi"
+        ],
+        "native": [
+          "scripts/run_validation.py#arc.runtime_symbol"
         ]
       }
     }
@@ -2239,6 +2260,14 @@
     },
     {
       "id": "scripts/run_validation.py#arc.runtime_global",
+      "kind": "native"
+    },
+    {
+      "id": "scripts/run_validation.py#arc.runtime_symbol_abi",
+      "kind": "abi"
+    },
+    {
+      "id": "scripts/run_validation.py#arc.runtime_symbol",
       "kind": "native"
     }
   ]
