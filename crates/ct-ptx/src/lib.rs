@@ -1,4 +1,19 @@
 use std::collections::BTreeMap;
+use std::sync::Arc;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum GlobalStorage {
+    MutableU32 {
+        initializer: u32,
+    },
+    /// A declared name whose storage is outside the implemented profile.
+    Unsupported,
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Global {
+    pub name: String,
+    pub storage: GlobalStorage,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Ty {
@@ -23,6 +38,7 @@ pub struct Param {
 #[derive(Clone, Debug)]
 pub enum Value {
     Reg(String),
+    Global(String),
     /// SPIR-V builtin vector kind and scalar component (0=x, 1=y, 2=z).
     Builtin(u32, u32),
     Bits(Ty, u64),
@@ -80,12 +96,14 @@ pub enum InstructionKind {
         dst: String,
         address: Value,
         offset: u64,
+        volatile: bool,
     },
     Store {
         ty: Ty,
         address: Value,
         offset: u64,
         value: Value,
+        volatile: bool,
     },
 }
 #[derive(Clone, Debug)]
@@ -113,6 +131,7 @@ pub struct Block {
 #[derive(Clone, Debug)]
 pub struct Kernel {
     pub profile: Profile,
+    pub globals: Arc<[Global]>,
     pub name: String,
     pub params: Vec<Param>,
     pub registers: BTreeMap<String, Ty>,
@@ -121,6 +140,7 @@ pub struct Kernel {
 #[derive(Clone, Debug)]
 pub struct Module {
     pub profile: Profile,
+    pub globals: Arc<[Global]>,
     pub kernels: Vec<Kernel>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

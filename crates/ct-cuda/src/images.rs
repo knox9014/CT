@@ -82,6 +82,7 @@ pub(crate) fn compile_candidates(candidates: Vec<SourceCandidate>) -> Result<Com
     }
     let mut profiles = Vec::new();
     let mut identity: Option<BTreeMap<String, Vec<(ParamKind, u32)>>> = None;
+    let mut global_identity = None;
     let mut selected: Option<(u8, CompiledModule)> = None;
     for candidate in candidates {
         let compiled = ct_codegen_spirv::translate_module(&candidate.text).map_err(|e| {
@@ -100,6 +101,18 @@ pub(crate) fn compile_candidates(candidates: Vec<SourceCandidate>) -> Result<Com
             return Err(UNSUPPORTED);
         }
         profiles.push(compiled.profile);
+        let globals: BTreeMap<_, _> = compiled
+            .globals
+            .iter()
+            .map(|g| (g.name.clone(), g.storage.clone()))
+            .collect();
+        if let Some(expected) = &global_identity {
+            if *expected != globals {
+                return Err(UNSUPPORTED);
+            }
+        } else {
+            global_identity = Some(globals);
+        }
         let entries: BTreeMap<_, _> = compiled
             .entries
             .iter()
@@ -139,6 +152,51 @@ pub(crate) fn compile_candidates(candidates: Vec<SourceCandidate>) -> Result<Com
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn candidate_lookup_identity_is_observable() {
+        fn with_globals(profile: Profile, globals: &str) -> SourceCandidate {
+            let mut c = candidate(profile, "test", "u32");
+            c.text = c
+                .text
+                .replace(".visible .entry", &format!("{globals}\n.visible .entry"));
+            c
+        }
+        for (a, b, accepted) in [
+            (
+                ".global .align 4 .u32 g=7;",
+                ".global .align 4 .u32 g=8;",
+                false,
+            ),
+            (
+                ".global .align 4 .u32 g;",
+                ".global .align 4 .u32 h;",
+                false,
+            ),
+            (
+                ".global .align 4 .u32 g;",
+                ".global .align 8 .u64 g;",
+                false,
+            ),
+            (".global .align 8 .u64 g;", "", false),
+            (
+                ".global .align 8 .u64 g=1;",
+                ".global .align 8 .b8 g[2];",
+                true,
+            ),
+            (
+                ".global .align 4 .u32 g=7; .global .align 4 .u32 h;",
+                ".visible .global .align 4 .u32 h=0; .global .align 4 .u32 g=7;",
+                true,
+            ),
+        ] {
+            let result = compile_candidates(vec![with_globals(OLD, a), with_globals(NEW, b)]);
+            if accepted {
+                assert!(result.is_ok());
+            } else {
+                assert!(matches!(result, Err(801)));
+            }
+        }
+    }
     #[test]
     fn allocation_maps_to_out_of_memory() {
         assert_eq!(super::fatbin_error(ct_fatbin::Error::Allocation), 2);
