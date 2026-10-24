@@ -26,12 +26,15 @@ struct OwnedContext {
 struct OwnedModule {
     native: Module,
     entries: Vec<ct_codegen_spirv::CompiledEntry>,
+    globals: std::sync::Arc<[ct_ptx::Global]>,
 }
 struct OwnedFunction {
     module: usize,
     entry: usize,
 }
 mod context_stack;
+mod device_ranges;
+use device_ranges::DeviceRanges;
 mod entrypoints;
 mod images;
 mod memory;
@@ -39,6 +42,7 @@ mod memory_queries;
 pub use memory_queries::{cuMemGetAddressRange_v2, cuPointerGetAttribute};
 mod modules;
 pub use memory::{cuMemcpyDtoD_v2, cuMemsetD16_v2, cuMemsetD32_v2, cuMemsetD8_v2};
+pub use modules::cuModuleGetGlobal_v2;
 mod primary;
 mod primary_state;
 pub use entrypoints::{cuGetProcAddress, cuGetProcAddress_v2};
@@ -431,7 +435,7 @@ unsafe fn transfer(device: u64, host: *mut c_void, size: usize, to_device: bool)
         }
         let b = r.backend.as_ref().ok_or(NOT_INITIALIZED)?;
         let c = r.contexts.get_mut(&id).ok_or(INVALID_CONTEXT)?;
-        if !c.allocations.contains(device, size) {
+        if !c.contains_device(device, size) {
             return Err(INVALID);
         }
         b.copy(&mut c.native, device, host, size, to_device)

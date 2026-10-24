@@ -119,7 +119,11 @@ CUresult CT_CUDA_API cuModuleUnload(CUmodule module) {
     PFN_cuModuleUnload ct_proc=(PFN_cuModuleUnload)resolve("cuModuleUnload"); return ct_proc?ct_proc(module):999;
 }
 CUresult CT_CUDA_API cuLaunchKernel(CUfunction function, unsigned int gx, unsigned int gy, unsigned int gz, unsigned int bx, unsigned int by, unsigned int bz, unsigned int shared, CUstream stream, void **arguments, void **extra) {
+#ifdef NOOP_LAUNCH
+    (void)function;(void)gx;(void)gy;(void)gz;(void)bx;(void)by;(void)bz;(void)shared;(void)stream;(void)arguments;(void)extra;return 0;
+#else
     PFN_cuLaunchKernel ct_proc=(PFN_cuLaunchKernel)resolve("cuLaunchKernel"); return ct_proc?ct_proc(function,gx,gy,gz,bx,by,bz,shared,stream,arguments,extra):999;
+#endif
 }
 CUresult CT_CUDA_API cuGetProcAddress(const char *symbol, void **function, int version, unsigned long long flags) {
     PFN_cuGetProcAddress ct_proc=(PFN_cuGetProcAddress)resolve("cuGetProcAddress"); return ct_proc?ct_proc(symbol,function,version,flags):999;

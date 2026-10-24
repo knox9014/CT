@@ -1149,11 +1149,26 @@
     {
       "id": "runtime.registration",
       "category": "runtime",
-      "implementation": "missing",
+      "implementation": "partial",
       "limits": {
-        "scope": "Not implemented; no execution evidence declared."
+        "contract": "Runtime21 Windows x64 EXE registration/configuration and synchronous kernels; nvcc12 PTX with cudadevrt=none only; diagnostic unsupported host, no default22 or general CUDA claim"
       },
-      "test_ids": {}
+      "test_ids": {
+        "semantic": [
+          "scripts/run_validation.py#cpu.runtime_rust",
+          "scripts/run_validation.py#cpu.runtime_profile",
+          "scripts/run_validation.py#producer.nvcc_fatbin",
+          "scripts/run_validation.py#producer.default_device_runtime"
+        ],
+        "abi": [
+          "scripts/run_validation.py#arc.runtime_kernel_abi",
+          "scripts/run_validation.py#arc.runtime_default_abi"
+        ],
+        "native": [
+          "scripts/run_validation.py#arc.runtime_kernel",
+          "scripts/run_validation.py#arc.runtime_default"
+        ]
+      }
     },
     {
       "id": "parallel.shared",
@@ -1625,7 +1640,7 @@
       "category": "runtime",
       "implementation": "partial",
       "limits": {
-        "contract": "P09a1 Windows x64 explicit synchronous Runtime profile; no kernel registration/launch or general CUDA version claim"
+        "contract": "P09a1 memory/error subset remains separately tested within bounded Runtime21; no general CUDA version claim"
       },
       "test_ids": {
         "semantic": [
@@ -1645,7 +1660,7 @@
       "category": "runtime",
       "implementation": "partial",
       "limits": {
-        "contract": "P09a1 Windows x64 explicit synchronous Runtime profile; no kernel registration/launch or general CUDA version claim"
+        "contract": "P09a1 memory/error subset remains separately tested within bounded Runtime21; no general CUDA version claim"
       },
       "test_ids": {
         "semantic": [
@@ -1657,6 +1672,58 @@
         ],
         "native": [
           "scripts/run_validation.py#arc.runtime"
+        ]
+      }
+    },
+    {
+      "id": "runtime.kernel_launch",
+      "category": "runtime",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Context-specific same-Driver kernel materialization; default stream/shared0 only; bounded retirement; no framework/release/AMD/NVIDIA claim"
+      },
+      "test_ids": {
+        "semantic": [
+          "scripts/run_validation.py#cpu.runtime_rust",
+          "scripts/run_validation.py#cpu.runtime_profile",
+          "scripts/run_validation.py#producer.nvcc_fatbin",
+          "scripts/run_validation.py#producer.default_device_runtime"
+        ],
+        "abi": [
+          "scripts/run_validation.py#arc.runtime_kernel_abi",
+          "scripts/run_validation.py#arc.runtime_default_abi"
+        ],
+        "native": [
+          "scripts/run_validation.py#arc.runtime_kernel",
+          "scripts/run_validation.py#arc.runtime_default"
+        ]
+      }
+    },
+    {
+      "id": "driver.cuModuleGetGlobal_v2",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "scalar_mutable_u32_only": true,
+        "max_globals": 256,
+        "bytes_per_global": 4,
+        "current_context_only": true,
+        "module_owned": true,
+        "symbol_copy_api": false
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [
+          "tests/cuda_reference_abi.cpp#main"
+        ],
+        "semantic": [
+          "crates/ct-cuda/tests/global_query.rs#global_query_resets_outputs_before_uninitialized_error",
+          "crates/ct-cuda/src/device_ranges.rs#global_range_is_exact_and_excludes_one_past_and_overflow"
+        ],
+        "native": [
+          "tests/p04a_driver_check.py#observe"
         ]
       }
     }
@@ -2120,6 +2187,58 @@
     },
     {
       "id": "scripts/run_validation.py#arc.runtime",
+      "kind": "native"
+    },
+    {
+      "id": "scripts/run_validation.py#producer.nvcc_fatbin",
+      "kind": "semantic"
+    },
+    {
+      "id": "scripts/run_validation.py#arc.runtime_kernel_abi",
+      "kind": "abi"
+    },
+    {
+      "id": "scripts/run_validation.py#arc.runtime_kernel",
+      "kind": "native"
+    },
+    {
+      "id": "scripts/run_validation.py#producer.default_device_runtime",
+      "kind": "semantic"
+    },
+    {
+      "id": "scripts/run_validation.py#arc.runtime_default_abi",
+      "kind": "abi"
+    },
+    {
+      "id": "scripts/run_validation.py#arc.runtime_default",
+      "kind": "native"
+    },
+    {
+      "id": "crates/ct-cuda/tests/global_query.rs#global_query_resets_outputs_before_uninitialized_error",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-cuda/src/device_ranges.rs#global_range_is_exact_and_excludes_one_past_and_overflow",
+      "kind": "semantic"
+    },
+    {
+      "id": "tests/p04a_driver_check.py#observe",
+      "kind": "native"
+    },
+    {
+      "id": "scripts/run_validation.py#validator.global_u32",
+      "kind": "validator"
+    },
+    {
+      "id": "scripts/run_validation.py#arc.global_abi",
+      "kind": "abi"
+    },
+    {
+      "id": "scripts/run_validation.py#arc.global_driver",
+      "kind": "native"
+    },
+    {
+      "id": "scripts/run_validation.py#arc.runtime_global",
       "kind": "native"
     }
   ]

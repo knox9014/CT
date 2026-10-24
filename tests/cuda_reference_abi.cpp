@@ -38,6 +38,7 @@ int main() {
     PROBE(cuGetErrorName, cuGetErrorName_v6000);
     PROBE(cuGetErrorString, cuGetErrorString_v6000);
     PROBE(cuModuleLoadData, cuModuleLoadData_v2000);
+    PROBE(cuModuleGetGlobal_v2, cuModuleGetGlobal_v3020);
     PROBE(cuModuleGetFunction, cuModuleGetFunction_v2000);
     PROBE(cuModuleUnload, cuModuleUnload_v2000);
     PROBE(cuLaunchKernel, cuLaunchKernel_v4000);

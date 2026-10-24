@@ -37,7 +37,10 @@ pub fn synchronize() -> i32 {
         Err(code) => return code,
     };
     match rt.ensure_current() {
-        Ok(_) => errors::from_driver(crate::driver::DriverCalls::synchronize(&rt.driver)),
+        Ok(context) => match crate::kernel_runtime().drain(&rt.driver, context) {
+            Ok(()) => errors::from_driver(crate::driver::DriverCalls::synchronize(&rt.driver)),
+            Err(code) => code,
+        },
         Err(code) => errors::from_driver(code),
     }
 }

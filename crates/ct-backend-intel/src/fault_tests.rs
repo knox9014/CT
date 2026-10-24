@@ -14,6 +14,9 @@ struct State {
     build_log: bool,
     buffers: BTreeMap<usize, Box<[u8]>>,
     next: usize,
+    global_results: Vec<(usize, usize)>,
+    global_names: Vec<String>,
+    missing_global_api: bool,
 }
 impl State {
     fn call(&mut self, name: &'static str, handle: Handle) -> u32 {
@@ -59,6 +62,9 @@ impl Api {
         })
     }
     pub unsafe fn symbol<T: Copy>(&self, name: &[u8]) -> Result<T, String> {
+        if name == b"zeModuleGetGlobalPointer\0" && state(|s| s.missing_global_api) {
+            return Err("missing optional global API".into());
+        }
         let address = match name {
             b"zeMemAllocHost\0" => alloc_host as *const (),
             b"zeMemAllocDevice\0" => alloc_device as *const (),
@@ -66,6 +72,7 @@ impl Api {
             b"zeCommandListAppendMemoryCopy\0" => copy as *const (),
             b"zeCommandListAppendMemoryFill\0" => fill as *const (),
             b"zeModuleCreate\0" => create_module as *const (),
+            b"zeModuleGetGlobalPointer\0" => get_global as *const (),
             b"zeModuleBuildLogDestroy\0" => destroy_log as *const (),
             b"zeKernelCreate\0" => create_kernel as *const (),
             b"zeKernelSetArgumentValue\0" => argument as *const (),
@@ -307,6 +314,7 @@ fn failed_copy_preserves_staging_and_does_not_publish_unconfirmed_dtoh_bytes() {
         assert!(state(|s| s.buffers.contains_key(&c.staging[0])));
         assert_eq!(count("zeMemFree"), 0);
         let mut m = Module {
+            globals: Vec::new(),
             native: 101,
             kernels: vec![102],
         };
@@ -328,6 +336,7 @@ fn failed_staging_free_retains_buffer_and_is_never_retried() {
     assert!(c.poisoned);
     assert_eq!(count("zeMemFree"), 1);
     let mut m = Module {
+        globals: Vec::new(),
         native: 101,
         kernels: vec![102],
     };
@@ -437,6 +446,7 @@ fn fatal_memory_errors_and_any_free_error_poison_but_allocation_oom_allows_retry
             } else {
                 assert!(c.poisoned, "fatal memory error left context usable");
                 let mut m = Module {
+                    globals: Vec::new(),
                     native: 101,
                     kernels: vec![102],
                 };
@@ -606,4 +616,108 @@ fn device_fill_respects_selected_queue_pattern_limit_without_poisoning() {
     assert_eq!(count("zeCommandListAppendMemoryFill"), 1);
     assert!(c.retained_patterns.is_empty());
     assert_eq!(b.free(&mut c, address), Ok(()));
+}
+
+unsafe extern "C" fn get_global(
+    module: Handle,
+    name: *const std::ffi::c_char,
+    size: *mut usize,
+    pointer: *mut Handle,
+) -> u32 {
+    state(|s| {
+        let code = s.call("zeModuleGetGlobalPointer", module);
+        let index = s.global_names.len();
+        s.global_names
+            .push(std::ffi::CStr::from_ptr(name).to_str().unwrap().to_string());
+        let (n, p) = s
+            .global_results
+            .get(index)
+            .copied()
+            .unwrap_or((4, 0x1000 + index * 4));
+        size.write(n);
+        pointer.write(p as Handle);
+        code
+    })
+}
+#[test]
+fn module_globals_are_native_owned_and_exactly_named() {
+    let (b, mut c) = fixture();
+    let mut m = b
+        .load_module_entries_with_globals(
+            &mut c,
+            &[0; 4],
+            &["first"],
+            &[("counter", 4), ("zero", 4)],
+        )
+        .unwrap();
+    assert_eq!(m.global("counter").unwrap().pointer, 0x1000);
+    assert_eq!(m.global("zero").unwrap().size, 4);
+    assert!(m.global("absent").is_none());
+    assert_eq!(state(|s| s.global_names.clone()), ["counter", "zero"]);
+    b.unload_module(&mut c, &mut m).unwrap();
+    assert!(m.global("counter").is_none());
+    assert_eq!(count("zeMemFree"), 0);
+    assert_eq!(count("zeModuleDestroy"), 1);
+}
+#[test]
+fn bad_global_result_rolls_back_without_memory_free() {
+    for result in [(8, 0x1000), (4, 0), (4, 0x1001), (4, usize::MAX - 3)] {
+        let (b, mut c) = fixture();
+        state(|s| s.global_results.push(result));
+        assert!(b
+            .load_module_entries_with_globals(&mut c, &[0; 4], &["first"], &[("g", 4)])
+            .is_err());
+        assert_eq!(count("zeModuleDestroy"), 1);
+        assert_eq!(count("zeMemFree"), 0);
+        assert!(c.retained_modules.is_empty());
+    }
+    let (b, mut c) = fixture();
+    state(|s| s.global_results = vec![(4, 0x1000), (4, 0x1000)]);
+    assert!(b
+        .load_module_entries_with_globals(&mut c, &[0; 4], &["first"], &[("g", 4), ("h", 4)])
+        .is_err());
+    assert_eq!(count("zeModuleDestroy"), 1);
+}
+#[test]
+fn global_failure_retains_module_if_cleanup_is_uncertain() {
+    for nth in [1, 2] {
+        let (b, mut c) = fixture();
+        arm("zeModuleGetGlobalPointer", nth, OOM);
+        arm("zeModuleDestroy", 1, OOM);
+        let result =
+            b.load_module_entries_with_globals(&mut c, &[0; 4], &["first"], &[("g", 4), ("h", 4)]);
+        assert!(matches!(result, Err(OOM)));
+        assert!(c.poisoned);
+        assert_eq!(c.retained_modules.len(), 1);
+        assert_eq!(count("zeMemFree"), 0);
+    }
+}
+#[test]
+fn optional_global_api_does_not_affect_no_global_modules() {
+    let (b, mut c) = fixture();
+    state(|s| s.missing_global_api = true);
+    let mut m = loaded(&b, &mut c);
+    b.unload_module(&mut c, &mut m).unwrap();
+    assert!(matches!(
+        b.load_module_entries_with_globals(&mut c, &[0; 4], &["first"], &[("g", 4)]),
+        Err(0x78000003)
+    ));
+    assert_eq!(count("zeModuleCreate"), 1);
+}
+
+#[test]
+fn native_missing_global_is_unsupported_and_keeps_cleanup_policy() {
+    for (nth, failed_cleanup) in [(1, false), (2, false), (1, true), (2, true)] {
+        let (b, mut c) = fixture();
+        arm("zeModuleGetGlobalPointer", nth, 0x78000010);
+        if failed_cleanup {
+            arm("zeModuleDestroy", 1, OOM);
+        }
+        let result =
+            b.load_module_entries_with_globals(&mut c, &[0; 4], &["first"], &[("g", 4), ("h", 4)]);
+        assert!(matches!(result, Err(0x78000003)));
+        assert_eq!(c.retained_modules.len(), usize::from(failed_cleanup));
+        assert_eq!(c.poisoned, failed_cleanup);
+        assert_eq!(count("zeMemFree"), 0);
+    }
 }

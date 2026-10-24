@@ -48,6 +48,7 @@ fn canonical_entries_obey_verified_abi_boundaries() {
         ("cuGetErrorString", 6000),
         ("cuModuleLoadData", 2000),
         ("cuModuleGetFunction", 2000),
+        ("cuModuleGetGlobal", 3020),
         ("cuModuleUnload", 2000),
         ("cuLaunchKernel", 4000),
         ("cuGetProcAddress", 11030),

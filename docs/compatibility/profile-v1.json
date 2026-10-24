@@ -387,6 +387,22 @@
       ]
     },
     {
+      "symbol": "cuModuleGetGlobal_v2",
+      "signature_id": "cuModuleGetGlobal_v2:(CUdeviceptr *pointer, size_t *bytes, CUmodule module, const char *name)",
+      "lookup_ranges": [
+        {
+          "symbol": "cuModuleGetGlobal",
+          "minimum": 3020,
+          "maximum": 12000
+        }
+      ],
+      "behavior": "Bounded stored u32 globals; module-owned pointers, nullable outputs; docs/P04a-PREFLIGHT.md",
+      "test_ids": [
+        "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries",
+        "crates/ct-cuda/tests/global_query.rs#global_query_resets_outputs_before_uninitialized_error"
+      ]
+    },
+    {
       "symbol": "cuModuleGetFunction",
       "signature_id": "cuModuleGetFunction:(CUfunction *function, CUmodule module, const char *name)",
       "lookup_ranges": [

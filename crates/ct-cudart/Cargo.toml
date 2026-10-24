@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2021"
 publish = false
 
+[dependencies]
+ct-fatbin = { path = "../ct-fatbin" }
+
 [lib]
 crate-type = ["cdylib", "rlib"]
 

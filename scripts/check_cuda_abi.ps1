@@ -1,6 +1,7 @@
 param([string]$HeaderDirectory = '.cache/reference/cuda-12.0/include',
       [string]$CtDll = 'target/debug/ct_cuda.dll',
-      [string]$Lock = 'docs/compatibility/toolchain-lock-v1.json')
+      [string]$Lock = 'docs/compatibility/toolchain-lock-v1.json',
+      [string]$CompilerDirectory = '')
 $ErrorActionPreference = 'Stop'
 $taskRepo = Split-Path -Parent $PSScriptRoot
 Push-Location -LiteralPath $taskRepo
@@ -16,8 +17,15 @@ try {
     $taskBuild = '.cache/universal-foundation/abi'
     New-Item -ItemType Directory -Force -Path $taskBuild | Out-Null
     $taskCommands = @('@echo off', ('call "' + $taskVcvars + '" >nul'), 'if errorlevel 1 exit /b 1')
+    $taskCompiler = 'cl'
+    if ($CompilerDirectory) {
+        $taskCompilerRoot = (Resolve-Path -LiteralPath $CompilerDirectory).Path
+        if ($taskCompilerRoot -match '[\r\n"&|<>%]') { throw 'Unsupported compiler directory.' }
+        $taskCompiler = '"' + (Join-Path $taskCompilerRoot 'cl.exe') + '"'
+        $taskCommands += ('set "PATH=' + $taskCompilerRoot + ';%PATH%"')
+    }
     foreach ($taskProbe in @('cuda_reference_abi', 'cuda_declared_abi', 'cuda_reference_consumer')) {
-        $taskCommands += ('cl /nologo /W4 /EHsc /std:c++17 /utf-8 /I"' + $taskHeaderRoot + '" tests\' + $taskProbe + '.cpp /Fo' + $taskBuild + '/' + $taskProbe + '.obj /Fe' + $taskBuild + '/' + $taskProbe + '.exe')
+        $taskCommands += ($taskCompiler + ' /nologo /W4 /EHsc /std:c++17 /utf-8 /I"' + $taskHeaderRoot + '" tests\' + $taskProbe + '.cpp /Fo' + $taskBuild + '/' + $taskProbe + '.obj /Fe' + $taskBuild + '/' + $taskProbe + '.exe')
         $taskCommands += 'if errorlevel 1 exit /b 1'
     }
     $taskBatch = Join-Path $taskBuild 'build.cmd'
@@ -34,5 +42,5 @@ try {
     $taskDllPath = (Resolve-Path -LiteralPath $CtDll).Path
     & "$taskBuild/cuda_reference_consumer.exe" $taskDllPath
     if ($LASTEXITCODE -ne 0) { throw 'Official PFN consumer failed.' }
-    Write-Output 'CUDA ABI: 38 signatures, error/query/flag values and official-PFN consumer passed (Windows x64).'
+    Write-Output 'CUDA ABI: 39 signatures, error/query/flag values and official-PFN consumer passed (Windows x64).'
 } finally { Pop-Location }

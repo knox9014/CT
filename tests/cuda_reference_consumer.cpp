@@ -60,6 +60,12 @@ int wmain(int argc, wchar_t **argv) {
     unsigned int managed = 99;
     if (!range || !attribute || range(nullptr, nullptr, 0) != CUDA_ERROR_NOT_INITIALIZED ||
         attribute(&managed, CU_POINTER_ATTRIBUTE_IS_MANAGED, 0) != CUDA_ERROR_NOT_INITIALIZED || managed != 99) return 1;
+    auto global = reinterpret_cast<PFN_cuModuleGetGlobal_v3020>(GetProcAddress(dll, "cuModuleGetGlobal_v2"));
+    CUdeviceptr global_pointer = ~CUdeviceptr(0); size_t global_size = ~size_t(0);
+    if (!global || global(&global_pointer, &global_size, nullptr, "g") != CUDA_ERROR_NOT_INITIALIZED || global_pointer || global_size) return 1;
+    global_pointer = ~CUdeviceptr(0); global_size = ~size_t(0);
+    if (global(nullptr, &global_size, nullptr, "g") != CUDA_ERROR_NOT_INITIALIZED || global_size) return 1;
+    if (global(&global_pointer, nullptr, nullptr, "g") != CUDA_ERROR_NOT_INITIALIZED || global_pointer) return 1;
     FreeLibrary(dll);
     std::puts("Official PFN consumer: error mapping, resolver ABI versions and primary calls passed.");
 }

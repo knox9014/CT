@@ -1,6 +1,184 @@
 use crate::errors::*;
 
 #[test]
+fn exported_callback_name_failure_is_scoped_to_its_host() {
+    use crate::*;
+    use configuration::Dim3;
+    let image = crate::registration_tests::image();
+    let wrapper = crate::registration_tests::wrapper(&image);
+    let t = unsafe {
+        __cudaRegisterFatBinary((&wrapper as *const registration::Wrapper).cast_mut().cast())
+    };
+    let host = 0x987654321234567usize as *const c_char;
+    unsafe {
+        __cudaRegisterFunction(
+            t,
+            host,
+            c"one".as_ptr().cast_mut(),
+            c"different".as_ptr(),
+            -1,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        );
+    }
+    __cudaRegisterFatBinaryEnd(t);
+    let one = Dim3 { x: 1, y: 1, z: 1 };
+    assert_eq!(
+        unsafe {
+            cudaLaunchKernel(
+                host.cast(),
+                one,
+                one,
+                std::ptr::null_mut(),
+                0,
+                std::ptr::null_mut(),
+            )
+        },
+        801
+    );
+    __cudaUnregisterFatBinary(t);
+}
+
+#[test]
+fn exported_registration_and_configuration_are_gpu_free() {
+    use crate::configuration::Dim3;
+    use crate::*;
+    let _: unsafe extern "system" fn(*mut c_void) -> *mut *mut c_void = __cudaRegisterFatBinary;
+    let _: extern "system" fn(*mut *mut c_void) = __cudaRegisterFatBinaryEnd;
+    let _: extern "system" fn(*mut *mut c_void) = __cudaUnregisterFatBinary;
+    let _: extern "system" fn(Dim3, Dim3, usize, *mut c_void) -> u32 = __cudaPushCallConfiguration;
+    let _: unsafe extern "system" fn(*mut Dim3, *mut Dim3, *mut usize, *mut c_void) -> i32 =
+        __cudaPopCallConfiguration;
+    let _: unsafe extern "system" fn(
+        *const c_void,
+        Dim3,
+        Dim3,
+        *mut *mut c_void,
+        usize,
+        *mut c_void,
+    ) -> i32 = cudaLaunchKernel;
+    let image = crate::registration_tests::image();
+    let wrapper = crate::registration_tests::wrapper(&image);
+    let token = unsafe {
+        __cudaRegisterFatBinary(
+            (&wrapper as *const crate::registration::Wrapper)
+                .cast_mut()
+                .cast(),
+        )
+    };
+    assert!(!token.is_null());
+    let host = 0x1234567891234567usize as *const c_char;
+    unsafe {
+        __cudaRegisterFunction(
+            token,
+            host,
+            c"one".as_ptr().cast_mut(),
+            c"one".as_ptr(),
+            -1,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        );
+    }
+    __cudaRegisterFatBinaryEnd(token);
+    let zero = Dim3 { x: 0, y: 1, z: 1 };
+    let one = Dim3 { x: 1, y: 1, z: 1 };
+    assert_eq!(
+        unsafe {
+            cudaLaunchKernel(
+                host.cast(),
+                zero,
+                one,
+                std::ptr::null_mut(),
+                0,
+                std::ptr::null_mut(),
+            )
+        },
+        9
+    );
+    assert_eq!(
+        unsafe {
+            cudaLaunchKernel(
+                host.cast(),
+                one,
+                one,
+                std::ptr::null_mut(),
+                1,
+                std::ptr::null_mut(),
+            )
+        },
+        801
+    );
+    assert!(BRIDGE.get().is_none());
+    __cudaUnregisterFatBinary(token);
+    assert_eq!(
+        unsafe {
+            cudaLaunchKernel(
+                host.cast(),
+                one,
+                one,
+                std::ptr::null_mut(),
+                0,
+                std::ptr::null_mut(),
+            )
+        },
+        98
+    );
+}
+
+#[test]
+fn kernel_extension_is_complete_and_cached() {
+    use crate::platform::*;
+    use std::cell::Cell;
+    struct Fake {
+        missing: usize,
+        calls: Cell<usize>,
+    }
+    impl Platform for Fake {
+        type Owned = ();
+        fn load_owned(&self) -> Result<(), i32> {
+            Ok(())
+        }
+        fn check_identity(&self, _: &()) -> Result<(), i32> {
+            Ok(())
+        }
+        fn resolve(&self, _: &(), name: &[u8]) -> Result<usize, i32> {
+            let index = KERNEL_SYMBOLS.iter().position(|s| *s == name).unwrap();
+            self.calls.set(self.calls.get() + 1);
+            if index == self.missing {
+                Err(35)
+            } else {
+                Ok(index + 1)
+            }
+        }
+        fn pin(&self, _: &()) -> Result<(), i32> {
+            Ok(())
+        }
+    }
+    for missing in 0..=5 {
+        let fake = Fake {
+            missing,
+            calls: Cell::new(0),
+        };
+        let cache = std::sync::OnceLock::new();
+        let a = crate::cached(&cache, || resolve_kernel(&fake, &()));
+        if missing < 5 {
+            assert_eq!(a, Err(35));
+        } else {
+            assert_eq!(a, Ok(&[1, 2, 3, 4, 5]));
+        }
+        let count = fake.calls.get();
+        let _ = crate::cached(&cache, || resolve_kernel(&fake, &()));
+        assert_eq!(fake.calls.get(), count);
+    }
+}
+
+#[test]
 fn bootstrap_checks_identity_and_pins_before_publish() {
     use crate::platform::*;
     use std::cell::RefCell;
@@ -145,4 +323,153 @@ fn last_error_is_thread_local_and_success_does_not_clear() {
     assert_eq!(peek(), 21);
     assert_eq!(take(), 21);
     assert_eq!(take(), 0);
+}
+
+#[test]
+fn exported_function_terminal_state_precedes_invalid_payload() {
+    use crate::*;
+    let image = crate::registration_tests::image();
+    let wrapper = crate::registration_tests::wrapper(&image);
+    let token = unsafe {
+        __cudaRegisterFatBinary((&wrapper as *const registration::Wrapper).cast_mut().cast())
+    };
+    let host = 0x876543212345678usize as *const c_char;
+    let call = |token, name, limit| unsafe {
+        __cudaRegisterFunction(
+            token,
+            host,
+            name,
+            name,
+            limit,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        );
+        cudaGetLastError()
+    };
+    cudaGetLastError();
+    assert_eq!(call(token, c"terminal".as_ptr().cast_mut(), 0), 801);
+    assert_eq!(call(token, std::ptr::null_mut(), -1), 801);
+    __cudaRegisterFatBinaryEnd(token);
+    assert_eq!(cudaGetLastError(), 801);
+    let one = configuration::Dim3 { x: 1, y: 1, z: 1 };
+    assert_eq!(
+        unsafe {
+            cudaLaunchKernel(
+                host.cast(),
+                one,
+                one,
+                std::ptr::null_mut(),
+                0,
+                std::ptr::null_mut(),
+            )
+        },
+        801
+    );
+    __cudaUnregisterFatBinary(token);
+    cudaGetLastError();
+    assert_eq!(call(token, std::ptr::null_mut(), 0), 98);
+    assert_eq!(
+        call(usize::MAX as *mut *mut c_void, std::ptr::null_mut(), 0),
+        98
+    );
+}
+
+#[test]
+fn exported_variable_callback_is_cpu_only_and_preserves_first_failure() {
+    use crate::*;
+    let b = crate::registration_tests::image();
+    let w = crate::registration_tests::wrapper(&b);
+    let t =
+        unsafe { __cudaRegisterFatBinary((&w as *const registration::Wrapper).cast_mut().cast()) };
+    let h = 0x65432112345678usize as *const c_char;
+    let n = c"value";
+    unsafe {
+        __cudaRegisterFunction(
+            t,
+            h,
+            n.as_ptr().cast_mut(),
+            n.as_ptr(),
+            -1,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        );
+    }
+    errors::record(21);
+    unsafe {
+        __cudaRegisterVar(
+            t,
+            999usize as *mut c_char,
+            n.as_ptr().cast_mut(),
+            n.as_ptr(),
+            0,
+            8,
+            0,
+            0,
+        );
+    }
+    assert_eq!(cudaGetLastError(), 21);
+    __cudaRegisterFatBinaryEnd(t);
+    let one = configuration::Dim3 { x: 1, y: 1, z: 1 };
+    assert_eq!(
+        unsafe {
+            cudaLaunchKernel(
+                h.cast(),
+                one,
+                one,
+                std::ptr::null_mut(),
+                0,
+                std::ptr::null_mut(),
+            )
+        },
+        801
+    );
+    __cudaUnregisterFatBinary(t);
+    cudaGetLastError();
+    unsafe {
+        __cudaRegisterVar(
+            t,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null(),
+            0,
+            0,
+            0,
+            0,
+        );
+    }
+    assert_eq!(cudaGetLastError(), 98);
+}
+
+#[test]
+fn global_extension_is_separate_and_uses_the_owned_driver() {
+    use crate::platform::*;
+    struct Fake;
+    impl Platform for Fake {
+        type Owned = usize;
+        fn load_owned(&self) -> Result<usize, i32> {
+            panic!("optional extension must not load another DLL")
+        }
+        fn check_identity(&self, _: &usize) -> Result<(), i32> {
+            Ok(())
+        }
+        fn resolve(&self, owned: &usize, name: &[u8]) -> Result<usize, i32> {
+            assert_eq!(*owned, 1234);
+            if name == b"cuModuleGetGlobal_v2\0" {
+                Err(35)
+            } else {
+                Ok(1)
+            }
+        }
+        fn pin(&self, _: &usize) -> Result<(), i32> {
+            panic!("already pinned")
+        }
+    }
+    assert_eq!(resolve_global(&Fake, &1234), Err(35));
+    assert_eq!(resolve_kernel(&Fake, &1234), Ok([1; 5]));
 }

@@ -76,6 +76,15 @@ impl Backend {
         code: &[u8],
         entries: &[&str],
     ) -> NativeResult<Module> {
+        self.load_module_entries_with_globals(c, code, entries, &[])
+    }
+    pub fn load_module_entries_with_globals(
+        &self,
+        c: &mut Context,
+        code: &[u8],
+        entries: &[&str],
+        globals: &[(&str, usize)],
+    ) -> NativeResult<Module> {
         if c.poisoned {
             return Err(UNKNOWN);
         }
@@ -90,10 +99,37 @@ impl Backend {
             }
             names.push(CString::new(*entry).map_err(|_| BAD_ARGUMENT)?);
         }
+        if globals.len() > 256 {
+            return Err(BAD_ARGUMENT);
+        }
+        let mut global_records = Vec::new();
+        global_records
+            .try_reserve_exact(globals.len())
+            .map_err(|_| 0x70000003u32)?;
+        for &(name, size) in globals {
+            if name.is_empty() || name.len() > 128 || size != 4 || !unique.insert(name) {
+                return Err(BAD_ARGUMENT);
+            }
+            global_records.push((
+                CString::new(name).map_err(|_| BAD_ARGUMENT)?,
+                NativeGlobal { pointer: 0, size },
+            ));
+        }
+        type GetGlobal =
+            unsafe extern "C" fn(Handle, *const std::ffi::c_char, *mut usize, *mut Handle) -> u32;
+        let get_global: Option<GetGlobal> = if globals.is_empty() {
+            None
+        } else {
+            Some(
+                unsafe { self.api.symbol(b"zeModuleGetGlobalPointer\0") }
+                    .map_err(|_| 0x78000003u32)?,
+            )
+        };
         unsafe {
             let mut module = Module {
                 native: 0,
                 kernels: Vec::with_capacity(names.len()),
+                globals: global_records,
             };
             let mut handle = null_mut();
             let mut log = null_mut();
@@ -154,6 +190,48 @@ impl Backend {
                 });
                 let _ = c.observe(&self.api, result);
             }
+            if result.is_ok() {
+                if let Some(query) = get_global {
+                    for index in 0..module.globals.len() {
+                        let mut size = 0;
+                        let mut pointer = null_mut();
+                        let code = query(
+                            handle,
+                            module.globals[index].0.as_ptr(),
+                            &mut size,
+                            &mut pointer,
+                        );
+                        // A declared CT symbol absent from native storage is unsupported.
+                        // Keep this operation-specific; other native errors retain their code.
+                        let query_result = match code {
+                            0 => Ok(()),
+                            0x78000010 => Err(0x78000003), // INVALID_GLOBAL_NAME -> UNSUPPORTED_FEATURE
+                            _ => Err(code),
+                        };
+                        result = c.observe(&self.api, query_result);
+                        if result.is_err() {
+                            break;
+                        }
+                        let base = pointer as u64;
+                        let end = base.checked_add(size as u64);
+                        if size != 4
+                            || base == 0
+                            || !base.is_multiple_of(4)
+                            || end.is_none()
+                            || module.globals[..index].iter().any(|(_, g)| {
+                                base < g.pointer + g.size as u64 && g.pointer < end.unwrap()
+                            })
+                        {
+                            result = Err(BAD_ARGUMENT);
+                            break;
+                        }
+                        module.globals[index].1 = NativeGlobal {
+                            pointer: base,
+                            size,
+                        };
+                    }
+                }
+            }
             if let Err(code) = result {
                 if self.unload_module(c, &mut module).is_err() {
                     c.retained_modules.push(module);
@@ -188,6 +266,7 @@ impl Backend {
                     return Err(code);
                 }
                 module.native = 0;
+                module.globals.clear();
             }
         }
         Ok(())

@@ -12,7 +12,7 @@ struct Entry {
 
 // Version floors/signature transition verified against NVIDIA 12.0.107
 // cudaTypedefs.h. This is a lookup ceiling, not a CUDA driver version claim.
-fn entries() -> [Entry; 38] {
+fn entries() -> [Entry; 39] {
     macro_rules! e {
         ($name:literal, $function:path, $minimum:literal, $maximum:literal) => {
             Entry {
@@ -76,6 +76,7 @@ fn entries() -> [Entry; 38] {
         e!(b"cuGetErrorName", cuGetErrorName, 6000),
         e!(b"cuGetErrorString", cuGetErrorString, 6000),
         e!(b"cuModuleLoadData", modules::cuModuleLoadData, 2000),
+        e!(b"cuModuleGetGlobal", modules::cuModuleGetGlobal_v2, 3020),
         e!(b"cuModuleGetFunction", modules::cuModuleGetFunction, 2000),
         e!(b"cuModuleUnload", modules::cuModuleUnload, 2000),
         e!(b"cuLaunchKernel", modules::cuLaunchKernel, 4000),
