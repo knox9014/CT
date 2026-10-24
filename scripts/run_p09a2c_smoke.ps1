@@ -17,7 +17,7 @@ try {
     $ctBuild=Join-Path $ctRepo ('.cache/p09a2c-kernel/'+[guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Force -Path "$ctBuild/keep" | Out-Null
     foreach($ctSource in @('kernel_oracle.cu','module_a.cu','module_b.cu')) {Copy-Item -LiteralPath "tests/fixtures/p09a2/$ctSource" -Destination "$ctBuild/$ctSource"}
-    Copy-Item -LiteralPath 'tests/fixtures/p09a2/default_used_global.cu' -Destination $ctBuild
+    Copy-Item -LiteralPath 'tests/fixtures/p09a2/default_unsupported_global.cu' -Destination $ctBuild
     Copy-Item -LiteralPath 'include/ct_cuda.h' -Destination "$ctBuild/ct_cuda.h"
     $ctProducerRoot=Split-Path -Parent ([IO.Path]::GetFullPath((Join-Path $ctRepo $ctBaseManifest)))
     $ctCompiler=Split-Path -Parent $ctProducer.host.tools.'cl.exe'.path
@@ -35,7 +35,7 @@ try {
     $ctCommands+=('"'+$ctProducerRoot+'/toolkit/bin/nvcc.exe" --std=c++17 --compiler-bindir "'+$ctCompiler+'" -allow-unsupported-compiler -I "'+$ctProducerRoot+'/stl" -Xcompiler /utf-8 --cudart=shared --keep --keep-dir keep --generate-code arch=compute_52,code=compute_52 kernel_oracle.cu module_a.cu module_b.cu -o host.exe')
     $ctCommands+='if errorlevel 1 exit /b 1'
     New-Item -ItemType Directory -Path "$ctBuild/keep-negative" -Force | Out-Null
-    $ctCommands+=('"'+$ctProducerRoot+'/toolkit/bin/nvcc.exe" --std=c++17 --compiler-bindir "'+$ctCompiler+'" -allow-unsupported-compiler -I "'+$ctProducerRoot+'/stl" -Xcompiler /utf-8 --cudart=shared --keep --keep-dir keep-negative --generate-code arch=compute_52,code=compute_52 default_used_global.cu -o negative.exe')
+    $ctCommands+=('"'+$ctProducerRoot+'/toolkit/bin/nvcc.exe" --std=c++17 --compiler-bindir "'+$ctCompiler+'" -allow-unsupported-compiler -I "'+$ctProducerRoot+'/stl" -Xcompiler /utf-8 --cudart=shared --keep --keep-dir keep-negative --generate-code arch=compute_52,code=compute_52 default_unsupported_global.cu -o negative.exe')
     $ctCommands+='if errorlevel 1 exit /b 1';$ctCommands+='popd'
     $ctCommands+=('"'+$ctCompiler+'/cl.exe" /nologo /W4 /WX /EHsc /std:c++17 /utf-8 tests/p09a2c_default_control.cpp /Fo"'+$ctBuild+'/control.obj" /Fe"'+$ctBuild+'/control.exe"')
     $ctCommands+='if errorlevel 1 exit /b 1'

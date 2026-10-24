@@ -704,3 +704,20 @@ fn optional_global_api_does_not_affect_no_global_modules() {
     ));
     assert_eq!(count("zeModuleCreate"), 1);
 }
+
+#[test]
+fn native_missing_global_is_unsupported_and_keeps_cleanup_policy() {
+    for (nth, failed_cleanup) in [(1, false), (2, false), (1, true), (2, true)] {
+        let (b, mut c) = fixture();
+        arm("zeModuleGetGlobalPointer", nth, 0x78000010);
+        if failed_cleanup {
+            arm("zeModuleDestroy", 1, OOM);
+        }
+        let result =
+            b.load_module_entries_with_globals(&mut c, &[0; 4], &["first"], &[("g", 4), ("h", 4)]);
+        assert!(matches!(result, Err(0x78000003)));
+        assert_eq!(c.retained_modules.len(), usize::from(failed_cleanup));
+        assert_eq!(c.poisoned, failed_cleanup);
+        assert_eq!(count("zeMemFree"), 0);
+    }
+}

@@ -201,7 +201,14 @@ impl Backend {
                             &mut size,
                             &mut pointer,
                         );
-                        result = c.observe(&self.api, if code == 0 { Ok(()) } else { Err(code) });
+                        // A declared CT symbol absent from native storage is unsupported.
+                        // Keep this operation-specific; other native errors retain their code.
+                        let query_result = match code {
+                            0 => Ok(()),
+                            0x78000010 => Err(0x78000003), // INVALID_GLOBAL_NAME -> UNSUPPORTED_FEATURE
+                            _ => Err(code),
+                        };
+                        result = c.observe(&self.api, query_result);
                         if result.is_err() {
                             break;
                         }

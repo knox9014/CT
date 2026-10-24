@@ -18,7 +18,7 @@ from run_validation import source_fingerprint
 MODES=('single','repeat','ordinary','two_contexts','parallel','multi_module','control','used_global','noop')
 INPUTS=['tests/fixtures/p09a2/'+s for s in ('kernel_oracle.cu','module_a.cu','module_b.cu')]+[
     'include/ct_cuda.h','tests/p09a_noop_driver.c','tests/p09a_driver_control.def',
-    'scripts/run_p09a2c_smoke.ps1','tests/p09a2c_default_check.py','tests/p09a2c_default_control.cpp','include/ct_cudart.h','tests/p09a2c_counting_driver.c','tests/fixtures/p09a2/default_used_global.cu','scripts/prepare_nvcc_default.py','tests/p09a2_kernel_check.py']
+    'scripts/run_p09a2c_smoke.ps1','tests/p09a2c_default_check.py','tests/p09a2c_default_control.cpp','include/ct_cudart.h','tests/p09a2c_counting_driver.c','tests/fixtures/p09a2/default_unsupported_global.cu','scripts/prepare_nvcc_default.py','tests/p09a2_kernel_check.py']
 ROLES={'application':'host.exe','driver':'ct_cuda.dll','runtime':'ct_cudart.dll','noop':'noop.dll','control':'control.exe','image':'kernel_oracle.fatbin','counting':'counting.dll','negative':'negative.exe'}
 BOUNDARY_ERRORS=[9,9,801,1,98]
 
@@ -49,7 +49,7 @@ def outputs(folder):
     names={f'keep/{n}{s}' for n in ('kernel_oracle','module_a','module_b') for s in ('.fatbin','.ptx','.cudafe1.stub.c')}
     names|={f'keep/host_dlink{s}' for s in ('.fatbin','.fatbin.c','.reg.c')}
     names|={f'keep-negative/negative_dlink{s}' for s in ('.fatbin','.fatbin.c','.reg.c')}
-    names|={f'keep-negative/default_used_global{s}' for s in ('.fatbin','.ptx','.cudafe1.stub.c')}
+    names|={f'keep-negative/default_unsupported_global{s}' for s in ('.fatbin','.ptx','.cudafe1.stub.c')}
     return names
 
 
@@ -83,11 +83,11 @@ def audit_manifest(path,root=ROOT,*,execute=False):
         if m['artifacts']['image']['sha256']!=m['compiler_outputs']['keep/kernel_oracle.fatbin']:return ['control image changed']
         for name in ('kernel_oracle.cu','module_a.cu','module_b.cu'):
             if digest(folder/name)!=m['inputs']['tests/fixtures/p09a2/'+name]:return ['compiled source changed']
-        if digest(folder/'default_used_global.cu')!=m['inputs']['tests/fixtures/p09a2/default_used_global.cu']:return ['negative source changed']
+        if digest(folder/'default_unsupported_global.cu')!=m['inputs']['tests/fixtures/p09a2/default_unsupported_global.cu']:return ['negative source changed']
         if validate_control_symbol((root/'tests/p09a2c_default_control.cpp').read_text(),(folder/'keep/kernel_oracle.ptx').read_text()):return ['blocked control entry absent']
         negative_imports=inspect_pe(local(root,m['artifacts']['negative']['path']).read_bytes(),runtime=True)['imports']
         if '__cudaRegisterVar' not in {s for i in negative_imports if i['library'].lower()=='cudart64_12.dll' for s in i['symbols']}:return ['negative variable import absent']
-        ptx=(folder/'keep-negative/default_used_global.ptx').read_text();stub=(folder/'keep-negative/default_used_global.cudafe1.stub.c').read_text()
+        ptx=(folder/'keep-negative/default_unsupported_global.ptx').read_text();stub=(folder/'keep-negative/default_unsupported_global.cudafe1.stub.c').read_text()
         if '.global' not in ptx or 'ld.volatile.global' not in ptx or 'ct_used_global' not in ptx or '__cudaRegisterVar' not in stub:return ['used variable optimized away']
         if digest(folder/'ct_cuda.h')!=m['inputs']['include/ct_cuda.h']:return ['compiled Driver declarations changed']
         if len(m['modes'])!=len(MODES) or {x['mode'] for x in m['modes']}!=set(MODES):return ['kernel modes absent']

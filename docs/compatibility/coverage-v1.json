@@ -1698,6 +1698,34 @@
           "scripts/run_validation.py#arc.runtime_default"
         ]
       }
+    },
+    {
+      "id": "driver.cuModuleGetGlobal_v2",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "scalar_mutable_u32_only": true,
+        "max_globals": 256,
+        "bytes_per_global": 4,
+        "current_context_only": true,
+        "module_owned": true,
+        "symbol_copy_api": false
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [
+          "tests/cuda_reference_abi.cpp#main"
+        ],
+        "semantic": [
+          "crates/ct-cuda/tests/global_query.rs#global_query_resets_outputs_before_uninitialized_error",
+          "crates/ct-cuda/src/device_ranges.rs#global_range_is_exact_and_excludes_one_past_and_overflow"
+        ],
+        "native": [
+          "tests/p04a_driver_check.py#observe"
+        ]
+      }
     }
   ],
   "test_catalog": [
@@ -2183,6 +2211,18 @@
     },
     {
       "id": "scripts/run_validation.py#arc.runtime_default",
+      "kind": "native"
+    },
+    {
+      "id": "crates/ct-cuda/tests/global_query.rs#global_query_resets_outputs_before_uninitialized_error",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-cuda/src/device_ranges.rs#global_range_is_exact_and_excludes_one_past_and_overflow",
+      "kind": "semantic"
+    },
+    {
+      "id": "tests/p04a_driver_check.py#observe",
       "kind": "native"
     }
   ]

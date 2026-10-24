@@ -10,7 +10,7 @@
 
 **Spec:** [stored-global design](../specs/2026-10-24-stored-global-u32-design.md).
 
-Status: proposed plan, no product implementation. [Native feasibility](../../P04a-PREFLIGHT.md) proves only the native mechanism. C baseline258bf92 has44 required passes.
+Status: Tasks1-5 implemented; Task6 native diagnostics executed. Authenticated evidence and Task7 qualification remain pending. See [implementation progress](../../P04a-RESULTS.md). C baseline258bf92 has44 required passes for its older pinned candidate.
 
 ## Global Constraints
 
