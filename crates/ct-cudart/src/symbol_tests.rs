@@ -1,5 +1,88 @@
 use super::*;
 use crate::symbols::{copy, query, Transfer};
+fn ready_mixed(k: &KernelRuntime) -> usize {
+    let t = unsafe { register(&k.registry, &image()) };
+    unsafe {
+        k.registry
+            .function(t, 11, c"one".as_ptr().cast(), metadata())
+            .unwrap();
+        for (host, name, size) in [(91, c"value", 4), (93, c"wide", 8)] {
+            k.registry
+                .variable(
+                    t,
+                    host,
+                    name.as_ptr().cast(),
+                    name.as_ptr().cast(),
+                    crate::registration_variables::VariableMetadata {
+                        external: 0,
+                        size,
+                        constant: 0,
+                        global: 0,
+                    },
+                )
+                .unwrap();
+        }
+    }
+    k.registry.end(t).unwrap();
+    t
+}
+#[test]
+fn symbol_mixed_width_ranges() {
+    let k = KernelRuntime::new();
+    ready_mixed(&k);
+    let f = Fake::default();
+    f.0.global_overrides
+        .lock()
+        .unwrap()
+        .insert(b"wide\0".to_vec(), (4104, 8));
+    let rt = Runtime::new(f.clone());
+    for (host, size) in [(91, 4usize), (93, 8usize)] {
+        let mut output = 123;
+        assert_eq!(
+            unsafe { query(&k, || Ok(&rt), host, &mut output, |_, n| n) },
+            0
+        );
+        assert_eq!(output, size);
+        assert_eq!(transfer(&k, &rt, host, true, 1, 1234, 1, size - 1), 0);
+        assert_eq!(transfer(&k, &rt, host, false, 2, 0, 0, size), 0);
+        assert_eq!(transfer(&k, &rt, host, false, 2, 1234, 1, size), 1);
+    }
+    assert_eq!(transfer(&k, &rt, 91, true, 1, 1234, 5, 0), 1);
+    assert_eq!(transfer(&k, &rt, 93, true, 1, 1234, 8, 0), 0);
+}
+#[test]
+fn symbol_u64_lookup_error_precedence() {
+    let k = KernelRuntime::new();
+    let t = ready_mixed(&k);
+    let f = Fake::default();
+    let rt = Runtime::new(f.clone());
+    for host in [0, 92] {
+        assert_eq!(transfer(&k, &rt, host, true, 1, 1234, 5, 0), 1);
+        assert_eq!(transfer(&k, &rt, host, true, 1, 1234, 4, 0), 13);
+    }
+    k.registry.fail(t, 2);
+    assert_eq!(transfer(&k, &rt, 93, true, 1, 1234, 5, 0), 1);
+    assert_eq!(transfer(&k, &rt, 93, true, 1, 1234, 4, 0), 2);
+    assert_eq!(f.0.loads.load(SeqCst), 0);
+}
+#[test]
+fn symbol_u64_binding_validation() {
+    for (pointer, size) in [(4100, 8), (4104, 4), (u64::MAX - 7, 8)] {
+        let k = KernelRuntime::new();
+        ready_mixed(&k);
+        let f = Fake::default();
+        f.0.global_overrides
+            .lock()
+            .unwrap()
+            .insert(b"wide\0".to_vec(), (pointer, size));
+        let rt = Runtime::new(f.clone());
+        let mut output = 123;
+        assert_eq!(address(&k, &rt, 93, &mut output), 801);
+        assert_eq!(output, 123);
+        assert_eq!(address(&k, &rt, 91, &mut output), 801);
+        assert_eq!(f.0.loads.load(SeqCst), 1);
+    }
+}
 fn address(k: &KernelRuntime, rt: &Runtime<Fake>, host: usize, out: &mut usize) -> i32 {
     unsafe { query(k, || Ok(rt), host, out, |p, _| p as usize) }
 }

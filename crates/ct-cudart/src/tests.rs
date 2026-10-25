@@ -408,7 +408,7 @@ fn exported_variable_callback_is_cpu_only_and_preserves_first_failure() {
             n.as_ptr().cast_mut(),
             n.as_ptr(),
             0,
-            8,
+            16,
             0,
             0,
         );

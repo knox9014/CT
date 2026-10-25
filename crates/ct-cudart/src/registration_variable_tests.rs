@@ -119,7 +119,7 @@ fn variable_blocks_only_its_registration() {
     for (token, host) in [(t, 11), (other, 12)] {
         unsafe { r.function(token, host, c"kernel".as_ptr().cast(), metadata()) }.unwrap();
     }
-    unsafe { add(&r, t, 1, m()) }.unwrap();
+    unsafe { add(&r, t, 1, VariableMetadata { size: 16, ..m() }) }.unwrap();
     r.end(t).unwrap();
     r.end(other).unwrap();
     assert_eq!(r.lease(11).unwrap().image().err(), Some(801));

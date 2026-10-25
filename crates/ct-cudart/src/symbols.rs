@@ -12,22 +12,26 @@ pub struct Transfer {
     pub to: bool,
 }
 impl Transfer {
-    fn preflight(&self) -> Result<(), i32> {
+    fn preflight(&self) -> Result<usize, i32> {
         match (self.to, self.kind) {
             (_, 4) => return Err(801),
             (true, 1 | 3) | (false, 2 | 3) => {}
             _ => return Err(21),
         }
-        if self
-            .offset
-            .checked_add(self.count)
-            .is_none_or(|end| end > 4)
-            || (self.count > 0
-                && (self.data.is_null() || (self.data as usize).checked_add(self.count).is_none()))
+        let end = self.offset.checked_add(self.count).ok_or(1)?;
+        if self.count > 0
+            && (self.data.is_null() || (self.data as usize).checked_add(self.count).is_none())
         {
             return Err(1);
         }
-        Ok(())
+        Ok(end)
+    }
+    fn check_bound(&self, end: usize, bound: usize) -> Result<(), i32> {
+        if end > bound {
+            Err(1)
+        } else {
+            Ok(())
+        }
     }
 }
 pub unsafe fn query<'a, D: KernelDriver + 'a, T>(
@@ -60,15 +64,29 @@ pub unsafe fn copy<'a, D: KernelDriver + 'a>(
     transfer: Transfer,
 ) -> i32 {
     let result = (|| {
-        transfer.preflight()?;
-        let lease = kernels.registry.symbol(host)?;
+        let end = transfer.preflight()?;
+        let lease = match kernels.registry.symbol(host) {
+            Ok(lease) => lease,
+            Err(code) => {
+                transfer.check_bound(end, 4)?;
+                return Err(code);
+            }
+        };
+        let size = lease
+            .data
+            .variables()
+            .get(lease.variable_index)
+            .ok_or(801)?
+            .metadata
+            .size;
+        transfer.check_bound(end, if matches!(size, 4 | 8) { size } else { 4 })?;
         lease.data.image()?;
         let rt = runtime()?;
         kernels.with_symbol(rt, &lease, |driver, pointer, _| {
             if transfer.count == 0 {
                 return Ok(());
             }
-            // Binding validation established a nonoverflowing four-byte extent.
+            // Binding validation established a matching nonoverflowing scalar extent.
             let address = pointer + transfer.offset as u64;
             let code = match (transfer.to, transfer.kind) {
                 (true, 1) => unsafe {

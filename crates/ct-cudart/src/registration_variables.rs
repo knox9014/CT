@@ -1,4 +1,4 @@
-//! CPU-only variable metadata; frozen u32 bindings resolve on first native load.
+//! CPU-only variable metadata; frozen scalar bindings resolve on first native load.
 use crate::registration::copy_name;
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct VariableMetadata {

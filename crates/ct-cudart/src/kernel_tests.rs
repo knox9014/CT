@@ -25,6 +25,7 @@ struct Inner {
     global_error: AtomicI32,
     global_prepare_error: AtomicI32,
     global_size: Mutex<Option<usize>>,
+    global_overrides: Mutex<HashMap<Vec<u8>, (u64, usize)>>,
     global_pointer: Mutex<Option<u64>>,
     native_value: AtomicUsize,
     copy_error: AtomicI32,
@@ -120,6 +121,9 @@ impl KernelDriver for Fake {
         }
     }
     fn global(&self, _: Module, symbol: &[u8]) -> DriverResult<(u64, usize)> {
+        if let Some(value) = self.0.global_overrides.lock().unwrap().get(symbol) {
+            return Ok(*value);
+        }
         self.0.global_names.lock().unwrap().push(symbol.to_vec());
         let barrier = self.0.global_barrier.lock().unwrap().clone();
         if let Some((a, b)) = barrier {
@@ -413,7 +417,7 @@ fn variable_and_prelinked_modules_never_enter_driver() {
             c"value".as_ptr().cast(),
             crate::registration_variables::VariableMetadata {
                 external: 0,
-                size: 8,
+                size: 16,
                 constant: 0,
                 global: 0,
             },

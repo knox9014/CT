@@ -76,7 +76,7 @@ impl RegistrationData {
         let variables = self.variables.get().ok_or(98)?;
         if self.image.contents.version != 1
             || variables.iter().any(|v| {
-                v.metadata.size != 4
+                !matches!(v.metadata.size, 4 | 8)
                     || v.metadata.external != 0
                     || v.metadata.constant != 0
                     || v.metadata.global != 0

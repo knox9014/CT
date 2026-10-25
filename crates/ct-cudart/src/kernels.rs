@@ -231,7 +231,8 @@ impl KernelRuntime {
                         let failure = match binding {
                             Ok((pointer, size))
                                 if pointer != 0
-                                    && pointer.is_multiple_of(4)
+                                    && matches!(size, 4 | 8)
+                                    && pointer.is_multiple_of(size as u64)
                                     && size == variable.metadata.size
                                     && pointer.checked_add(size as u64).is_some() =>
                             {
