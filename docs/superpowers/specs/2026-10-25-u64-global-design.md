@@ -1,6 +1,6 @@
 # P04c: scalar u64 globals through CUDA Driver and Runtime
 
-Status: proposed design for user review; product implementation has not begun.
+Status: user approved this design on 2026-10-25 ("가자"); product implementation has not begun.
 Baseline: 7bffe16. On 2026-10-25 the user selected 64-bit global-variable support
 instead of shared memory/block synchronization. The detailed choices below are
 the implementer's proposals, not additional user decisions.
@@ -157,4 +157,4 @@ design approval.
 2026-10-25: a fresh read-only reviewer inspected this design and relevant source,
 reporting "nothing important left". Mixed-width range/error precedence and the
 negative producer migration were explicitly considered. No product/GPU execution
-was performed for this design review. User approval of this document is pending.
+was performed for this design review. The user subsequently approved this design.
