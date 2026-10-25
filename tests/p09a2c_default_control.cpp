@@ -26,7 +26,7 @@ int main(int argc,char **argv) {
     auto linked_host=reinterpret_cast<const char *>(uintptr_t(0x777788888888));
     Wrapper blocked={0x466243b1,1,image.data(),nullptr};auto blocked_token=p___cudaRegisterFatBinary(&blocked);REQUIRE(blocked_token);
     p___cudaRegisterFunction(blocked_token,unsupported_host,unsupported_symbol,unsupported_symbol,-1,nullptr,nullptr,nullptr,nullptr,nullptr);
-    p___cudaRegisterVar(blocked_token,reinterpret_cast<char *>(uintptr_t(12345)),unsupported_symbol,unsupported_symbol,0,8,0,0);p___cudaRegisterFatBinaryEnd(blocked_token);REQUIRE(p_cudaGetLastError()==0);
+    p___cudaRegisterVar(blocked_token,reinterpret_cast<char *>(uintptr_t(12345)),unsupported_symbol,unsupported_symbol,0,16,0,0);p___cudaRegisterFatBinaryEnd(blocked_token);REQUIRE(p_cudaGetLastError()==0);
     const unsigned char *dependencies[]={image.data(),nullptr};blocked.version=2;blocked.extra=dependencies;auto linked_token=p___cudaRegisterFatBinary(&blocked);REQUIRE(linked_token);
     p___cudaRegisterFunction(linked_token,linked_host,unsupported_symbol,unsupported_symbol,-1,nullptr,nullptr,nullptr,nullptr,nullptr);p___cudaRegisterFatBinaryEnd(linked_token);REQUIRE(p_cudaGetLastError()==0);
     Wrapper wrapper={0x466243b1,1,image.data(),nullptr};void **token=p___cudaRegisterFatBinary(&wrapper);REQUIRE(token);

@@ -12,7 +12,7 @@ SOURCE=b""".version 8.0
 .address_size 64
 .global .align 4 .u32 counter=7;
 .global .align 4 .u32 zero;
-.global .align 8 .u64 legacy=5;
+.global .align 8 .b8 legacy[16];
 .visible .entry step(.param .u64 .ptr .global .align 4 output) {
 .reg .u64 %rd; .reg .u32 %r;
 ld.param.u64 %rd,[output];
