@@ -58,3 +58,5 @@ truncation cannot pass. Preserve the existing supported u32 behavior and ABI.
 Scope selection and a reviewed concrete design precede product code changes.
 The feature direction is selected; detailed design approval and implementation
 remain separate from this source audit.
+
+Follow-up: the selected design was implemented and verified; see [P04c results](P04c-RESULTS.md). The inspection above remains the preimplementation record.

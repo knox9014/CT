@@ -1,6 +1,6 @@
 # P04c: scalar u64 globals through CUDA Driver and Runtime
 
-Status: user approved this design on 2026-10-25 ("가자"); product implementation has not begun.
+Status: user approved this design on 2026-10-25 ("가자"); implemented at candidate5e2b302 with clean required52/52 pass; see [results](../../P04c-RESULTS.md).
 Baseline: 7bffe16. On 2026-10-25 the user selected 64-bit global-variable support
 instead of shared memory/block synchronization. The detailed choices below are
 the implementer's proposals, not additional user decisions.
