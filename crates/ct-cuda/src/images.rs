@@ -181,6 +181,11 @@ mod tests {
             (
                 ".global .align 8 .u64 g=1;",
                 ".global .align 8 .b8 g[2];",
+                false,
+            ),
+            (
+                ".global .align 8 .u64 g=0xffffffffffffffff;",
+                ".global .align 8 .u64 g=-1;",
                 true,
             ),
             (

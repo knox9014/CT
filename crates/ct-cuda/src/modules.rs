@@ -30,10 +30,7 @@ pub unsafe extern "system" fn cuModuleLoadData(
         let globals: Vec<_> = compiled
             .globals
             .iter()
-            .filter_map(|g| {
-                matches!(g.storage, ct_ptx::GlobalStorage::MutableU32 { .. })
-                    .then_some((g.name.as_str(), 4))
-            })
+            .filter_map(|g| g.storage.byte_size().map(|size| (g.name.as_str(), size)))
             .collect();
         let mut native = b
             .load_module_entries_with_globals(&mut c.native, &compiled.spirv, &names, &globals)

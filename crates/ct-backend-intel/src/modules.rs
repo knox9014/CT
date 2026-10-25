@@ -1,5 +1,26 @@
 //! Native module lifetimes and synchronous launches, serialized by CT runtime.
 use super::*;
+fn validate_global_extent(
+    pointer: u64,
+    actual: usize,
+    expected: usize,
+    prior: impl IntoIterator<Item = NativeGlobal>,
+) -> NativeResult<()> {
+    let end = pointer.checked_add(actual as u64).ok_or(BAD_ARGUMENT)?;
+    if !matches!(expected, 4 | 8)
+        || actual != expected
+        || pointer == 0
+        || !pointer.is_multiple_of(expected as u64)
+        || prior.into_iter().any(|g| {
+            g.pointer
+                .checked_add(g.size as u64)
+                .is_none_or(|other_end| pointer < other_end && g.pointer < end)
+        })
+    {
+        return Err(BAD_ARGUMENT);
+    }
+    Ok(())
+}
 use std::ffi::CString;
 
 fn validate_dimensions(
@@ -107,7 +128,8 @@ impl Backend {
             .try_reserve_exact(globals.len())
             .map_err(|_| 0x70000003u32)?;
         for &(name, size) in globals {
-            if name.is_empty() || name.len() > 128 || size != 4 || !unique.insert(name) {
+            if name.is_empty() || name.len() > 128 || !matches!(size, 4 | 8) || !unique.insert(name)
+            {
                 return Err(BAD_ARGUMENT);
             }
             global_records.push((
@@ -213,14 +235,13 @@ impl Backend {
                             break;
                         }
                         let base = pointer as u64;
-                        let end = base.checked_add(size as u64);
-                        if size != 4
-                            || base == 0
-                            || !base.is_multiple_of(4)
-                            || end.is_none()
-                            || module.globals[..index].iter().any(|(_, g)| {
-                                base < g.pointer + g.size as u64 && g.pointer < end.unwrap()
-                            })
+                        if validate_global_extent(
+                            base,
+                            size,
+                            module.globals[index].1.size,
+                            module.globals[..index].iter().map(|(_, g)| *g),
+                        )
+                        .is_err()
                         {
                             result = Err(BAD_ARGUMENT);
                             break;
@@ -361,6 +382,35 @@ impl Backend {
 #[cfg(test)]
 mod cleanup_tests {
     use super::*;
+    #[test]
+    fn validates_mixed_global_extents() {
+        let prior = [NativeGlobal {
+            pointer: 4096,
+            size: 4,
+        }];
+        assert!(validate_global_extent(4104, 8, 8, prior).is_ok());
+        assert!(validate_global_extent(4100, 4, 4, prior).is_ok());
+        for (pointer, actual, expected) in [
+            (0, 8, 8),
+            (4100, 8, 8),
+            (4104, 4, 8),
+            (4096, 8, 8),
+            (u64::MAX - 7, 8, 8),
+            (4104, 16, 16),
+        ] {
+            assert!(validate_global_extent(pointer, actual, expected, prior).is_err());
+        }
+        assert!(validate_global_extent(
+            4100,
+            4,
+            4,
+            [NativeGlobal {
+                pointer: 4096,
+                size: 8
+            }]
+        )
+        .is_err());
+    }
     #[test]
     fn validates_each_dimension_and_checked_block_volume() {
         let group = [96, 32, 16, 8];
