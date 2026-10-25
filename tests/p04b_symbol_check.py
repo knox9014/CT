@@ -14,13 +14,14 @@ def expected(seed,order):
             result=initial.copy()
             result[GUARD:GUARD+N]=[(v+a+b+bias)&MASK for v in inputs[GUARD:GUARD+N]]
             return result
-        runs=[];before=[];after=[]
+        runs=[];before=[];after=[];partial_reads=[]
         for j in range(CALLS):
             raw=((seed*17+ctx*101+j*13)^0xa5c35a7e)&MASK
             patch=(seed+ctx*31+j*19)&0xffff
             v=(raw&0xff0000ff)|(patch<<8)
+            partial_reads.append([0xa6]*GUARD+[(v>>8)&255,(v>>16)&255]+[0xa6]*GUARD)
             before.append([v,v]);runs.append(output(v,v));after.append([(v+1)&MASK,(v+3)&MASK])
-        contexts.append(dict(bootstrap=output(7,29),runs=runs,inputs=inputs,before=before,after=after,final=after[-1]))
+        contexts.append(dict(bootstrap=output(7,29),runs=runs,inputs=inputs,before=before,after=after,partial_reads=partial_reads,final=after[-1]))
     return dict(seed=seed,order=order,contexts=contexts,negative=[1]*8,revisit=contexts[0]['final'],main_entered=1)
 def expected_noop(seed,order):
     value=expected(seed,order)

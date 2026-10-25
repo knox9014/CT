@@ -4,6 +4,24 @@ from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from p04b_symbol_check import expected,validate,expected_noop,validate_noop
 class SymbolOracleTests(unittest.TestCase):
+    def test_partial_read_bytes_and_host_guards(self):
+        for seed in (1,773,999999):
+            for order in (0,1):
+                value=expected(seed,order)
+                for ctx,context in enumerate(value['contexts']):
+                    for j,row in enumerate(context['partial_reads']):
+                        patch=(seed+ctx*31+j*19)&0xffff
+                        self.assertEqual(row,[0xa6]*64+[patch&255,patch>>8]+[0xa6]*64)
+                for index in (0,63,64,65,66,129):
+                    bad=copy.deepcopy(value)
+                    bad['contexts'][1]['partial_reads'][99][index]^=1
+                    self.assertTrue(validate(bad,seed,order))
+                noop=expected_noop(seed,order)
+                self.assertEqual(validate_noop(noop,seed,order),[])
+                bad=copy.deepcopy(noop)
+                bad['contexts'][0]['partial_reads'][0][64]^=1
+                self.assertTrue(validate_noop(bad,seed,order))
+
     def test_symbol_oracle_closed_and_sensitive(self):
         for seed in (1,773,999999):
             for order in (0,1):

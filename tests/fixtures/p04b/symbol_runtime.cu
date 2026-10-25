@@ -14,6 +14,7 @@ extern "C" __global__ void ct_read(unsigned *out,const unsigned *in,unsigned n,u
 }
 extern "C" __global__ void ct_advance(){ct_counter=ct_counter+1;ct_other=ct_other+3;}
 static void array(const unsigned *p,unsigned n){std::printf("[");for(unsigned i=0;i<n;i++)std::printf("%s%u",i?",":"",p[i]);std::printf("]");}
+static void bytes(const unsigned char *p,unsigned n){std::printf("[");for(unsigned i=0;i<n;i++)std::printf("%s%u",i?",":"",(unsigned)p[i]);std::printf("]");}
 int main(int argc,char **argv) {
  CHECK(argc==3);unsigned seed=(unsigned)std::strtoul(argv[1],nullptr,10),order=(unsigned)std::strtoul(argv[2],nullptr,10);CHECK(seed&&seed<=1000000&&order<=1);
  constexpr unsigned n=17,g=64,total=n+2*g,calls=100;
@@ -31,6 +32,7 @@ int main(int argc,char **argv) {
  for(unsigned ctx=0;ctx<2;ctx++) {
   if(ctx){CHECK(create(&second_context,0,0)==0);CHECK(second_context&&second_context!=first_context);std::printf(",");}
   unsigned in[total],out[total],bootstrap[total],inputs[total],runs[calls][total],before[calls][2],after[calls][2],final_values[2];
+  unsigned char partial_reads[calls][2+2*g];
   for(unsigned i=0;i<total;i++){in[i]=(seed*5+ctx*23+i*7)^0x2468ace0u;out[i]=(seed*3+ctx*31+i*11)^0x13579bdfu;}
   unsigned *di=nullptr,*dout=nullptr,*tmp=nullptr;CHECK(cudaMalloc((void**)&di,sizeof(in))==cudaSuccess);CHECK(cudaMalloc((void**)&dout,sizeof(out))==cudaSuccess);CHECK(cudaMalloc((void**)&tmp,4)==cudaSuccess);
   CHECK(cudaMemcpy(di,in,sizeof(in),cudaMemcpyHostToDevice)==cudaSuccess);CHECK(cudaMemcpy(dout,out,sizeof(out),cudaMemcpyHostToDevice)==cudaSuccess);
@@ -48,6 +50,8 @@ int main(int argc,char **argv) {
    unsigned value=(seed*17+ctx*101+j*13)^0xa5c35a7eu;unsigned short patch=(unsigned short)(seed+ctx*31+j*19);
    CHECK(cudaMemcpyToSymbol(ct_counter,&value,4,0,cudaMemcpyHostToDevice)==cudaSuccess);
    CHECK(cudaMemcpyToSymbol(ct_counter,&patch,2,1,cudaMemcpyHostToDevice)==cudaSuccess);
+   for(unsigned k=0;k<2+2*g;k++)partial_reads[j][k]=0xa6;
+   CHECK(cudaMemcpyFromSymbol(partial_reads[j]+g,ct_counter,2,1,cudaMemcpyDeviceToHost)==cudaSuccess);
    CHECK(cudaMemcpyFromSymbol(tmp,ct_counter,4,0,cudaMemcpyDeviceToDevice)==cudaSuccess);
    CHECK(cudaMemcpyToSymbol(ct_counter,tmp,4,0,cudaMemcpyDeviceToDevice)==cudaSuccess);
    CHECK(cudaMemcpyToSymbol(ct_other,address,4,0,cudaMemcpyDeviceToDevice)==cudaSuccess);
@@ -70,7 +74,9 @@ int main(int argc,char **argv) {
   if(!ctx){first_final[0]=final_values[0];first_final[1]=final_values[1];}
   std::printf("{\"bootstrap\":");array(bootstrap,total);std::printf(",\"runs\":[");for(unsigned j=0;j<calls;j++){if(j)std::printf(",");array(runs[j],total);}
   std::printf("],\"inputs\":");array(inputs,total);std::printf(",\"before\":[");for(unsigned j=0;j<calls;j++){if(j)std::printf(",");array(before[j],2);}
-  std::printf("],\"after\":[");for(unsigned j=0;j<calls;j++){if(j)std::printf(",");array(after[j],2);}std::printf("],\"final\":");array(final_values,2);std::printf("}");
+  std::printf("],\"after\":[");for(unsigned j=0;j<calls;j++){if(j)std::printf(",");array(after[j],2);}
+  std::printf("],\"partial_reads\":[");for(unsigned j=0;j<calls;j++){if(j)std::printf(",");bytes(partial_reads[j],2+2*g);}
+  std::printf("],\"final\":");array(final_values,2);std::printf("}");
  }
  CHECK(destroy(second_context)==0);CHECK(set(first_context)==0);
  negative[ni++]=(unsigned)cudaMemcpyToSymbol(ct_counter,second_address,4,0,cudaMemcpyDeviceToDevice);CHECK(cudaGetLastError()==cudaErrorInvalidValue);CHECK(ni==8);
