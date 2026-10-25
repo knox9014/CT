@@ -868,8 +868,8 @@ fn parse_kernel(
     validate_inferred_pointers(&kernel, &inferred)?;
     if kernel.blocks.iter().flat_map(|b| &b.instructions).any(|i| {
         matches!(
-            i.kind,
-            InstructionKind::Load { ty: Ty::U64, .. } | InstructionKind::Store { ty: Ty::U64, .. }
+            &i.kind,
+            InstructionKind::Load { ty: Ty::U64, address, .. } | InstructionKind::Store { ty: Ty::U64, address, .. } if !matches!(address,Value::Global(_))
         )
     }) && kernel
         .params

@@ -14,7 +14,7 @@ SOURCES=['tests/fixtures/p04a/global_runtime.cu','tests/fixtures/p09a2/default_u
  'tests/p04a_runtime_check.py','tests/p04a_driver_check.py','scripts/run_p04a_smoke.py',
  'tests/p04a_noop_driver.c','tests/p09a_noop_driver.c','tests/p04a_driver_control.def',
  'tests/p09a_driver_control.def','tests/p04a_forwarded_global.def','tests/p04a_foreign_global.c',
- 'tests/p04a_extension_control.cpp','include/ct_cuda.h','include/ct_cudart.h','scripts/p04a_evidence.py']
+ 'tests/p04a_extension_control.cpp','include/ct_cuda.h','include/ct_cudart.h','scripts/p04a_evidence.py','scripts/global_negative.py']
 
 CASES=[('global_runtime','host',True),('default_unsupported_global','negative',True)]
 

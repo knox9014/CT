@@ -44,7 +44,7 @@ class GlobalArtifactTamperTests(unittest.TestCase):
         for stem,_,_ in CASES:
             (f/('keep-'+stem)).mkdir()
             for suffix in ('.ptx','.fatbin','.cudafe1.stub.c'):
-                name=f'keep-{stem}/{stem}{suffix}';(f/name).write_text('ct_counter ct_zero ct_unused ld.volatile.global st.volatile.global __cudaRegisterVar',encoding='utf-8');outputs[name]=digest(f/name)
+                name=f'keep-{stem}/{stem}{suffix}';(f/name).write_text('ct_counter ct_zero ct_unused ld.volatile.global st.volatile.global __cudaRegisterVar .global .align 8 .b8 ct_used_global[16]; ld.volatile.global.u8 __cudaRegisterVariable(t, ct_used_global, 0, 16Ui64, 0, 0)',encoding='utf-8');outputs[name]=digest(f/name)
         for stem,exe,default in CASES:
             if default:
                 name=f'keep-{stem}/{exe}_dlink.fatbin';(f/name).write_bytes(b'device runtime image');outputs[name]=digest(f/name)

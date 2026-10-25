@@ -1,3 +1,4 @@
+from global_negative import validate_negative
 """Closed P04a evidence reconstruction; native success requires fresh isolated replay."""
 import json,secrets,shutil,subprocess,sys,tempfile
 from pathlib import Path
@@ -94,6 +95,7 @@ def _check(path,root):
     text=(folder/'keep-global_runtime/global_runtime.ptx').read_text(encoding='utf-8')
     stub=(folder/'keep-global_runtime/global_runtime.cudafe1.stub.c').read_text(encoding='utf-8')
     if not all(n in text for n in ('ct_counter','ct_zero','ct_unused','ld.volatile.global','st.volatile.global')) or '__cudaRegisterVar' not in stub:raise ValueError('global compiler metadata absent')
+    if validate_negative((folder/'keep-default_unsupported_global/default_unsupported_global.ptx').read_text(encoding='utf-8'),(folder/'keep-default_unsupported_global/default_unsupported_global.cudafe1.stub.c').read_text(encoding='utf-8')):raise ValueError('negative array metadata')
     for name,f in files.items():inspect_pe(f.read_bytes(),dll=name.endswith('.dll'),runtime=name in ('host.exe','negative.exe'))
     imports=inspect_pe(files['host.exe'].read_bytes(),runtime=True)['imports']
     symbols={s for i in imports if i['library'].lower()=='cudart64_12.dll' for s in i['symbols']}

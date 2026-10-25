@@ -45,6 +45,10 @@ fn global_u64_access_requires_matching_width() {
     }
 }
 #[test]
+fn aligned_named_u64_does_not_raise_unrelated_pointer_alignment() {
+    assert!(parse_module(".version 8.0\n.target sm_52\n.address_size 64\n.global .align 8 .u64 wide; .entry test(.param .u64 .ptr .global .align 4 out){.reg .b64 %rd<3>;.reg .b32 %r;ld.param.u64 %rd1,[out];cvta.to.global.u64 %rd2,%rd1;ld.global.u64 %rd0,[wide];cvt.u32.u64 %r,%rd0;st.global.u32 [%rd2],%r;ret;}").is_ok());
+}
+#[test]
 fn stored_global_u32_profile() {
     for (initializer, want) in [
         ("", 0),

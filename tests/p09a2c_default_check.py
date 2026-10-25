@@ -9,6 +9,7 @@ import subprocess
 import sys
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'scripts'))
+from global_negative import validate_negative
 from ct import inspect_pe,prepare_bundle
 from prepare_nvcc_probe import digest
 from prepare_nvcc_default import audit_default_producer as audit_probe
@@ -18,7 +19,7 @@ from run_validation import source_fingerprint
 MODES=('single','repeat','ordinary','two_contexts','parallel','multi_module','control','used_global','noop')
 INPUTS=['tests/fixtures/p09a2/'+s for s in ('kernel_oracle.cu','module_a.cu','module_b.cu')]+[
     'include/ct_cuda.h','tests/p09a_noop_driver.c','tests/p09a_driver_control.def',
-    'scripts/run_p09a2c_smoke.ps1','tests/p09a2c_default_check.py','tests/p09a2c_default_control.cpp','include/ct_cudart.h','tests/p09a2c_counting_driver.c','tests/fixtures/p09a2/default_unsupported_global.cu','scripts/prepare_nvcc_default.py','tests/p09a2_kernel_check.py']
+    'scripts/run_p09a2c_smoke.ps1','tests/p09a2c_default_check.py','tests/p09a2c_default_control.cpp','include/ct_cudart.h','tests/p09a2c_counting_driver.c','tests/fixtures/p09a2/default_unsupported_global.cu','scripts/prepare_nvcc_default.py','tests/p09a2_kernel_check.py','scripts/global_negative.py']
 ROLES={'application':'host.exe','driver':'ct_cuda.dll','runtime':'ct_cudart.dll','noop':'noop.dll','control':'control.exe','image':'kernel_oracle.fatbin','counting':'counting.dll','negative':'negative.exe'}
 BOUNDARY_ERRORS=[9,9,801,1,98]
 
@@ -88,7 +89,7 @@ def audit_manifest(path,root=ROOT,*,execute=False):
         negative_imports=inspect_pe(local(root,m['artifacts']['negative']['path']).read_bytes(),runtime=True)['imports']
         if '__cudaRegisterVar' not in {s for i in negative_imports if i['library'].lower()=='cudart64_12.dll' for s in i['symbols']}:return ['negative variable import absent']
         ptx=(folder/'keep-negative/default_unsupported_global.ptx').read_text();stub=(folder/'keep-negative/default_unsupported_global.cudafe1.stub.c').read_text()
-        if '.global' not in ptx or 'ld.volatile.global' not in ptx or 'ct_used_global' not in ptx or '__cudaRegisterVar' not in stub:return ['used variable optimized away']
+        if validate_negative(ptx,stub):return ['used array optimized away or metadata mismatch']
         if digest(folder/'ct_cuda.h')!=m['inputs']['include/ct_cuda.h']:return ['compiled Driver declarations changed']
         if len(m['modes'])!=len(MODES) or {x['mode'] for x in m['modes']}!=set(MODES):return ['kernel modes absent']
         for item in m['modes']:
