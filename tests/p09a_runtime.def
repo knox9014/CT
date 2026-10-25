@@ -14,3 +14,15 @@ cudaGetErrorName
 cudaGetErrorString
 cudaDriverGetVersion
 cudaRuntimeGetVersion
+__cudaRegisterFatBinary
+__cudaRegisterFatBinaryEnd
+__cudaUnregisterFatBinary
+__cudaRegisterFunction
+__cudaPushCallConfiguration
+__cudaPopCallConfiguration
+cudaLaunchKernel
+__cudaRegisterVar
+cudaGetSymbolAddress
+cudaGetSymbolSize
+cudaMemcpyToSymbol
+cudaMemcpyFromSymbol

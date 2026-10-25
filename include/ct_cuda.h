@@ -48,6 +48,7 @@ typedef struct CTstream *CUstream;
  X(cuGetErrorName, (CUresult code, const char **name)) \
  X(cuGetErrorString, (CUresult code, const char **message)) \
  X(cuModuleLoadData, (CUmodule *module, const void *image)) \
+ X(cuModuleGetGlobal_v2, (CUdeviceptr *pointer, size_t *bytes, CUmodule module, const char *name)) \
  X(cuModuleGetFunction, (CUfunction *function, CUmodule module, const char *name)) \
  X(cuModuleUnload, (CUmodule module)) \
  X(cuLaunchKernel, (CUfunction function, unsigned int gx, unsigned int gy, unsigned int gz, unsigned int bx, unsigned int by, unsigned int bz, unsigned int shared, CUstream stream, void **arguments, void **extra)) \

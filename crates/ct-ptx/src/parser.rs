@@ -243,8 +243,9 @@ fn destination(
 fn address(
     tokens: &[String],
     regs: &BTreeMap<String, Ty>,
+    globals: &[Global],
     line: usize,
-    alignment: u64,
+    dtype: Ty,
 ) -> Result<(Value, u64), Error> {
     if tokens.first().map(String::as_str) != Some("[")
         || tokens.last().map(String::as_str) != Some("]")
@@ -252,6 +253,15 @@ fn address(
         return Err(fail(line, "invalid address"));
     }
     let inside = &tokens[1..tokens.len() - 1];
+    if let Some(global) = inside
+        .first()
+        .and_then(|name| globals.iter().find(|g| g.name == *name))
+    {
+        if inside.len() != 1 || global.storage.storage_type() != Some(dtype) {
+            return Err(unsupported(line));
+        }
+        return Ok((Value::Global(global.name.clone()), 0));
+    }
     let offset = if inside.len() == 1 {
         0
     } else if inside.len() == 3 && inside[1] == "+" {
@@ -259,7 +269,7 @@ fn address(
     } else {
         return Err(unsupported(line));
     };
-    if !offset.is_multiple_of(alignment) {
+    if !offset.is_multiple_of(if dtype == Ty::U64 { 8 } else { 4 }) {
         return Err(unsupported(line));
     }
     Ok((value(&inside[..1], Ty::U64, regs, line)?, offset))
@@ -269,6 +279,7 @@ fn instruction(
     args: &[Vec<String>],
     regs: &BTreeMap<String, Ty>,
     params: &[Param],
+    globals: &[Global],
     line: usize,
 ) -> Result<Instruction, Error> {
     let err = || fail(line, "invalid instruction operands");
@@ -293,33 +304,53 @@ fn instruction(
             dst: destination(&args[0], dtype, regs, line)?,
             index,
         }
-    } else if let Some(suffix) = op.strip_prefix("ld.global.") {
+    } else if let Some((volatile, suffix)) = op
+        .strip_prefix("ld.global.")
+        .map(|s| (false, s))
+        .or_else(|| op.strip_prefix("ld.volatile.global.").map(|s| (true, s)))
+    {
         let dtype = ty(&format!(".{suffix}"))
             .filter(|t| *t != Ty::Pred)
             .ok_or_else(|| unsupported(line))?;
         if args.len() != 2 {
             return Err(err());
         }
-        let (a, offset) = address(&args[1], regs, line, if dtype == Ty::U64 { 8 } else { 4 })?;
+        let (a, offset) = address(&args[1], regs, globals, line, dtype)?;
+        if (matches!(a, Value::Global(_)) && !matches!(suffix, "u32" | "u64"))
+            || (volatile && !matches!(a, Value::Global(_)))
+        {
+            return Err(unsupported(line));
+        }
         InstructionKind::Load {
             ty: dtype,
             dst: destination(&args[0], dtype, regs, line)?,
             address: a,
             offset,
+            volatile,
         }
-    } else if let Some(suffix) = op.strip_prefix("st.global.") {
+    } else if let Some((volatile, suffix)) = op
+        .strip_prefix("st.global.")
+        .map(|s| (false, s))
+        .or_else(|| op.strip_prefix("st.volatile.global.").map(|s| (true, s)))
+    {
         let dtype = ty(&format!(".{suffix}"))
             .filter(|t| *t != Ty::Pred)
             .ok_or_else(|| unsupported(line))?;
         if args.len() != 2 {
             return Err(err());
         }
-        let (a, offset) = address(&args[0], regs, line, if dtype == Ty::U64 { 8 } else { 4 })?;
+        let (a, offset) = address(&args[0], regs, globals, line, dtype)?;
+        if (matches!(a, Value::Global(_)) && !matches!(suffix, "u32" | "u64"))
+            || (volatile && !matches!(a, Value::Global(_)))
+        {
+            return Err(unsupported(line));
+        }
         InstructionKind::Store {
             ty: dtype,
             address: a,
             offset,
             value: value(&args[1], dtype, regs, line)?,
+            volatile,
         }
     } else if let Some(formats) = op.strip_prefix("cvt.") {
         let (dst, src) = formats.split_once('.').ok_or_else(|| unsupported(line))?;
@@ -510,23 +541,58 @@ pub fn parse_module(source: &str) -> Result<Module, Error> {
     if p.take()? != "64" {
         return Err(unsupported(p.line()));
     }
-    let mut globals = BTreeSet::new();
-    while p.eat(".global") {
+    let mut globals = BTreeMap::new();
+    loop {
+        // Visibility can prefix globals or the next entry; consume only globals.
+        let visible_global =
+            p.peek() == ".visible" && p.tokens.get(p.pos + 1).is_some_and(|t| t.text == ".global");
+        if visible_global {
+            p.take()?;
+        }
+        if !p.eat(".global") {
+            break;
+        }
         p.expect(".align")?;
-        p.expect("8")?;
-        let ty = p.take()?;
-        let global = p.take()?;
-        if !identifier(&global) || !globals.insert(global) || globals.len() > 256 {
+        let alignment = p.take()?;
+        let dtype = p.take()?;
+        let name = p.take()?;
+        if !identifier(&name) || globals.contains_key(&name) || globals.len() >= 256 {
             return Err(fail(p.line(), "invalid/duplicate global"));
         }
-        match ty.as_str() {
-            ".u64" => {
+        let storage = match (alignment.as_str(), dtype.as_str()) {
+            ("4", ".u32") => {
+                let mut initializer = 0;
                 if p.eat("=") {
-                    number(&p.take()?)
-                        .ok_or_else(|| fail(p.line(), "invalid global initializer"))?;
+                    let mut tokens = Vec::new();
+                    while p.peek() != ";" {
+                        tokens.push(p.take()?);
+                    }
+                    let Value::Bits(Ty::U32, bits) =
+                        value(&tokens, Ty::U32, &BTreeMap::new(), p.line())?
+                    else {
+                        return Err(fail(p.line(), "invalid global initializer"));
+                    };
+                    initializer = bits as u32;
                 }
+                GlobalStorage::MutableU32 { initializer }
             }
-            ".b8" => {
+            ("8", ".u64") => {
+                let mut initializer = 0;
+                if p.eat("=") {
+                    let mut tokens = Vec::new();
+                    while p.peek() != ";" {
+                        tokens.push(p.take()?);
+                    }
+                    let Value::Bits(Ty::U64, bits) =
+                        value(&tokens, Ty::U64, &BTreeMap::new(), p.line())?
+                    else {
+                        return Err(fail(p.line(), "invalid global initializer"));
+                    };
+                    initializer = bits;
+                }
+                GlobalStorage::MutableU64 { initializer }
+            }
+            ("8", ".b8") => {
                 p.expect("[")?;
                 let size = number(&p.take()?)
                     .filter(|n| (1..=4096).contains(n))
@@ -544,11 +610,14 @@ pub fn parse_module(source: &str) -> Result<Module, Error> {
                     }
                     p.expect("}")?;
                 }
+                GlobalStorage::Unsupported
             }
             _ => return Err(unsupported(p.line())),
-        }
+        };
         p.expect(";")?;
+        globals.insert(name.clone(), Global { name, storage });
     }
+    let globals: Arc<[Global]> = globals.into_values().collect();
     let profile = if version == "7.0" {
         Profile {
             major: 7,
@@ -577,21 +646,25 @@ pub fn parse_module(source: &str) -> Result<Module, Error> {
     if kernels.is_empty() {
         return Err(fail(p.line(), "missing entry"));
     }
-    Ok(Module { profile, kernels })
+    Ok(Module {
+        profile,
+        globals,
+        kernels,
+    })
 }
 
 fn parse_kernel(
     p: &mut Parser,
     profile: Profile,
-    globals: &BTreeSet<String>,
+    globals: &Arc<[Global]>,
 ) -> Result<Kernel, Error> {
-    if p.peek() != ".visible" {
+    p.eat(".visible");
+    if p.peek() != ".entry" {
         return Err(unsupported(p.line()));
     }
-    p.expect(".visible")?;
     p.expect(".entry")?;
     let name = p.take()?;
-    if !identifier(&name) || globals.contains(&name) {
+    if !identifier(&name) || globals.iter().any(|g| g.name == name) {
         return Err(fail(p.line(), "invalid entry name"));
     }
     p.expect("(")?;
@@ -626,7 +699,10 @@ fn parse_kernel(
                 _ => return Err(unsupported(p.line())),
             };
             let n = p.take()?;
-            if !identifier(&n) || globals.contains(&n) || params.iter().any(|v| v.name == n) {
+            if !identifier(&n)
+                || globals.iter().any(|g| g.name == n)
+                || params.iter().any(|v| v.name == n)
+            {
                 return Err(fail(p.line(), "invalid/duplicate parameter"));
             }
             params.push(Param {
@@ -743,7 +819,7 @@ fn parse_kernel(
                     .last_mut()
                     .unwrap()
                     .instructions
-                    .push(instruction(&op, &args, &regs, &params, line)?);
+                    .push(instruction(&op, &args, &regs, &params, globals, line)?);
                 total += 1;
             }
         }
@@ -782,6 +858,7 @@ fn parse_kernel(
     }
     let kernel = Kernel {
         profile,
+        globals: globals.clone(),
         name,
         params,
         registers: regs,
@@ -791,8 +868,8 @@ fn parse_kernel(
     validate_inferred_pointers(&kernel, &inferred)?;
     if kernel.blocks.iter().flat_map(|b| &b.instructions).any(|i| {
         matches!(
-            i.kind,
-            InstructionKind::Load { ty: Ty::U64, .. } | InstructionKind::Store { ty: Ty::U64, .. }
+            &i.kind,
+            InstructionKind::Load { ty: Ty::U64, address, .. } | InstructionKind::Store { ty: Ty::U64, address, .. } if !matches!(address,Value::Global(_))
         )
     }) && kernel
         .params

@@ -27,14 +27,36 @@ pub unsafe extern "system" fn cuModuleLoadData(
         let b = r.backend.as_ref().ok_or(NOT_INITIALIZED)?;
         let c = r.contexts.get_mut(&id).ok_or(INVALID_CONTEXT)?;
         let names: Vec<_> = compiled.entries.iter().map(|e| e.entry.as_str()).collect();
-        let native = b
-            .load_module_entries(&mut c.native, &compiled.spirv, &names)
+        let globals: Vec<_> = compiled
+            .globals
+            .iter()
+            .filter_map(|g| g.storage.byte_size().map(|size| (g.name.as_str(), size)))
+            .collect();
+        let mut native = b
+            .load_module_entries_with_globals(&mut c.native, &compiled.spirv, &names, &globals)
             .map_err(native_error)?;
+        let conflict = globals
+            .iter()
+            .any(|(name, _)| native.global(name).is_none_or(|g| c.conflicts_global(g)));
+        if conflict {
+            if b.unload_module(&mut c.native, &mut native).is_err() {
+                c.modules.insert(
+                    module_id,
+                    OwnedModule {
+                        native,
+                        entries: compiled.entries,
+                        globals: compiled.globals,
+                    },
+                );
+            }
+            return Err(UNKNOWN);
+        }
         c.modules.insert(
             module_id,
             OwnedModule {
                 native,
                 entries: compiled.entries,
+                globals: compiled.globals,
             },
         );
         output.write(module_id as *mut c_void);
@@ -143,7 +165,7 @@ pub unsafe extern "system" fn cuLaunchKernel(
                 ParamKind::Pointer => {
                     let value = pointer.cast::<u64>().read_unaligned();
                     if !value.is_multiple_of(u64::from(param.alignment))
-                        || !c.allocations.contains(value, param.alignment as usize)
+                        || !c.contains_device(value, param.alignment as usize)
                     {
                         return Err(INVALID);
                     }
@@ -171,5 +193,65 @@ pub unsafe extern "system" fn cuLaunchKernel(
             block,
         )
         .map_err(native_error)
+    })
+}
+
+/// Query one module-owned symbol. Outputs must be nonoverlapping writable storage.
+/// # Safety
+/// Each non-null output must be writable for its type. Name must be readable up
+/// to its NUL terminator, or 129 bytes when no terminator occurs within the bound.
+#[no_mangle]
+pub unsafe extern "system" fn cuModuleGetGlobal_v2(
+    output: *mut u64,
+    size: *mut usize,
+    module: *mut c_void,
+    name: *const c_char,
+) -> i32 {
+    invoke(|r| {
+        if !output.is_null() {
+            output.write(0);
+        }
+        if !size.is_null() {
+            size.write(0);
+        }
+        let id = context_id(r)?;
+        let c = &r.contexts[&id];
+        let m = c.modules.get(&(module as usize)).ok_or(INVALID_HANDLE)?;
+        if (output.is_null() && size.is_null()) || name.is_null() {
+            return Err(INVALID);
+        }
+        let mut bytes = Vec::new();
+        for index in 0..=128 {
+            let b = name.add(index).read() as u8;
+            if b == 0 {
+                break;
+            }
+            if index == 128 {
+                return Err(INVALID);
+            }
+            bytes.push(b);
+        }
+        if bytes.is_empty() {
+            return Err(INVALID);
+        }
+        if c.native.poisoned {
+            return Err(UNKNOWN);
+        }
+        let g = m
+            .globals
+            .iter()
+            .find(|g| g.name.as_bytes() == bytes)
+            .ok_or(500)?;
+        if matches!(g.storage, ct_ptx::GlobalStorage::Unsupported) {
+            return Err(UNSUPPORTED);
+        }
+        let native = m.native.global(&g.name).ok_or(UNKNOWN)?;
+        if !output.is_null() {
+            output.write(native.pointer);
+        }
+        if !size.is_null() {
+            size.write(native.size);
+        }
+        Ok(())
     })
 }

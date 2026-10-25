@@ -49,6 +49,7 @@ struct Writer {
     constants: BTreeMap<(Ty, u64), u32>,
     builtins: BTreeMap<u32, u32>,
     registers: BTreeMap<String, u32>,
+    module_globals: BTreeMap<String, u32>,
     signatures: BTreeMap<Vec<u32>, u32>,
     current_builtins: BTreeSet<u32>,
 }
@@ -81,6 +82,7 @@ impl Writer {
     fn read(&mut self, v: &Value, t: Ty) -> u32 {
         match v {
             Value::Reg(n) => self.result(61, type_id(t), &[self.registers[n]]),
+            Value::Global(n) => self.result(117, 4, &[self.module_globals[n]]),
             Value::Bits(t, b) => self.constant(*t, *b),
             Value::Builtin(kind, component) => {
                 let variable = if let Some(&id) = self.builtins.get(kind) {
@@ -100,6 +102,9 @@ impl Writer {
         }
     }
     fn address(&mut self, v: &Value, offset: u64, t: Ty) -> u32 {
+        if let Value::Global(n) = v {
+            return self.module_globals[n];
+        }
         let mut addr = self.read(v, Ty::U64);
         if offset != 0 {
             let off = self.constant(Ty::U64, offset);
@@ -223,10 +228,25 @@ impl Writer {
         }
     }
 }
-pub(super) fn generate(k: &Kernel) -> Vec<u8> {
+pub(super) fn generate(k: &Kernel) -> Result<Vec<u8>, Error> {
     generate_module(std::slice::from_ref(k))
 }
-pub(super) fn generate_module(kernels: &[Kernel]) -> Vec<u8> {
+pub(super) fn generate_module(kernels: &[Kernel]) -> Result<Vec<u8>, Error> {
+    let Some(first) = kernels.first() else {
+        return Err(Error {
+            line: 1,
+            unsupported: false,
+            message: "missing entry",
+        });
+    };
+    if kernels.iter().any(|k| k.globals != first.globals) {
+        return Err(Error {
+            line: 1,
+            unsupported: true,
+            message: "inconsistent module globals",
+        });
+    }
+
     let mut w = Writer {
         next: 17,
         types: vec![],
@@ -236,6 +256,7 @@ pub(super) fn generate_module(kernels: &[Kernel]) -> Vec<u8> {
         constants: BTreeMap::new(),
         builtins: BTreeMap::new(),
         registers: BTreeMap::new(),
+        module_globals: BTreeMap::new(),
         signatures: BTreeMap::new(),
         current_builtins: BTreeSet::new(),
     };
@@ -254,6 +275,28 @@ pub(super) fn generate_module(kernels: &[Kernel]) -> Vec<u8> {
     for t in [Ty::Pred, Ty::U32, Ty::U64, Ty::F32] {
         inst(&mut w.types, 32, &[register_pointer(t), 7, type_id(t)]);
     }
+    for global in first.globals.iter() {
+        let stored = match global.storage {
+            GlobalStorage::MutableU32 { initializer } => Some((Ty::U32, initializer as u64)),
+            GlobalStorage::MutableU64 { initializer } => Some((Ty::U64, initializer)),
+            GlobalStorage::Unsupported => None,
+        };
+        if let Some((ty, initializer)) = stored {
+            let constant = w.constant(ty, initializer);
+            let id = w.id();
+            inst(&mut w.globals, 59, &[global_pointer(ty), id, 5, constant]);
+            let mut linkage = vec![id, 41];
+            linkage.extend(string_words(&global.name));
+            linkage.push(0); // LinkageType Export
+            inst(&mut w.annotations, 71, &linkage);
+            // Linkage alone does not preserve globals unused by kernels on Intel.
+            // Level Zero's host-access extension makes each exported name observable.
+            let mut host_access = vec![id, 6188, 3]; // HostAccessINTEL, ReadWriteINTEL
+            host_access.extend(string_words(&global.name));
+            inst(&mut w.annotations, 71, &host_access);
+            w.module_globals.insert(global.name.clone(), id);
+        }
+    }
     let mut entries = Vec::new();
     for kernel in kernels {
         let function = generate_kernel(&mut w, kernel);
@@ -265,6 +308,15 @@ pub(super) fn generate_module(kernels: &[Kernel]) -> Vec<u8> {
     let mut out = vec![0x07230203, 0x00010000, 0, w.next, 0];
     for cap in [4, 6, 11] {
         inst(&mut out, 17, &[cap]);
+    }
+    if !w.module_globals.is_empty() {
+        inst(&mut out, 17, &[5]);
+        inst(&mut out, 17, &[6187]); // GlobalVariableHostAccessINTEL
+        inst(
+            &mut out,
+            10,
+            &string_words("SPV_INTEL_global_variable_host_access"),
+        );
     }
     inst(&mut out, 14, &[2, 2]);
     for entry in &entries {
@@ -279,7 +331,7 @@ pub(super) fn generate_module(kernels: &[Kernel]) -> Vec<u8> {
     out.extend(w.types);
     out.extend(w.globals);
     out.extend(w.body);
-    out.into_iter().flat_map(u32::to_le_bytes).collect()
+    Ok(out.into_iter().flat_map(u32::to_le_bytes).collect())
 }
 
 fn generate_kernel(w: &mut Writer, k: &Kernel) -> u32 {
@@ -350,12 +402,17 @@ fn generate_kernel(w: &mut Writer, k: &Kernel) -> u32 {
                     dst,
                     address,
                     offset,
+                    volatile,
                 } => {
                     let ptr = w.address(address, *offset, *ty);
                     let id = w.result(
                         61,
                         type_id(*ty),
-                        &[ptr, 2, if *ty == Ty::U64 { 8 } else { 4 }],
+                        &[
+                            ptr,
+                            if *volatile { 3 } else { 2 },
+                            if *ty == Ty::U64 { 8 } else { 4 },
+                        ],
                     );
                     inst(&mut w.body, 62, &[w.registers[dst], id]);
                 }
@@ -364,13 +421,19 @@ fn generate_kernel(w: &mut Writer, k: &Kernel) -> u32 {
                     address,
                     offset,
                     value,
+                    volatile,
                 } => {
                     let ptr = w.address(address, *offset, *ty);
                     let id = w.read(value, *ty);
                     inst(
                         &mut w.body,
                         62,
-                        &[ptr, id, 2, if *ty == Ty::U64 { 8 } else { 4 }],
+                        &[
+                            ptr,
+                            id,
+                            if *volatile { 3 } else { 2 },
+                            if *ty == Ty::U64 { 8 } else { 4 },
+                        ],
                     );
                 }
             }
@@ -394,4 +457,16 @@ fn generate_kernel(w: &mut Writer, k: &Kernel) -> u32 {
     }
     inst(&mut w.body, 56, &[]);
     function
+}
+
+#[cfg(test)]
+mod global_tests {
+    use super::*;
+    #[test]
+    fn rejects_inconsistent_module_global_tables() {
+        let source = ".version 8.0\n.target sm_52\n.address_size 64\n.global .align 4 .u32 g=7; .entry first() { ret; } .entry second() { ret; }";
+        let mut m = ct_ptx::parse_module(source).unwrap();
+        m.kernels[1].globals = Arc::from([]);
+        assert!(generate_module(&m.kernels).unwrap_err().unsupported);
+    }
 }
