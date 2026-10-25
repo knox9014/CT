@@ -52,7 +52,7 @@ int main(int argc,char **argv) {
     const char *variable_host=reinterpret_cast<const char *>(uintptr_t(0x2345678912345678));
     p___cudaRegisterFunction(variable_token,variable_host,symbol,symbol,-1,nullptr,nullptr,nullptr,nullptr,nullptr);
     int version=-1;REQUIRE(p_cudaRuntimeGetVersion(&version)==801);
-    p___cudaRegisterVar(variable_token,reinterpret_cast<char *>(uintptr_t(12345)),symbol,symbol,0,8,0,0);
+    p___cudaRegisterVar(variable_token,reinterpret_cast<char *>(uintptr_t(12345)),symbol,symbol,0,16,0,0);
     REQUIRE(p_cudaGetLastError()==801);p___cudaRegisterFatBinaryEnd(variable_token);REQUIRE(p_cudaGetLastError()==0);
     REQUIRE(p_cudaLaunchKernel(variable_host,grid,block,nullptr,0,nullptr)==801);
     p___cudaUnregisterFatBinary(variable_token);p_cudaGetLastError();
