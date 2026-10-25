@@ -257,10 +257,7 @@ fn address(
         .first()
         .and_then(|name| globals.iter().find(|g| g.name == *name))
     {
-        if inside.len() != 1
-            || dtype != Ty::U32
-            || !matches!(global.storage, GlobalStorage::MutableU32 { .. })
-        {
+        if inside.len() != 1 || global.storage.storage_type() != Some(dtype) {
             return Err(unsupported(line));
         }
         return Ok((Value::Global(global.name.clone()), 0));
@@ -319,7 +316,7 @@ fn instruction(
             return Err(err());
         }
         let (a, offset) = address(&args[1], regs, globals, line, dtype)?;
-        if (matches!(a, Value::Global(_)) && suffix != "u32")
+        if (matches!(a, Value::Global(_)) && !matches!(suffix, "u32" | "u64"))
             || (volatile && !matches!(a, Value::Global(_)))
         {
             return Err(unsupported(line));
@@ -343,7 +340,7 @@ fn instruction(
             return Err(err());
         }
         let (a, offset) = address(&args[0], regs, globals, line, dtype)?;
-        if (matches!(a, Value::Global(_)) && suffix != "u32")
+        if (matches!(a, Value::Global(_)) && !matches!(suffix, "u32" | "u64"))
             || (volatile && !matches!(a, Value::Global(_)))
         {
             return Err(unsupported(line));
@@ -580,11 +577,20 @@ pub fn parse_module(source: &str) -> Result<Module, Error> {
                 GlobalStorage::MutableU32 { initializer }
             }
             ("8", ".u64") => {
+                let mut initializer = 0;
                 if p.eat("=") {
-                    number(&p.take()?)
-                        .ok_or_else(|| fail(p.line(), "invalid global initializer"))?;
+                    let mut tokens = Vec::new();
+                    while p.peek() != ";" {
+                        tokens.push(p.take()?);
+                    }
+                    let Value::Bits(Ty::U64, bits) =
+                        value(&tokens, Ty::U64, &BTreeMap::new(), p.line())?
+                    else {
+                        return Err(fail(p.line(), "invalid global initializer"));
+                    };
+                    initializer = bits;
                 }
-                GlobalStorage::Unsupported
+                GlobalStorage::MutableU64 { initializer }
             }
             ("8", ".b8") => {
                 p.expect("[")?;

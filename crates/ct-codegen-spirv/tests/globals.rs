@@ -17,6 +17,23 @@ fn src() -> String {
     ".version 8.0\n.target sm_52\n.address_size 64\n.global .align 4 .u32 g=7;\n.visible .entry first(.param .u32 n) { .reg .u32 %r; ld.volatile.global.u32 %r,[g]; ret; }\n.entry second(.param .u32 n) { st.global.u32 [g],9; ret; }".into()
 }
 #[test]
+fn mixed_global_initializer_words() {
+    let src=".version 8.0\n.target sm_52\n.address_size 64\n.global .align 4 .u32 g=7; .global .align 8 .u64 wide=0x1234567800000000; .entry test(){.reg .b64 %rd; ld.volatile.global.u64 %rd,[wide]; st.volatile.global.u64 [wide],%rd; ret;}";
+    let c = translate_module(src).unwrap();
+    assert_eq!(c.globals.len(), 2);
+    let w = words(&c.spirv);
+    assert!(w
+        .iter()
+        .any(|v| v[0] & 65535 == 43 && v.len() == 5 && v[3] == 0 && v[4] == 0x12345678));
+    assert_eq!(
+        w.iter().filter(|v| v[0] & 65535 == 59 && v[3] == 5).count(),
+        2
+    );
+    assert!(w
+        .iter()
+        .any(|v| v[0] & 65535 == 61 && v.len() == 6 && v[5] == 8));
+}
+#[test]
 fn global_storage_shared_across_entries() {
     let c = translate_module(&src()).unwrap();
     let w = words(&c.spirv);

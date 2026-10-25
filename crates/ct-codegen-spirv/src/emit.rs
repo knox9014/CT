@@ -276,10 +276,15 @@ pub(super) fn generate_module(kernels: &[Kernel]) -> Result<Vec<u8>, Error> {
         inst(&mut w.types, 32, &[register_pointer(t), 7, type_id(t)]);
     }
     for global in first.globals.iter() {
-        if let GlobalStorage::MutableU32 { initializer } = global.storage {
-            let constant = w.constant(Ty::U32, initializer as u64);
+        let stored = match global.storage {
+            GlobalStorage::MutableU32 { initializer } => Some((Ty::U32, initializer as u64)),
+            GlobalStorage::MutableU64 { initializer } => Some((Ty::U64, initializer)),
+            GlobalStorage::Unsupported => None,
+        };
+        if let Some((ty, initializer)) = stored {
+            let constant = w.constant(ty, initializer);
             let id = w.id();
-            inst(&mut w.globals, 59, &[15, id, 5, constant]);
+            inst(&mut w.globals, 59, &[global_pointer(ty), id, 5, constant]);
             let mut linkage = vec![id, 41];
             linkage.extend(string_words(&global.name));
             linkage.push(0); // LinkageType Export

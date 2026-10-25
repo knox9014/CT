@@ -6,8 +6,27 @@ pub enum GlobalStorage {
     MutableU32 {
         initializer: u32,
     },
+    MutableU64 {
+        initializer: u64,
+    },
     /// A declared name whose storage is outside the implemented profile.
     Unsupported,
+}
+impl GlobalStorage {
+    pub fn storage_type(&self) -> Option<Ty> {
+        match self {
+            Self::MutableU32 { .. } => Some(Ty::U32),
+            Self::MutableU64 { .. } => Some(Ty::U64),
+            Self::Unsupported => None,
+        }
+    }
+    pub fn byte_size(&self) -> Option<usize> {
+        self.storage_type()
+            .map(|t| if t == Ty::U64 { 8 } else { 4 })
+    }
+    pub fn alignment(&self) -> Option<usize> {
+        self.byte_size()
+    }
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Global {
