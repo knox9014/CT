@@ -9,8 +9,8 @@ class GlobalGateTests(unittest.TestCase):
     def test_existing48_remain_required_subset(self):
         selected=steps('combined',Path('validator'),Path('lock'));ids=[n for n,_,_ in selected]
         self.assertEqual(len(set(OLD_CASES)|NEW),48)
-        self.assertEqual(len(ids),50)
-        self.assertEqual(set(ids)-{'arc.runtime_symbol_abi','arc.runtime_symbol'},set(OLD_CASES)|NEW)
+        self.assertEqual(len(ids),52)
+        self.assertEqual(set(ids)-{'arc.runtime_symbol_abi','arc.runtime_symbol','validator.global_u64','arc.runtime_global_u64'},set(OLD_CASES)|NEW)
         commands={n:c for n,_,c in selected};self.assertIn('scripts/check_global_spirv.py',commands['validator.global_u32'])
     def test_forged_success_and_stale_pointers(self):
         with tempfile.TemporaryDirectory(dir=ROOT/'.cache') as d:

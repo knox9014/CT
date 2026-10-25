@@ -790,7 +790,8 @@
           1,
           4096
         ],
-        "storage_emitted": false
+        "u64_storage_emitted": true,
+        "b8_storage_emitted": false
       },
       "test_ids": [
         "crates/ct-ptx/tests/compiler_profile.rs#validates_unused_globals_but_rejects_references_and_malformed_initializers"

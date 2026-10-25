@@ -34,7 +34,7 @@ class RunnerTests(unittest.TestCase):
         for name in ('cpu.runtime_fmt','cpu.runtime_clippy','cpu.runtime_rust'):
             self.assertIn('crates/ct-cudart/Cargo.toml',cases[name])
         self.assertIn('--locked',cases['cpu.runtime_rust'])
-        self.assertEqual(len(allsteps),50)
+        self.assertEqual(len(allsteps),52)
         for name in ('producer.nvcc_fatbin','arc.runtime_kernel_abi','arc.runtime_kernel','producer.default_device_runtime','arc.runtime_default_abi','arc.runtime_default'):
             self.assertIn(name,cases)
 
@@ -71,7 +71,8 @@ class RunnerTests(unittest.TestCase):
             ('arc.global_driver','p04a_evidence','audit_manifest','p04a-smoke'),
             ('arc.runtime_global','p04a_evidence','audit_manifest','p04a-smoke'),
             ('arc.runtime_symbol_abi','p04b_evidence','audit_abi','p04b-smoke'),
-            ('arc.runtime_symbol','p04b_evidence','audit_manifest','p04b-smoke')]:
+            ('arc.runtime_symbol','p04b_evidence','audit_manifest','p04b-smoke'),
+            ('arc.runtime_global_u64','p04c_evidence','audit_manifest','p04c-smoke')]:
             with self.subTest(case=case),tempfile.TemporaryDirectory(dir=ROOT/'.cache') as name:
                 root=Path(name);report=root/'report';report.mkdir();artifact=root/'.cache'/cache_name/'probe.json'
                 artifact.parent.mkdir(parents=True);artifact.write_text('{"status":"pass"}')

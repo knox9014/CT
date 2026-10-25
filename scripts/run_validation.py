@@ -62,6 +62,7 @@ RUNTIME_EVIDENCE={
     'arc.runtime_global':('p04a_evidence','audit_manifest','global-runtime','p04a-runtime-latest.json','p04a-smoke'),
     'arc.runtime_symbol_abi':('p04b_evidence','audit_abi','symbol-abi','p04b-symbol-abi-latest.json','p04b-smoke'),
     'arc.runtime_symbol':('p04b_evidence','audit_manifest','symbol-native','p04b-symbol-latest.json','p04b-smoke'),
+    'arc.runtime_global_u64':('p04c_evidence','audit_manifest','u64-native','p04c-u64-latest.json','p04c-smoke'),
 }
 
 
@@ -189,7 +190,8 @@ def steps(lane, validator, lock):
         ('cpu.runtime_profile','semantic',[py,'scripts/check_runtime_profile.py'])]
     validator_steps=[('validator.build','semantic',['cargo','build','-p','ct-codegen-spirv','--example','translate_module']),
         ('validator.real','validator',[py,'scripts/check_spirv_outputs.py','--tool',str(validator),'--lock',str(lock)]),
-        ('validator.global_u32','validator',[py,'scripts/check_global_spirv.py','--validator',str(validator),'--lock',str(lock)])]
+        ('validator.global_u32','validator',[py,'scripts/check_global_spirv.py','--validator',str(validator),'--lock',str(lock)]),
+        ('validator.global_u64','validator',[py,'scripts/check_u64_global_spirv.py','--validator',str(validator),'--lock',str(lock)])]
     producer=[('producer.build','semantic',['cargo','build','-p','ct-codegen-spirv','--example','translate_module'])]
     # producer.capture is a preparation command, never a required execution pass.
     corpus=json.loads((Path(__file__).resolve().parents[1]/'docs/compatibility/producer-corpus-v1.json').read_text())
@@ -230,7 +232,8 @@ def steps(lane, validator, lock):
             ('arc.runtime_global','native',[py,'scripts/run_p04a_smoke.py']),
             ('arc.global_driver','native',[py,'scripts/run_p04a_driver.py'])]
     arc += [('arc.runtime_symbol_abi','abi',[py,'scripts/run_p04b_smoke.py','--abi-only']),
-            ('arc.runtime_symbol','native',[py,'scripts/run_p04b_smoke.py'])]
+            ('arc.runtime_symbol','native',[py,'scripts/run_p04b_smoke.py']),
+            ('arc.runtime_global_u64','native',[py,'scripts/run_p04c_smoke.py'])]
     combined=cpu+validator_steps+producer+arc+[
         ('combined.all','semantic',['cargo','test','--workspace','--','--include-ignored'])]
     return {'cpu':cpu,'validator':validator_steps,'producer':producer,'arc':arc,'combined':combined}[lane]
@@ -294,6 +297,12 @@ def configuration(root, lane, selected):
             artifacts['runtime_profile']=hashlib.sha256((root/'docs/compatibility/runtime-profile-v1.json').read_bytes()).hexdigest()
             for index,path in enumerate(SOURCES):
                 artifacts['p04b_input_'+str(index)]=hashlib.sha256((root/path).read_bytes()).hexdigest()
+        if name=='arc.runtime_global_u64':
+            from run_p04c_smoke import SOURCES
+            parameters['producer_host_profile']='diagnostic'
+            artifacts['p04c_producer']=hashlib.sha256((root/'.cache/p09a2-producer/manifest.json').read_bytes()).hexdigest()
+            artifacts['runtime_profile']=hashlib.sha256((root/'docs/compatibility/runtime-profile-v1.json').read_bytes()).hexdigest()
+            for index,path in enumerate(SOURCES):artifacts['p04c_input_'+str(index)]=hashlib.sha256((root/path).read_bytes()).hexdigest()
         if name in ('arc.runtime_abi','arc.runtime'):
             for role,path in {'runtime_profile':'docs/compatibility/runtime-profile-v1.json',
                 'runtime_abi':'tests/runtime_reference_abi.cpp','declared_abi':'tests/runtime_declared_abi.cpp',
@@ -303,7 +312,7 @@ def configuration(root, lane, selected):
                 artifacts[role]=hashlib.sha256((root/path).read_bytes()).hexdigest()
         config['cases'].append(dict(case_id=name,test_id=test_id,execution_kind=kind,application_id=None,
             parameters=parameters,artifact_requirements=artifacts,
-            tool_ids=nvcc_tools+['cuda-headers'] if name=='arc.global_abi' else nvcc_tools if name in ('producer.nvcc_fatbin','arc.runtime_kernel_abi','arc.runtime_kernel','combined.all','producer.default_device_runtime','arc.runtime_default_abi','arc.runtime_default','arc.global_abi','arc.global_driver','arc.runtime_global','arc.runtime_symbol_abi','arc.runtime_symbol') else ['cuda-runtime-headers','cuda-nvcc-support-headers'] if name in ('arc.runtime_abi','arc.runtime') else ['spirv-val'] if kind=='validator' or (corpus_case and corpus_case['expected_class']=='supported') else ['cuda-headers'] if name in ('arc.cuda.abi','arc.device_memory','arc.memory_queries') else []))
+            tool_ids=nvcc_tools+['cuda-headers'] if name=='arc.global_abi' else nvcc_tools if name in ('producer.nvcc_fatbin','arc.runtime_kernel_abi','arc.runtime_kernel','combined.all','producer.default_device_runtime','arc.runtime_default_abi','arc.runtime_default','arc.global_abi','arc.global_driver','arc.runtime_global','arc.runtime_symbol_abi','arc.runtime_symbol','arc.runtime_global_u64') else ['cuda-runtime-headers','cuda-nvcc-support-headers'] if name in ('arc.runtime_abi','arc.runtime') else ['spirv-val'] if kind=='validator' or (corpus_case and corpus_case['expected_class']=='supported') else ['cuda-headers'] if name in ('arc.cuda.abi','arc.device_memory','arc.memory_queries') else []))
     return config
 
 

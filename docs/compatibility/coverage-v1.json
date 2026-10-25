@@ -665,7 +665,8 @@
           1,
           4096
         ],
-        "storage_emitted": false
+        "u64_storage_emitted": true,
+        "b8_storage_emitted": false
       },
       "test_ids": {
         "semantic": [
@@ -1732,7 +1733,7 @@
       "category": "runtime",
       "implementation": "partial",
       "limits": {
-        "contract": "Version1 flags0 size4 stored u32 only; four synchronous APIs share context-keyed module with kernel launch; unknown/retired/ambiguous13; no arrays/constants/UVA/async",
+        "contract": "Version1 flags0 size4/8 stored scalar u32/u64 only; four synchronous APIs share context-keyed module with kernel launch; unknown/retired/ambiguous13; no arrays/constants/UVA/async",
         "scope": "Diagnostic Windows x64/Intel Arc preview; no AMD/NVIDIA/framework/release claim"
       },
       "test_ids": {
@@ -1744,7 +1745,11 @@
           "scripts/run_validation.py#arc.runtime_symbol_abi"
         ],
         "native": [
-          "scripts/run_validation.py#arc.runtime_symbol"
+          "scripts/run_validation.py#arc.runtime_symbol",
+          "scripts/run_validation.py#arc.runtime_global_u64"
+        ],
+        "validator": [
+          "scripts/run_validation.py#validator.global_u64"
         ]
       }
     }
@@ -2268,6 +2273,14 @@
     },
     {
       "id": "scripts/run_validation.py#arc.runtime_symbol",
+      "kind": "native"
+    },
+    {
+      "id": "scripts/run_validation.py#validator.global_u64",
+      "kind": "validator"
+    },
+    {
+      "id": "scripts/run_validation.py#arc.runtime_global_u64",
       "kind": "native"
     }
   ]
