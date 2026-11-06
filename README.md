@@ -1,5 +1,7 @@
 # CT (Cuda Translater)
 
+**한국어** · [English](README.en.md)
+
 **이미 가진 Intel GPU에서 기존 CUDA 프로그램을 실행할 수 있게 만드는 프로젝트입니다.**
 
 CUDA를 사용하는 프로그램은 GPU에 계산을 맡길 때 CUDA 드라이버를 호출합니다. CT는 그 호출을 받아 지원 범위 안의 GPU 코드(PTX)를 Intel에서 실행할 수 있는 형태(SPIR-V)로 변환하고, Intel Level Zero를 통해 실행합니다.
@@ -85,12 +87,6 @@ python scripts/ct.py run --ct-dll target/debug/ct_cuda.dll --ptx "C:\path\to\ker
 
 [개발 순서와 출시 기준](https://github.com/knox9014/CT/blob/d57659f6a64d7fb211130de45a896654cce40738/docs/CT-EXECUTION-ROADMAP.md) · [Driver API 지원 범위](https://github.com/knox9014/CT/blob/d57659f6a64d7fb211130de45a896654cce40738/docs/compatibility/driver-api.md) · [PTX 지원 범위](https://github.com/knox9014/CT/blob/d57659f6a64d7fb211130de45a896654cce40738/docs/compatibility/ptx-profile.md)
 
-## English summary
-
-CT is an experimental compatibility layer for running existing CUDA programs on Intel GPUs. It translates supported PTX to SPIR-V and runs it through Intel Level Zero. The current target is Intel Arc B390 on Windows x64. Selected kernels and an adjusted build of NVIDIA's `vectorAddDrv` sample have passed numerical checks. The next milestone is to run an unchanged real application, compare its results with NVIDIA CUDA, and reproduce the setup on a second Intel PC. AMD is a later target.
-
-## 라이선스 / License
+## 라이선스
 
 CT는 [MIT 라이선스](LICENSE)로 배포합니다. 개인용·상업용으로 사용, 수정 및 재배포할 수 있습니다. 복사본이나 소프트웨어의 상당 부분을 배포할 때는 저작권 표시와 라이선스 문구를 포함해야 합니다. 제3자 자료에는 각자의 라이선스가 적용됩니다.
-
-CT is available under the [MIT License](LICENSE). Third-party materials retain their own licenses.
