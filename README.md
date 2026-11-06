@@ -14,8 +14,8 @@ CUDA 프로그램 → CT의 CUDA 드라이버 인터페이스 → PTX를 SPIR-V�
 
 | 항목 | 결과 |
 | --- | --- |
-| GPU 계산 | Arc B390에서 벡터 덧셈, ReLU, 행렬 곱셈 등 일부 CUDA 커널을 실행하고 결과를 확인했습니다. [커널 검증](https://github.com/knox9014/CT/blob/219e6e5edc8be2666f92b0d80d924cb92e47ddc2/docs/M2-RESULTS.md) |
-| NVIDIA 공식 샘플 | `vectorAddDrv`의 원본 호스트·커널 소스로 실험용 빌드를 만들었습니다. 압축 PTX가 들어 있는 CUDA 컨테이너(fatbin)를 CT로 실행해 50,000개 결과를 검증했습니다. [빌드 방식과 결과](https://github.com/knox9014/CT/blob/219e6e5edc8be2666f92b0d80d924cb92e47ddc2/docs/M3e-RESULTS.md) |
+| GPU 계산 | Arc B390에서 벡터 덧셈, ReLU, 행렬 곱셈 등 일부 CUDA 커널을 실행하고 결과를 확인했습니다. [커널 검증](https://github.com/knox9014/CT/blob/d57659f6a64d7fb211130de45a896654cce40738/docs/M2-RESULTS.md) |
+| NVIDIA 공식 샘플 | `vectorAddDrv`의 원본 호스트·커널 소스로 실험용 빌드를 만들었습니다. 압축 PTX가 들어 있는 CUDA 컨테이너(fatbin)를 CT로 실행해 50,000개 결과를 검증했습니다. [빌드 방식과 결과](https://github.com/knox9014/CT/blob/d57659f6a64d7fb211130de45a896654cce40738/docs/M3e-RESULTS.md) |
 | CUDA 앱 호환성 | CUDA Runtime 초기화를 진단 중입니다. CuPy 배포본의 실제 배열 연산과 범용 앱 실행은 아직 검증 전입니다. |
 | 다른 GPU | Intel Arc B390에서 검증했습니다. 다른 Intel 모델과 AMD는 이후 검증 대상입니다. |
 
@@ -33,16 +33,18 @@ Windows x64와 Intel Arc B390에서 소스를 빌드해 검증용 예제를 실�
 ```powershell
 git clone https://github.com/knox9014/CT.git
 cd CT
-git checkout --detach 219e6e5edc8be2666f92b0d80d924cb92e47ddc2
+git checkout --detach d57659f6a64d7fb211130de45a896654cce40738
 ```
 
 ### 2. Intel GPU가 동작하는지 확인하기
 
 ```powershell
-cargo run --quiet --bin ct-intel-smoke -- tests/fixtures/vector_add.spv B390
+cargo run --quiet --bin ct-intel-smoke
 ```
 
-마지막 JSON에 `"status":"pass"`와 Intel Arc B390 장치명이 나오면 GPU 벡터 덧셈 검사를 통과한 것입니다. 이 단계는 저장소에 포함된 SPIR-V 예제로 Intel 실행 환경을 확인합니다. [Intel 기본 테스트](https://github.com/knox9014/CT/blob/219e6e5edc8be2666f92b0d80d924cb92e47ddc2/docs/M0-RESULTS.md)
+CT가 Level Zero에서 찾은 첫 Intel GPU를 사용합니다. 마지막 JSON에서 `"status":"pass"`와 `device`에 표시된 실제 GPU 이름을 확인하세요. 이 단계는 저장소에 포함된 SPIR-V 예제로 Intel 실행 환경을 확인합니다. [Intel 기본 테스트](https://github.com/knox9014/CT/blob/d57659f6a64d7fb211130de45a896654cce40738/docs/M0-RESULTS.md)
+
+여러 Intel GPU 중 특정 모델을 시험하려면 예제 파일 경로 뒤에 모델명의 일부를 넣으세요. 예를 들어 `cargo run --quiet --bin ct-intel-smoke -- tests/fixtures/vector_add.spv B390`은 B390을 찾습니다.
 
 ### 3. CUDA 호출이 CT를 거쳐 실행되는지 확인하기
 
@@ -50,7 +52,7 @@ cargo run --quiet --bin ct-intel-smoke -- tests/fixtures/vector_add.spv B390
 pwsh -NoProfile -File scripts/run_m3_smoke.ps1
 ```
 
-스크립트가 CT와 검증용 CUDA 프로그램 두 개를 빌드하고 Intel GPU에서 실행합니다. 마지막 JSON에서 `"status": "pass"`와 `"results": 514`를 확인하세요. [CUDA Driver 연결 검증](https://github.com/knox9014/CT/blob/219e6e5edc8be2666f92b0d80d924cb92e47ddc2/docs/M3a-RESULTS.md)
+스크립트가 CT와 검증용 CUDA 프로그램 두 개를 빌드하고 Intel GPU에서 실행합니다. 마지막 JSON에서 `"status": "pass"`와 `"results": 514`를 확인하세요. [CUDA Driver 연결 검증](https://github.com/knox9014/CT/blob/d57659f6a64d7fb211130de45a896654cce40738/docs/M3a-RESULTS.md)
 
 ### 4. 내가 가진 프로그램 확인하기
 
@@ -62,7 +64,7 @@ cargo build -p ct-cuda
 python scripts/ct.py run --ct-dll target/debug/ct_cuda.dll --ptx "C:\path\to\kernel.ptx" "C:\path\to\app.exe" -- kernel.ptx
 ```
 
-`--` 뒤에는 프로그램 자체의 인자를 넣습니다. 여기서는 프로그램이 `kernel.ptx`를 인자로 받는다고 가정했습니다. CT는 실행 파일과 지정한 GPU 코드 파일을 `.cache/runs/` 아래의 실행 폴더에 복사하고, 그 폴더에서 CT를 `nvcuda.dll`로 사용합니다. 이 예제는 외부 PTX를 사용하는 독립 프로그램을 대상으로 합니다. [Driver API 지원 범위](https://github.com/knox9014/CT/blob/219e6e5edc8be2666f92b0d80d924cb92e47ddc2/docs/compatibility/driver-api.md) · [공식 샘플 재현](https://github.com/knox9014/CT/blob/219e6e5edc8be2666f92b0d80d924cb92e47ddc2/docs/M3e-RESULTS.md)
+`--` 뒤에는 프로그램 자체의 인자를 넣습니다. 여기서는 프로그램이 `kernel.ptx`를 인자로 받는다고 가정했습니다. CT는 실행 파일과 지정한 GPU 코드 파일을 `.cache/runs/` 아래의 실행 폴더에 복사하고, 그 폴더에서 CT를 `nvcuda.dll`로 사용합니다. 이 예제는 외부 PTX를 사용하는 독립 프로그램을 대상으로 합니다. [Driver API 지원 범위](https://github.com/knox9014/CT/blob/d57659f6a64d7fb211130de45a896654cce40738/docs/compatibility/driver-api.md) · [공식 샘플 재현](https://github.com/knox9014/CT/blob/d57659f6a64d7fb211130de45a896654cce40738/docs/M3e-RESULTS.md)
 
 ### 문제가 생기면
 
@@ -72,7 +74,7 @@ python scripts/ct.py run --ct-dll target/debug/ct_cuda.dll --ptx "C:\path\to\ker
 | GPU를 찾지 못함 | 장치 관리자에서 Arc B390이 표시되는지 확인하고 Intel 그래픽 드라이버를 확인합니다. |
 | `unsupported static CUDA symbol` 또는 `CUDA Runtime imports are unsupported` | 위 Driver 실행 경로의 지원 범위를 벗어난 프로그램입니다. 오류 문구와 필요한 CUDA 함수를 확인하세요. |
 
-문제를 공유할 때는 GPU 모델, Windows 버전, 재현 단계와 오류 문구를 적고 로그에서 개인 경로를 지워 주세요. [공개 자료 보호 규칙](https://github.com/knox9014/CT/blob/219e6e5edc8be2666f92b0d80d924cb92e47ddc2/docs/PUBLICATION.md)
+문제를 공유할 때는 GPU 모델, Windows 버전, 재현 단계와 오류 문구를 적고 로그에서 개인 경로를 지워 주세요. [공개 자료 보호 규칙](https://github.com/knox9014/CT/blob/d57659f6a64d7fb211130de45a896654cce40738/docs/PUBLICATION.md)
 
 ## 다음 목표
 
@@ -81,7 +83,7 @@ python scripts/ct.py run --ct-dll target/debug/ct_cuda.dll --ptx "C:\path\to\ker
 3. 다른 Intel PC에서도 설치와 실행을 재현하고, 성능과 제한을 기록합니다.
 4. Intel 검증을 바탕으로 AMD 백엔드를 추가합니다.
 
-[개발 순서와 출시 기준](https://github.com/knox9014/CT/blob/219e6e5edc8be2666f92b0d80d924cb92e47ddc2/docs/CT-EXECUTION-ROADMAP.md) · [Driver API 지원 범위](https://github.com/knox9014/CT/blob/219e6e5edc8be2666f92b0d80d924cb92e47ddc2/docs/compatibility/driver-api.md) · [PTX 지원 범위](https://github.com/knox9014/CT/blob/219e6e5edc8be2666f92b0d80d924cb92e47ddc2/docs/compatibility/ptx-profile.md)
+[개발 순서와 출시 기준](https://github.com/knox9014/CT/blob/d57659f6a64d7fb211130de45a896654cce40738/docs/CT-EXECUTION-ROADMAP.md) · [Driver API 지원 범위](https://github.com/knox9014/CT/blob/d57659f6a64d7fb211130de45a896654cce40738/docs/compatibility/driver-api.md) · [PTX 지원 범위](https://github.com/knox9014/CT/blob/d57659f6a64d7fb211130de45a896654cce40738/docs/compatibility/ptx-profile.md)
 
 ## English summary
 
