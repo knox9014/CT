@@ -40,6 +40,14 @@ pub fn group_count(n: usize, group_size: u32) -> Result<u32, String> {
 }
 
 pub fn run_smoke(module: &[u8], device_name: &str) -> Result<String, String> {
+    run_smoke_with_filter(module, Some(device_name))
+}
+
+pub fn run_smoke_auto(module: &[u8]) -> Result<String, String> {
+    run_smoke_with_filter(module, None)
+}
+
+fn run_smoke_with_filter(module: &[u8], device_name: Option<&str>) -> Result<String, String> {
     #[cfg(all(windows, target_pointer_width = "64"))]
     {
         level_zero::run(module, device_name)

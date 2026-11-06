@@ -192,12 +192,12 @@ unsafe fn barrier(api: &Api, list: Handle) -> Result<(), String> {
     )
 }
 
-pub fn run(module: &[u8], filter: &str) -> Result<String, String> {
+pub fn run(module: &[u8], filter: Option<&str>) -> Result<String, String> {
     if module.len() < 20 || !module.len().is_multiple_of(4) || module[..4] != [3, 2, 35, 7] {
         return Err("invalid SPIR-V module header/word alignment".into());
     }
-    if filter.is_empty() {
-        return Err("an explicit Intel GPU name filter is required".into());
+    if filter == Some("") {
+        return Err("Intel GPU name filter must not be empty".into());
     }
     let api = Api::open()?;
     // These calls use official C layouts and signatures. The selected device and
@@ -205,7 +205,7 @@ pub fn run(module: &[u8], filter: &str) -> Result<String, String> {
     unsafe { execute(&api, module, filter) }
 }
 
-unsafe fn execute(api: &Api, module: &[u8], filter: &str) -> Result<String, String> {
+unsafe fn execute(api: &Api, module: &[u8], filter: Option<&str>) -> Result<String, String> {
     call!(api, "zeInit", (u32), (1))?;
     let mut count = 0;
     call!(
@@ -225,7 +225,8 @@ unsafe fn execute(api: &Api, module: &[u8], filter: &str) -> Result<String, Stri
         (&mut count, drivers.as_mut_ptr())
     )?;
     let mut selected = None;
-    for driver in drivers.into_iter().take(count as usize) {
+    let normalized_filter = filter.map(str::to_lowercase);
+    'drivers: for driver in drivers.into_iter().take(count as usize) {
         let mut n = 0;
         call!(
             api,
@@ -254,19 +255,26 @@ unsafe fn execute(api: &Api, module: &[u8], filter: &str) -> Result<String, Stri
             )?;
             if properties.kind == 1
                 && properties.vendor == 0x8086
-                && device_name(&properties.name)
-                    .to_lowercase()
-                    .contains(&filter.to_lowercase())
+                && normalized_filter.as_ref().is_none_or(|filter| {
+                    device_name(&properties.name)
+                        .to_lowercase()
+                        .contains(filter)
+                })
             {
                 if selected.is_some() {
                     return Err("multiple matching Intel GPUs; selection is ambiguous".into());
                 }
                 selected = Some((driver, device, properties));
+                if filter.is_none() {
+                    break 'drivers;
+                }
             }
         }
     }
-    let (driver, device, properties) =
-        selected.ok_or_else(|| format!("no Intel GPU matching {filter:?}"))?;
+    let (driver, device, properties) = selected.ok_or_else(|| match filter {
+        Some(filter) => format!("no Intel GPU matching {filter:?}"),
+        None => "no Intel GPU found through Level Zero".into(),
+    })?;
     let name = device_name(&properties.name);
     let mut driver_properties: DriverProperties = blank();
     driver_properties.stype = 1;
