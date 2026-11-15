@@ -30,7 +30,13 @@ SYMBOL_SIGNATURES = {
     "cudaMemcpyToSymbol":"i32(const_ptr,const_ptr,size,size,i32)",
     "cudaMemcpyFromSymbol":"i32(ptr,const_ptr,size,size,i32)",
 }
-SIGNATURES = {**REGISTRATION_SIGNATURES, **SYMBOL_SIGNATURES}
+ATTRIBUTE_SIGNATURES = {'cudaDeviceGetAttribute': 'i32(out_i32,i32,i32)'}
+STREAM_SIGNATURES = {'cudaStreamSynchronize': 'i32(stream)', 'cudaStreamCreateWithFlags': 'i32(stream_ptr,u32)', 'cudaStreamDestroy': 'i32(stream)'}
+HOST_SIGNATURES = {'cudaHostAlloc': 'i32(out_ptr,size,u32)', 'cudaFreeHost': 'i32(ptr)'}
+ASYNC_SIGNATURES = {'cudaMemcpyAsync': 'i32(ptr,const_ptr,size,i32,stream)'}
+EVENT_SIGNATURES = {'cudaEventCreate':'i32(event_ptr)','cudaEventRecord':'i32(event,stream)','cudaEventSynchronize':'i32(event)','cudaEventDestroy':'i32(event)','cudaEventElapsedTime':'i32(f32_ptr,event,event)'}
+PROFILER_SIGNATURES = {'cudaProfilerStart':'i32()','cudaProfilerStop':'i32()'}
+SIGNATURES = {**PROFILER_SIGNATURES, **EVENT_SIGNATURES, **REGISTRATION_SIGNATURES, **SYMBOL_SIGNATURES, **ATTRIBUTE_SIGNATURES, **STREAM_SIGNATURES, **HOST_SIGNATURES, **ASYNC_SIGNATURES}
 
 
 def validate(value):
@@ -61,17 +67,17 @@ def validate(value):
             target = REPO / file
             if not target.is_file() or test not in target.read_text(encoding='utf-8'):
                 errors.append('missing test reference')
-    if seen != set(SIGNATURES) or len(entries) != 26: errors.append('incomplete exports')
+    if seen != set(SIGNATURES) or len(entries) != 40: errors.append('incomplete exports')
     header = (REPO / 'include/ct_cudart.h').read_text()
     if set(re.findall(r'CT_RUNTIME_API ((?:__cuda|cuda)\w+)\(',header)) != set(SIGNATURES): errors.append('header drift')
     exports=(REPO/'tests/p09a_runtime.def').read_text().splitlines()[2:]
-    if len(exports)!=26 or set(exports)!=set(SIGNATURES):errors.append('import library drift')
+    if len(exports)!=40 or set(exports)!=set(SIGNATURES):errors.append('import library drift')
     return errors
 
 def main():
     errors = validate(json.loads((REPO / PROFILE).read_text()))
     for error in errors: print(error)
-    if not errors: print('Runtime profile: 26 bounded declarations checked; execution unproven')
+    if not errors: print('Runtime profile: 40 bounded declarations checked; execution unproven')
     return bool(errors)
 
 if __name__ == '__main__': raise SystemExit(main())

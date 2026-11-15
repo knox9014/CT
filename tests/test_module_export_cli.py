@@ -24,7 +24,7 @@ class ModuleCliTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(dir=cache) as d:
             p = Path(d); source, output = p / 'input.ptx', p / 'output.spv'
             for data, expected in ((None, 2), ('invalid', 1),
-                ('.version 7.0 .target sm_50 .address_size 64 .visible .entry k() { bar.sync 0; ret; }', 3)):
+                ('.version 7.0 .target sm_50 .address_size 64 .visible .entry k() { bar.sync 1; ret; }', 3)):
                 if data is not None: source.write_text(data)
                 output.write_bytes(b'stale')
                 run = subprocess.run([str(self.tool), str(source), str(output)], capture_output=True, timeout=30)

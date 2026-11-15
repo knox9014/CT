@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "release": "14.2.0",
+  "source_revision": "dc1552a32f5489bdf6a5a721dfd952a92d47d934",
+  "host": "cp314-win_amd64",
+  "packages": [
+    {
+      "name": "cupy-cuda12x",
+      "version": "14.2.0",
+      "filename": "cupy_cuda12x-14.2.0-cp314-cp314-win_amd64.whl",
+      "sha256": "5f08fc1d651d2446c1d18ad94f1a710224fab36d46634d4aa356423926964591"
+    },
+    {
+      "name": "cuda-pathfinder",
+      "version": "1.8.4",
+      "filename": "cuda_pathfinder-1.8.4-py3-none-any.whl",
+      "sha256": "85a4e708c725d603f576042ef32781a3d1737c51e84c35fe361d2680191af65a"
+    },
+    {
+      "name": "numpy",
+      "version": "2.5.4",
+      "filename": "numpy-2.5.4-cp314-cp314-win_amd64.whl",
+      "sha256": "2ca144f15135b6212a5c47b1e2aeca6e412f102f95a2d5d88d8aec77eb255de3"
+    }
+  ]
+}

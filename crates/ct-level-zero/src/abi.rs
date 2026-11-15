@@ -10,6 +10,31 @@ pub struct DriverProperties {
     pub uuid: [u8; 16],
     pub version: u32,
 }
+
+#[repr(C)]
+pub struct DeviceMemoryProperties {
+    pub stype: u32,
+    pub next: *mut c_void,
+    pub flags: u32,
+    pub max_clock_rate: u32,
+    pub max_bus_width: u32,
+    pub total_size: u64,
+    pub name: [u8; 256],
+}
+
+#[cfg(all(test, windows, target_pointer_width = "64"))]
+mod memory_layout_tests {
+    use super::*;
+    #[test]
+    fn device_memory_properties_matches_expected_x64_layout() {
+        use std::mem::{align_of, offset_of, size_of};
+        assert_eq!(size_of::<DeviceMemoryProperties>(), 296);
+        assert_eq!(align_of::<DeviceMemoryProperties>(), 8);
+        assert_eq!(offset_of!(DeviceMemoryProperties, next), 8);
+        assert_eq!(offset_of!(DeviceMemoryProperties, total_size), 32);
+        assert_eq!(offset_of!(DeviceMemoryProperties, name), 40);
+    }
+}
 #[repr(C)]
 pub struct DeviceProperties {
     pub stype: u32,
@@ -109,6 +134,24 @@ pub struct KernelDesc {
     pub next: *const c_void,
     pub flags: u32,
     pub name: *const c_char,
+}
+/// Core ze_kernel_properties_t, including its complete two-part UUID storage.
+#[repr(C)]
+pub struct KernelProperties {
+    pub stype: u32,
+    pub next: *mut c_void,
+    pub num_kernel_args: u32,
+    pub required_group_size_x: u32,
+    pub required_group_size_y: u32,
+    pub required_group_size_z: u32,
+    pub required_num_subgroups: u32,
+    pub required_subgroup_size: u32,
+    pub max_subgroup_size: u32,
+    pub max_num_subgroups: u32,
+    pub local_mem_size: u32,
+    pub private_mem_size: u32,
+    pub spill_mem_size: u32,
+    pub uuid: [u8; 32],
 }
 #[repr(C)]
 pub struct GroupCount {

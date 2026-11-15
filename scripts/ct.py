@@ -35,7 +35,12 @@ def runtime_symbols():
     return {item['symbol'] for item in value['exports']}
 
 
-def inspect_pe(data, *, dll=False, runtime=False):
+def inspect_pe(data, *, dll=False, runtime=False, diagnostic=False):
+    """Read-only import triage. Diagnostic reports never authorize execution.
+
+    Bundle/run callers retain strict defaults; malformed structures, unsupported
+    Runtime versions, ordinals and delay imports are rejected in both modes.
+    """
     def require(ok):
         if not ok:
             raise LoaderError("malformed or unsupported PE image")
@@ -94,6 +99,7 @@ def inspect_pe(data, *, dll=False, runtime=False):
     require(directory(13) == (0, 0))  # delay imports need a separate contract
     require(directory(14) == (0, 0))  # no managed assemblies
     imports = []
+    unsupported = []
     import_rva, import_size = directory(1)
     if import_rva or import_size:
         require(import_rva != 0 and 20 <= import_size <= 20 * 1024)
@@ -126,15 +132,26 @@ def inspect_pe(data, *, dll=False, runtime=False):
                     names.append(string(thunk + 2))
             else:
                 raise LoaderError("oversized PE import table")
-            if lower == "nvcuda.dll" and not set(names) <= supported_symbols():
-                raise LoaderError("unsupported static CUDA symbol")
-            if lower == 'cudart64_12.dll' and not set(names) <= runtime_symbols():
-                raise LoaderError('unsupported static Runtime symbol')
+            missing = []
+            if lower == "nvcuda.dll":
+                missing = sorted(set(names) - supported_symbols())
+                if missing and not diagnostic:
+                    raise LoaderError("unsupported static CUDA symbol")
+            if lower == 'cudart64_12.dll':
+                missing = sorted(set(names) - runtime_symbols())
+                if missing and not diagnostic:
+                    raise LoaderError('unsupported static Runtime symbol')
+            if missing:
+                unsupported.append({"library": name, "symbols": missing})
             imports.append({"library": name, "symbols": names})
         require(terminated)
-    return {"architecture": "x64", "cuda_loading": "static" if any(
+    report = {"architecture": "x64", "cuda_loading": "static" if any(
         i["library"].lower() == "nvcuda.dll" for i in imports) else "dynamic-or-none",
         "imports": imports, "compatibility": "unproven"}
+    if diagnostic:
+        report.update(unsupported_imports=unsupported, execution_performed=False,
+                      compatibility="blocked" if unsupported else "unproven")
+    return report
 
 
 def read_image(path):
@@ -209,6 +226,8 @@ def main():
     commands = parser.add_subparsers(dest="command", required=True)
     inspect = commands.add_parser("inspect", help="triage PE imports; no compatibility guarantee")
     inspect.add_argument("application", type=Path)
+    inspect.add_argument('--runtime', action='store_true', help='use the bounded cudart64_12.dll import profile')
+    inspect.add_argument('--diagnostic', action='store_true', help='report missing named imports; never executes or weakens run checks')
     run = commands.add_parser("run", help="execute a trusted standalone application through CT")
     run.add_argument("--ct-dll", type=Path, required=True)
     run.add_argument('--runtime-dll', type=Path)
@@ -218,7 +237,8 @@ def main():
     try:
         args = parser.parse_args()
         if args.command == "inspect":
-            print(json.dumps(inspect_pe(read_image(args.application)), ensure_ascii=True))
+            print(json.dumps(inspect_pe(read_image(args.application), runtime=args.runtime,
+                                        diagnostic=args.diagnostic), ensure_ascii=True))
             return 0
         if os.name != "nt":
             raise LoaderError("application connection requires Windows x64")

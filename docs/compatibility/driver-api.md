@@ -80,12 +80,14 @@ Export calling convention: Windows CUDA `__stdcall` / Rust `extern "system"` (un
 | cuInit | flags=0, idempotent initialization of the Intel backend |
 | cuDeviceGetCount, cuDeviceGet | native Intel GPU list and ordinal validation |
 | cuDeviceGetName | bounded NUL-terminated name; positive buffer size required |
-| cuDeviceGetAttribute | attributes1..4 (max threads/group and X/Y/Z dimensions), M3h5..7 (grid X/Y/Z limits, capped to I32_MAX), and20/compute mode as DEFAULT=0; others return NOT_SUPPORTED and output0 |
+| cuDeviceGetAttribute | attributes1..4 (max threads/group and X/Y/Z dimensions), M3h5..7 (grid X/Y/Z limits, capped to I32_MAX),8 (bounded static shared bytes=min(native Level Zero maxSharedLocalMemory,16384)),15/40 synchronous profile values0;16 explicit target only checked maximum native slice*subslice topology count fittingi32 (strict/zero/overflow801), not active SMs/EUs;20/compute mode as DEFAULT=0;75/76 return5/2 only under explicit ct-sm52-subset-v1, otherwise801/output0; other attributes return NOT_SUPPORTED/output0 |
 | cuCtxCreate_v2, cuCtxDestroy_v2 | flags=0; monotonic non-dereferenced handles; destroy releases owned native allocations on normal path |
 | cuCtxGetCurrent, cuCtxSetCurrent | per-thread current-context stack; null set detaches the top entry |
 | cuCtxPushCurrent_v2, cuCtxPopCurrent_v2 | attach/detach an existing live context; foreign host threads start with no current context |
 | cuCtxGetDevice, cuCtxSynchronize | current-context device and native completion |
 | cuMemAlloc_v2, cuMemFree_v2 | positive size, device-native allocation, exact base for free |
+| cuIpcOpenMemHandle_v2 | Direct Windows x64 export for callers that register its address during initialization. Clears the output and returns NOT_SUPPORTED. Null output returns INVALID_VALUE. IPC mapping is unavailable. |
+| cuDeviceGetUuid | Direct legacy export. Returns the selected device's 16-byte Level Zero identifier after initialization. Rejects zero or duplicate identifiers and leaves the output untouched on error. |
 | cuMemcpyHtoD_v2, cuMemcpyDtoH_v2 | synchronous transfers, interior device ranges allowed, crossing an allocation boundary rejected; zero bytes allowed only at a valid interior device address and performs no host access |
 | cuGetErrorName, cuGetErrorString | static read-only strings for the explicitly implemented error subset |
 | cuDriverGetVersion | explicitly returns NOT_SUPPORTED, output 0; no invented CUDA version |
@@ -104,12 +106,13 @@ The M1 table above contains 20 exports. M2 adds four, bringing the experimental 
 | --- | --- |
 | cuModuleLoadData | bounded NUL-terminated text in the [PTX profile](ptx-profile.md), or M3d's [raw fatbin profile](fatbin-profile.md); current context required; malformed input returns INVALID_PTX=218, unsupported features return NOT_SUPPORTED=801 |
 | cuModuleGetFunction | exact entry name in a current-context module; missing entry returns NOT_FOUND=500 |
+| cuFuncGetParamInfo | Reports the byte offset and optional scalar size of a zero-based parameter in the packed launch buffer. Supports functions from a live module in the current context and the restricted PTX parameter types below. |
 | cuModuleUnload | synchronous destruction; invalidates the module's function handles |
-| cuLaunchKernel | synchronous1D/2D/3D dispatch with kernelParams; checks per-axis limits, checked block volume, U32 global axis sizes, pointer argument starts and context ownership; streams/shared memory/extra unsupported |
+| cuLaunchKernel | synchronous1D/2D/3D dispatch with kernelParams or bounded packed extra; checks per-axis limits, checked block volume, U32 global axis sizes, pointer argument starts and context ownership; streams and dynamic shared memory unsupported |
 
 Stale or foreign module/function tokens return INVALID_HANDLE=400. Context destruction unloads owned modules before native context destruction. Uncertain native work or cleanup retains resources and poisons the context. Host pointer validity and dynamic kernel access bounds remain caller obligations.
 
-Primary contexts, streams/events, cudart, cuBLAS and AMD remain unsupported. See [M2 results and limitations](../M2-RESULTS.md).
+The original M2 scope excluded primary contexts, streams/events and cudart. Later bounded extensions are described below and in the Runtime profile; cuBLAS and AMD remain outside the implemented scope. See [M2 results and limitations](../M2-RESULTS.md) for that historical stage.
 
 ## M3b versioned entry-point extension
 
@@ -145,6 +148,8 @@ OOM maps to CUDA2; fatal/unknown errors map to999, without full NVIDIA parity.
 The private test-only injection provider is absent from normal builds.
 
 ## M3k typed integer memory/argument extension
+
+Packed `extra` accepts the CUDA buffer pointer and size options in either order, followed by END. CT reads naturally aligned 4-byte and 8-byte slots for the supported PTX parameter types. It validates device pointer values through the same ownership and pointee alignment checks as `kernelParams`. A short buffer, duplicate option, or simultaneous use of both argument forms returns `CUDA_ERROR_INVALID_VALUE`. [CUDA Driver execution control](https://docs.nvidia.com/cuda/cuda-driver-api/cuda_driver_api/group__CUDA__EXEC.html)
 
 Explicit b64/s64 scalar parameters consume8 bytes in kernelParams and are not
 classified as device pointers. Pointer parameters carry4/8-byte alignment and
@@ -233,3 +238,36 @@ The supported four scalar metadata queries do not authorize cross-context memory
 access. No-current and stale-TLS pointer query behavior is a documented CT
 policy; exact NVIDIA parity remains unverified. Raw address reuse can identify a
 new allocation, and numeric boundaries may begin a different live allocation.
+
+
+## Bounded GPU events
+
+`cuEventCreate`, `cuEventRecord`, `cuEventSynchronize`, `cuEventDestroy_v2`
+and `cuEventElapsedTime` support the current owning context and flags0.
+At most128 live events are allowed per context (excess returns2). Known nonzero
+flags1/2/4 return801; unknown flags return1. Record accepts only null/default
+stream; non-null streams return801. Handles are never reused. Wrong-context,
+unknown, destroyed or unrecorded elapsed-time handles return400. Never-recorded
+synchronize returns0. Output arguments are preserved on error.
+
+All native Driver commands and record are synchronous in this profile. Record
+reads Level Zero's global GPU counter after prior synchronous commands; it does
+not append an event to an asynchronous native queue. Synchronize therefore checks
+completed metadata. Runtime event APIs order these Driver calls through the
+pending-copy worker and retain independent completion generations. Direct Driver
+use does not synchronize that Runtime queue. See [Runtime events](runtime-events.md).
+
+Elapsed time uses only masked GPU ticks and cycles/second frequency. Query
+before/after monotonic boundaries only reject potentially ambiguous intervals of
+at least half a counter period; CPU wall time is never returned as GPU time.
+Reversed recording order returns1; mismatched clocks or ambiguous intervals801.
+The same recorded event returns0ms. Re-record replaces its current timestamp.
+These measurements include record-call gaps and are not kernel-only timings or
+frequency calibration. Native device-lost/reset follows context poisoning.
+Destroy removes CPU metadata without GPU resource calls, even on a poisoned
+context. Context retirement also drops event metadata. No full NVIDIA parity,
+PTDS, event Query/flags extensions, interprocess events or performance claim.
+
+# Device total memory (bounded v3020 interface)
+
+`cuDeviceTotalMem_v2(size_t *bytes, CUdevice device)` returns the nonzero driver-advertised total for one qualified Level Zero memory property with matching sampled counts. This is not free memory, a budget, guaranteed allocatable capacity or fixed physical VRAM. Multiple properties, zero totals, missing query or inconsistent counts return unsupported; native failures use CT's existing error mapping. The function requires initialization and a valid device, but no current CUDA context, and does not alter TLS or primary activation. Null output returns1; valid output is cleared before any other failure.

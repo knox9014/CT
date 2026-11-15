@@ -1,12 +1,20 @@
 #![allow(non_snake_case)]
 #![allow(clippy::missing_safety_doc)]
 use std::ffi::{c_char, c_void};
+mod async_copy;
 mod configuration;
 #[cfg(test)]
 mod configuration_tests;
 mod device;
 mod driver;
 mod errors;
+#[cfg(test)]
+mod event_tests;
+mod events;
+mod host;
+mod host_ownership;
+#[cfg(test)]
+mod host_ownership_tests;
 mod kernel_driver;
 #[cfg(test)]
 mod kernel_tests;
@@ -15,6 +23,7 @@ mod memory;
 #[cfg(test)]
 mod memory_tests;
 mod platform;
+mod profiler;
 mod registration;
 #[cfg(test)]
 mod registration_image_tests;
@@ -25,6 +34,12 @@ mod registration_tests;
 mod registration_variable_tests;
 mod registration_variables;
 mod state;
+#[cfg(test)]
+mod stream_tests;
+mod streams;
+mod submission;
+#[cfg(test)]
+mod submission_tests;
 mod symbols;
 use driver::DriverBridge;
 use state::Runtime;
@@ -84,12 +99,56 @@ pub unsafe extern "system" fn cudaGetDevice(out: *mut i32) -> i32 {
     boundary(|| unsafe { device::scalar(out, false) })
 }
 #[no_mangle]
+pub unsafe extern "system" fn cudaDeviceGetAttribute(
+    out: *mut i32,
+    attribute: i32,
+    device: i32,
+) -> i32 {
+    boundary(|| unsafe { device::attribute(out, attribute, device) })
+}
+#[no_mangle]
 pub extern "system" fn cudaSetDevice(ordinal: i32) -> i32 {
     boundary(|| device::set_device(ordinal))
 }
 #[no_mangle]
 pub extern "system" fn cudaDeviceSynchronize() -> i32 {
     boundary(device::synchronize)
+}
+#[no_mangle]
+pub unsafe extern "system" fn cudaStreamCreateWithFlags(out: *mut *mut c_void, flags: u32) -> i32 {
+    boundary(|| unsafe { streams::create(out.cast(), flags) })
+}
+#[no_mangle]
+pub extern "system" fn cudaStreamDestroy(stream: *mut c_void) -> i32 {
+    boundary(|| streams::destroy(stream as usize))
+}
+#[no_mangle]
+pub extern "system" fn cudaStreamSynchronize(stream: *mut c_void) -> i32 {
+    boundary(|| device::synchronize_stream(stream as usize))
+}
+#[no_mangle]
+pub unsafe extern "system" fn cudaHostAlloc(out: *mut *mut c_void, size: usize, flags: u32) -> i32 {
+    boundary(|| {
+        if let Some(code) = host::preflight(out.cast(), size, flags) {
+            return code;
+        }
+        match bridge() {
+            Ok(rt) => unsafe { host::allocate(rt, out.cast(), size, flags) },
+            Err(code) => code,
+        }
+    })
+}
+#[no_mangle]
+pub extern "system" fn cudaFreeHost(pointer: *mut c_void) -> i32 {
+    boundary(|| {
+        if pointer.is_null() {
+            return 1;
+        }
+        match bridge() {
+            Ok(rt) => host::free(rt, pointer as usize),
+            Err(code) => code,
+        }
+    })
 }
 #[no_mangle]
 pub unsafe extern "system" fn cudaMalloc(out: *mut *mut c_void, size: usize) -> i32 {
@@ -130,6 +189,37 @@ pub unsafe extern "system" fn cudaMemcpy(
         }
         match bridge() {
             Ok(rt) => unsafe { memory::copy_device(rt, dst, src, size, kind) },
+            Err(code) => code,
+        }
+    })
+}
+#[no_mangle]
+pub unsafe extern "system" fn cudaMemcpyAsync(
+    dst: *mut c_void,
+    src: *const c_void,
+    bytes: usize,
+    kind: i32,
+    stream: *mut c_void,
+) -> i32 {
+    boundary(|| {
+        let copy = async_copy::Copy {
+            dst: dst as usize,
+            src: src as usize,
+            bytes,
+            kind,
+            stream: stream as usize,
+        };
+        if let Some(code) = async_copy::preflight(streams::registry(), copy) {
+            return code;
+        }
+        match bridge() {
+            Ok(rt) => async_copy::enqueue(
+                rt,
+                submission::scheduler(),
+                host_ownership::registry(),
+                streams::registry(),
+                copy,
+            ),
             Err(code) => code,
         }
     })
@@ -403,4 +493,103 @@ pub unsafe extern "system" fn __cudaRegisterVar(
             },
         )
     });
+}
+
+#[no_mangle]
+pub unsafe extern "system" fn cudaEventCreate(out: *mut *mut c_void) -> i32 {
+    boundary(|| {
+        if out.is_null() {
+            return 1;
+        }
+        let result = bridge().and_then(events::create);
+        match result {
+            Ok(token) => {
+                unsafe {
+                    out.write(token as *mut c_void);
+                }
+                0
+            }
+            Err(code) => code,
+        }
+    })
+}
+#[no_mangle]
+pub extern "system" fn cudaEventRecord(event: *mut c_void, stream: *mut c_void) -> i32 {
+    boundary(|| {
+        if let Err(c) = events::registry().preflight(event as usize) {
+            return c;
+        }
+        if let Err(c) = streams::registry().preflight(stream as usize) {
+            return c;
+        }
+        bridge()
+            .and_then(|rt| events::record(rt, event as usize, stream as usize))
+            .err()
+            .unwrap_or(0)
+    })
+}
+#[no_mangle]
+pub extern "system" fn cudaEventSynchronize(event: *mut c_void) -> i32 {
+    boundary(|| {
+        if let Err(c) = events::registry().preflight(event as usize) {
+            return c;
+        }
+        bridge()
+            .and_then(|rt| events::synchronize(rt, event as usize))
+            .err()
+            .unwrap_or(0)
+    })
+}
+#[no_mangle]
+pub extern "system" fn cudaEventDestroy(event: *mut c_void) -> i32 {
+    boundary(|| {
+        if let Err(c) = events::registry().preflight(event as usize) {
+            return c;
+        }
+        bridge()
+            .and_then(|rt| events::destroy(rt, event as usize))
+            .err()
+            .unwrap_or(0)
+    })
+}
+#[no_mangle]
+pub unsafe extern "system" fn cudaEventElapsedTime(
+    out: *mut f32,
+    start: *mut c_void,
+    end: *mut c_void,
+) -> i32 {
+    boundary(|| {
+        if out.is_null() {
+            return 1;
+        }
+        for token in [start, end] {
+            if let Err(c) = events::registry().preflight(token as usize) {
+                return c;
+            }
+        }
+        match bridge().and_then(|rt| events::elapsed(rt, start as usize, end as usize)) {
+            Ok(value) => {
+                unsafe {
+                    out.write(value);
+                }
+                0
+            }
+            Err(code) => code,
+        }
+    })
+}
+
+#[no_mangle]
+pub extern "system" fn cudaProfilerStart() -> i32 {
+    boundary(|| match bridge() {
+        Ok(rt) => profiler::no_collector(rt, submission::scheduler()),
+        Err(code) => code,
+    })
+}
+#[no_mangle]
+pub extern "system" fn cudaProfilerStop() -> i32 {
+    boundary(|| match bridge() {
+        Ok(rt) => profiler::no_collector(rt, submission::scheduler()),
+        Err(code) => code,
+    })
 }

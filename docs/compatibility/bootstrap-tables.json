@@ -1,0 +1,182 @@
+{
+  "schema_version": 1,
+  "scope": "offline_table_contract_inventory",
+  "source_commit": "08b19b28b7c334936846b3aeb61a43aef053e9a1",
+  "pointer_bytes": 8,
+  "native_success_authorized": false,
+  "sources": [
+    {
+      "path": "dark_api/src/lib.rs",
+      "url": "https://github.com/vosen/ZLUDA/blob/08b19b28b7c334936846b3aeb61a43aef053e9a1/dark_api/src/lib.rs",
+      "cached_utf8_sha256": "e1c4a6ce02631ec13b2be7f08c9c4682492bf42ed065739ca0777810f0fc47bf"
+    },
+    {
+      "path": "zluda/src/impl/driver.rs",
+      "url": "https://github.com/vosen/ZLUDA/blob/08b19b28b7c334936846b3aeb61a43aef053e9a1/zluda/src/impl/driver.rs",
+      "cached_utf8_sha256": "49a76ea0a43369ccbf122a9a1dec20a2f1abdd7cbdaaa8201350082808e8ca69"
+    }
+  ],
+  "tables": [
+    {
+      "uuid": "6bd5fb6c5bf4e74a8987d93912fd9df9",
+      "source_name": "CUDART_INTERFACE",
+      "slot_count": 13,
+      "byte_size": 104,
+      "metadata_slot": 0,
+      "null_slots": [
+        3,
+        5,
+        9,
+        10,
+        11
+      ],
+      "functions": [
+        {
+          "index": 1,
+          "source_name": "get_module_from_cubin",
+          "argument_types": [
+            "CUmodule*",
+            "const FatbincWrapper*"
+          ],
+          "return_type": "CUresult",
+          "calling_convention": "system",
+          "effect": "module_load"
+        },
+        {
+          "index": 2,
+          "source_name": "cudart_interface_fn2",
+          "argument_types": [
+            "CUcontext*",
+            "CUdevice"
+          ],
+          "return_type": "CUresult",
+          "calling_convention": "system",
+          "effect": "context"
+        },
+        {
+          "index": 4,
+          "source_name": "primary_ctx_retain_with_flags",
+          "argument_types": [
+            "CUdevice",
+            "u32"
+          ],
+          "return_type": "CUresult",
+          "calling_convention": "system",
+          "effect": "context"
+        },
+        {
+          "index": 6,
+          "source_name": "get_module_from_cubin_ext1",
+          "argument_types": [
+            "CUmodule*",
+            "const FatbincWrapper*",
+            "void*",
+            "void*",
+            "u32"
+          ],
+          "return_type": "CUresult",
+          "calling_convention": "system",
+          "effect": "module_load"
+        },
+        {
+          "index": 7,
+          "source_name": "cudart_interface_fn7",
+          "argument_types": [
+            "usize"
+          ],
+          "return_type": "void",
+          "calling_convention": "system",
+          "effect": "unresolved"
+        },
+        {
+          "index": 8,
+          "source_name": "get_module_from_cubin_ext2",
+          "argument_types": [
+            "const FatbinHeader*",
+            "CUmodule*",
+            "void*",
+            "void*",
+            "u32"
+          ],
+          "return_type": "CUresult",
+          "calling_convention": "system",
+          "effect": "module_load"
+        },
+        {
+          "index": 12,
+          "source_name": "load_compilers",
+          "argument_types": [],
+          "return_type": "CUresult",
+          "calling_convention": "system",
+          "effect": "compiler_load"
+        }
+      ],
+      "buffer_reference": []
+    },
+    {
+      "uuid": "a094798c2e742e7493f20800200c0a66",
+      "source_name": "TOOLS_RUNTIME_CALLBACK_HOOKS",
+      "slot_count": 7,
+      "byte_size": 56,
+      "metadata_slot": 0,
+      "null_slots": [
+        1,
+        3,
+        4,
+        5
+      ],
+      "functions": [
+        {
+          "index": 2,
+          "source_name": "get_unknown_buffer1",
+          "argument_types": [
+            "void**",
+            "usize*"
+          ],
+          "return_type": "void",
+          "calling_convention": "system",
+          "effect": "buffer_query"
+        },
+        {
+          "index": 6,
+          "source_name": "get_unknown_buffer2",
+          "argument_types": [
+            "void**",
+            "usize*"
+          ],
+          "return_type": "void",
+          "calling_convention": "system",
+          "effect": "buffer_query"
+        }
+      ],
+      "buffer_reference": [
+        {
+          "slot": 2,
+          "element_type": "u32",
+          "element_count": 1024,
+          "source_count_unit": "elements",
+          "runtime_min_reported_count": 487
+        },
+        {
+          "slot": 6,
+          "element_type": "u32",
+          "element_count": 14,
+          "source_count_unit": "elements",
+          "runtime_min_reported_count": 14
+        }
+      ]
+    }
+  ],
+  "runtime_evidence": {
+    "kind": "static_only",
+    "runtime_sha256": "760c38928bbe5759f7b31ed6692599eb7ec83cedd5702e84c2b72028a89837e1",
+    "disassembly_sha256": "92309a11965cacaf1384316f3b89b2cf19a514f1fe4a3cae37d1c2e3812a18fb",
+    "hooks_query_rva": "230d6",
+    "getter_call_rvas": [
+      "22dda",
+      "22dfd"
+    ],
+    "dynamically_observed": false,
+    "buffer_meaning_verified": false
+  }
+}

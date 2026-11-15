@@ -10,6 +10,7 @@ use std::ptr::{null, null_mut};
 
 pub type NativeResult<T> = Result<T, u32>;
 const DEPENDENCY: u32 = 0x70020000;
+const UNSUPPORTED: u32 = 0x78000003;
 const BAD_ARGUMENT: u32 = 0x78000004;
 const UNKNOWN: u32 = 0x7ffffffe;
 
@@ -24,14 +25,31 @@ macro_rules! ze {
 
 #[cfg(test)]
 mod fault_tests;
+mod kernel_resources;
+mod memory_properties;
 mod modules;
+pub use kernel_resources::KernelResources;
+
+/// A device-global counter sample. Frequency is cycles/second, never ns/tick.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Timestamp {
+    pub ticks: u64,
+    pub frequency: u64,
+    pub bits: u32,
+}
 
 pub struct Device {
     driver: usize,
     native: usize,
     pub name: String,
+    pub uuid: [u8; 16],
     pub max_group: [u32; 4],
     pub max_groups: [u32; 3],
+    /// Physical Level Zero maxSharedLocalMemory in bytes, without CUDA policy.
+    pub shared_mem: u32,
+    /// Raw Level Zero maximum topology dimensions, not active CUDA SMs or EUs.
+    pub max_slices: u32,
+    pub max_subslices_per_slice: u32,
 }
 pub struct Backend {
     api: Api,
@@ -152,6 +170,7 @@ impl Backend {
                     devices.push(Device {
                         driver: driver as usize,
                         native: device as usize,
+                        uuid: properties.uuid,
                         name: String::from_utf8_lossy(&properties.name[..end]).into_owned(),
                         max_group: [
                             compute.max_total,
@@ -161,6 +180,9 @@ impl Backend {
                         ],
                         max_groups: [compute.count_x, compute.count_y, compute.count_z]
                             .map(|v| v.min(i32::MAX as u32)),
+                        shared_mem: compute.shared_mem,
+                        max_slices: properties.slices,
+                        max_subslices_per_slice: properties.subslices,
                     });
                 }
             }
@@ -291,6 +313,31 @@ impl Backend {
             }
             Ok(pointer as u64)
         }
+    }
+    /// Native host allocation. The caller records ownership before publishing it.
+    pub fn allocate_host(&self, c: &mut Context, size: usize) -> NativeResult<u64> {
+        if c.poisoned || size == 0 {
+            return Err(BAD_ARGUMENT);
+        }
+        let descriptor = HostAllocDesc {
+            stype: 0x16,
+            next: null(),
+            flags: 0,
+        };
+        let mut pointer = null_mut();
+        let result = unsafe {
+            ze!(
+                self.api,
+                "zeMemAllocHost",
+                (Handle, *const HostAllocDesc, usize, usize, *mut Handle),
+                (c.native as Handle, &descriptor, size, 64, &mut pointer)
+            )
+        };
+        c.observe(&self.api, result)?;
+        if pointer.is_null() {
+            return Err(UNKNOWN);
+        }
+        Ok(pointer as u64)
     }
     pub fn free(&self, c: &mut Context, pointer: u64) -> NativeResult<()> {
         if c.poisoned {
@@ -497,6 +544,47 @@ impl Backend {
         }
         result
     }
+    /// Read an optional GPU clock without changing initialization requirements.
+    /// The caller must order preceding work; this query does not drain queues.
+    pub fn timestamp(&self, c: &mut Context) -> NativeResult<Timestamp> {
+        if c.poisoned {
+            return Err(UNKNOWN);
+        }
+        let device = self.devices.get(c.device).ok_or(BAD_ARGUMENT)?.native as Handle;
+        let result = (|| unsafe {
+            let properties_fn: unsafe extern "C" fn(Handle, *mut DeviceProperties) -> u32 = self
+                .api
+                .symbol(b"zeDeviceGetProperties\0")
+                .map_err(|_| UNSUPPORTED)?;
+            let timestamps_fn: unsafe extern "C" fn(Handle, *mut u64, *mut u64) -> u32 = self
+                .api
+                .symbol(b"zeDeviceGetGlobalTimestamps\0")
+                .map_err(|_| UNSUPPORTED)?;
+            let mut properties: DeviceProperties = blank();
+            // Original stype=3 reports ns/tick. 1.2 explicitly reports cycles/s.
+            properties.stype = 0x00020006;
+            let status = properties_fn(device, &mut properties);
+            if status != 0 {
+                return Err(status);
+            }
+            if properties.timer == 0 || !(1..=64).contains(&properties.timestamp_bits) {
+                return Err(UNSUPPORTED);
+            }
+            let mut host = 0;
+            let mut ticks = 0;
+            let status = timestamps_fn(device, &mut host, &mut ticks);
+            if status != 0 {
+                return Err(status);
+            }
+            Ok(Timestamp {
+                ticks,
+                frequency: properties.timer,
+                bits: properties.timestamp_bits,
+            })
+        })();
+        c.observe(&self.api, result)
+    }
+
     pub fn synchronize(&self, c: &mut Context) -> NativeResult<()> {
         if c.poisoned {
             return Err(UNKNOWN);

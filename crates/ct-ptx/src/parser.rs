@@ -56,7 +56,9 @@ fn lex(source: &str) -> Result<Vec<Token>, Error> {
             continue;
         }
         let start = i;
-        if b";:,{}[]()<>@!+-=".contains(&b[i]) {
+        if b[i..].starts_with(b"\"nounroll\"") {
+            i += b"\"nounroll\"".len();
+        } else if b";:,{}[]()<>@!+-=".contains(&b[i]) {
             i += 1;
         } else {
             while i < b.len() && (b[i].is_ascii_alphanumeric() || b"._%$".contains(&b[i])) {
@@ -118,7 +120,7 @@ impl Parser {
 }
 fn identifier(s: &str) -> bool {
     !s.is_empty()
-        && s.len() <= 128
+        && s.len() <= crate::MAX_IDENTIFIER_BYTES
         && (s.as_bytes()[0].is_ascii_alphabetic()
             || (s.len() > 1 && b"_$".contains(&s.as_bytes()[0])))
         && s.bytes().enumerate().all(|(i, b)| {
@@ -240,6 +242,23 @@ fn destination(
     }
     Ok(tokens[0].clone())
 }
+// Only the unsigned/bit 32-bit global-memory profile permits a wider
+// register here. Memory width remains U32; signed extension is not implied.
+fn memory_register_type(
+    tokens: &[String],
+    suffix: &str,
+    dtype: Ty,
+    regs: &BTreeMap<String, Ty>,
+) -> Ty {
+    if matches!(suffix, "u32" | "b32")
+        && tokens.len() == 1
+        && regs.get(&tokens[0]) == Some(&Ty::U64)
+    {
+        Ty::U64
+    } else {
+        dtype
+    }
+}
 fn address(
     tokens: &[String],
     regs: &BTreeMap<String, Ty>,
@@ -280,10 +299,82 @@ fn instruction(
     regs: &BTreeMap<String, Ty>,
     params: &[Param],
     globals: &[Global],
+    shared: &[Shared],
     line: usize,
 ) -> Result<Instruction, Error> {
     let err = || fail(line, "invalid instruction operands");
-    let kind = if let Some(suffix) = op.strip_prefix("ld.param.") {
+    let kind = if op == "bar.sync" {
+        if args.len() != 1 || args[0].as_slice() != ["0"] {
+            return Err(unsupported(line));
+        }
+        InstructionKind::BlockBarrier
+    } else if op.starts_with("ld.shared.")
+        || op.starts_with("ld.volatile.shared.")
+        || op.starts_with("st.shared.")
+        || op.starts_with("st.volatile.shared.")
+    {
+        let load = op.starts_with("ld.");
+        let volatile = op.contains(".volatile.");
+        let suffix = [
+            "ld.shared.",
+            "st.shared.",
+            "ld.volatile.shared.",
+            "st.volatile.shared.",
+        ]
+        .iter()
+        .find_map(|prefix| op.strip_prefix(prefix))
+        .unwrap();
+        let dtype = match suffix {
+            "u32" | "b32" => Ty::U32,
+            "f32" => Ty::F32,
+            _ => return Err(unsupported(line)),
+        };
+        if args.len() != 2 {
+            return Err(err());
+        }
+        let tokens = &args[if load { 1 } else { 0 }];
+        if tokens.len() < 3 || tokens[0] != "[" || tokens.last().unwrap() != "]" {
+            return Err(err());
+        }
+        let inner = &tokens[1..tokens.len() - 1];
+        let offset = if inner.len() == 1 {
+            0
+        } else if inner.len() == 3 && inner[1] == "+" {
+            number(&inner[2]).ok_or_else(err)?
+        } else {
+            return Err(unsupported(line));
+        };
+        let a = if shared.iter().any(|s| s.name == inner[0]) {
+            Value::Shared(inner[0].clone())
+        } else {
+            let at = regs
+                .get(&inner[0])
+                .copied()
+                .filter(|t| matches!(t, Ty::U32 | Ty::U64))
+                .ok_or_else(err)?;
+            if at == Ty::U32 && offset > u32::MAX as u64 {
+                return Err(unsupported(line));
+            }
+            value(&inner[..1], at, regs, line)?
+        };
+        if load {
+            InstructionKind::SharedLoad {
+                ty: dtype,
+                dst: destination(&args[0], dtype, regs, line)?,
+                address: a,
+                offset,
+                volatile,
+            }
+        } else {
+            InstructionKind::SharedStore {
+                ty: dtype,
+                address: a,
+                offset,
+                value: value(&args[1], dtype, regs, line)?,
+                volatile,
+            }
+        }
+    } else if let Some(suffix) = op.strip_prefix("ld.param.") {
         if args.len() != 2 || args[1].len() != 3 || args[1][0] != "[" || args[1][2] != "]" {
             return Err(err());
         }
@@ -323,7 +414,12 @@ fn instruction(
         }
         InstructionKind::Load {
             ty: dtype,
-            dst: destination(&args[0], dtype, regs, line)?,
+            dst: destination(
+                &args[0],
+                memory_register_type(&args[0], suffix, dtype, regs),
+                regs,
+                line,
+            )?,
             address: a,
             offset,
             volatile,
@@ -349,7 +445,12 @@ fn instruction(
             ty: dtype,
             address: a,
             offset,
-            value: value(&args[1], dtype, regs, line)?,
+            value: value(
+                &args[1],
+                memory_register_type(&args[1], suffix, dtype, regs),
+                regs,
+                line,
+            )?,
             volatile,
         }
     } else if let Some(formats) = op.strip_prefix("cvt.") {
@@ -371,6 +472,7 @@ fn instruction(
             "mov.u64" | "mov.b64" | "mov.s64" => (Op::Mov, Ty::U64, 1),
             "mov.f32" => (Op::Mov, Ty::F32, 1),
             "cvta.to.global.u64" => (Op::Cvta, Ty::U64, 1),
+            "cvta.to.shared.u64" => (Op::CvtaShared, Ty::U64, 1),
             "add.u32" | "add.s32" => (Op::Add, Ty::U32, 2),
             "add.u64" | "add.s64" => (Op::Add, Ty::U64, 2),
             "sub.u32" | "sub.s32" => (Op::Sub, Ty::U32, 2),
@@ -381,6 +483,7 @@ fn instruction(
             "mul.wide.s32" => (Op::SignedMulWide, Ty::U32, 2),
             "mad.lo.u32" | "mad.lo.s32" => (Op::Mad, Ty::U32, 3),
             "mad.lo.u64" | "mad.lo.s64" => (Op::Mad, Ty::U64, 3),
+            "fma.rn.f32" => (Op::Fma, Ty::F32, 3),
             "div.u32" => (Op::Div, Ty::U32, 2),
             "rem.u32" => (Op::Rem, Ty::U32, 2),
             "min.u32" => (Op::Min { signed: false }, Ty::U32, 2),
@@ -470,6 +573,14 @@ fn instruction(
         };
         let mut values = Vec::new();
         for (i, a) in args[1..].iter().enumerate() {
+            if operation == Op::Mov
+                && matches!(t, Ty::U32 | Ty::U64)
+                && a.len() == 1
+                && shared.iter().any(|s| s.name == a[0])
+            {
+                values.push(Value::Shared(a[0].clone()));
+                continue;
+            }
             values.push(value(
                 a,
                 if matches!(operation, Op::Shl | Op::Shr | Op::SignedShr) && i == 1 {
@@ -544,9 +655,10 @@ pub fn parse_module(source: &str) -> Result<Module, Error> {
     let mut globals = BTreeMap::new();
     loop {
         // Visibility can prefix globals or the next entry; consume only globals.
-        let visible_global =
-            p.peek() == ".visible" && p.tokens.get(p.pos + 1).is_some_and(|t| t.text == ".global");
-        if visible_global {
+        let common = p.peek() == ".common";
+        let qualified_global = matches!(p.peek(), ".visible" | ".common")
+            && p.tokens.get(p.pos + 1).is_some_and(|t| t.text == ".global");
+        if qualified_global {
             p.take()?;
         }
         if !p.eat(".global") {
@@ -556,6 +668,11 @@ pub fn parse_module(source: &str) -> Result<Module, Error> {
         let alignment = p.take()?;
         let dtype = p.take()?;
         let name = p.take()?;
+        // A standalone module can represent one zero-initialized scalar.
+        // Cross-object common-symbol resolution belongs to a linker.
+        if common && (alignment != "8" || dtype != ".u64" || p.peek() != ";") {
+            return Err(unsupported(p.line()));
+        }
         if !identifier(&name) || globals.contains_key(&name) || globals.len() >= 256 {
             return Err(fail(p.line(), "invalid/duplicate global"));
         }
@@ -721,6 +838,7 @@ fn parse_kernel(
     p.expect(")")?;
     p.expect("{")?;
     let mut regs = BTreeMap::new();
+    let mut shared: Vec<Shared> = Vec::new();
     let mut labels = BTreeMap::new();
     let mut blocks = vec![new_block(p.line())];
     let mut executable = false;
@@ -731,6 +849,58 @@ fn parse_kernel(
         }
         let line = p.line();
         let op = p.take()?;
+        if op == ".pragma" {
+            p.expect("\"nounroll\"")?;
+            p.expect(";")?;
+            continue;
+        }
+        if op == ".shared" {
+            if executable {
+                return Err(unsupported(line));
+            }
+            p.expect(".align")?;
+            let alignment = number(&p.take()?).ok_or_else(|| unsupported(line))?;
+            if !matches!(alignment, 4 | 8 | 16) {
+                return Err(unsupported(line));
+            }
+            let element = match p.take()?.as_str() {
+                ".b8" => 1,
+                ".u32" | ".b32" | ".f32" => 4,
+                _ => return Err(unsupported(line)),
+            };
+            let n = p.take()?;
+            if !identifier(&n)
+                || params.iter().any(|v| v.name == n)
+                || globals.iter().any(|v| v.name == n)
+                || shared.iter().any(|v| v.name == n)
+                || n == name
+            {
+                return Err(fail(line, "duplicate/invalid shared name"));
+            }
+            p.expect("[")?;
+            let count = number(&p.take()?).ok_or_else(|| unsupported(line))?;
+            p.expect("]")?;
+            p.expect(";")?;
+            let bytes = count
+                .checked_mul(element)
+                .filter(|v| *v > 0 && *v <= u64::from(MAX_STATIC_SHARED_BYTES) && v % 4 == 0)
+                .ok_or_else(|| unsupported(line))?;
+            shared.push(Shared {
+                name: n,
+                bytes: bytes as u32,
+                alignment: alignment as u32,
+            });
+            if shared.len() > 16
+                || shared
+                    .iter()
+                    .map(|s| s.bytes.next_multiple_of(s.alignment))
+                    .sum::<u32>()
+                    > MAX_STATIC_SHARED_BYTES
+            {
+                return Err(unsupported(line));
+            }
+            continue;
+        }
         if op == ".reg" {
             if executable {
                 return Err(unsupported(line));
@@ -787,7 +957,12 @@ fn parse_kernel(
                 if regs.get(&pred) != Some(&Ty::Pred) {
                     return Err(fail(line, "invalid branch predicate"));
                 }
-                p.expect("bra")?;
+                if p.peek() == "bar.sync" {
+                    return Err(unsupported(line));
+                }
+                if !p.eat("bra.uni") {
+                    p.expect("bra")?;
+                }
                 let target = p.take()?;
                 p.expect(";")?;
                 let next = blocks.len();
@@ -795,7 +970,7 @@ fn parse_kernel(
                     Some(PendingTerm::Branch(pred, neg, target, next));
                 blocks.push(new_block(line));
             }
-            "bra" => {
+            "bra" | "bra.uni" => {
                 let target = p.take()?;
                 p.expect(";")?;
                 blocks.last_mut().unwrap().term = Some(PendingTerm::Jump(target));
@@ -815,11 +990,9 @@ fn parse_kernel(
                     }
                 }
                 p.expect(";")?;
-                blocks
-                    .last_mut()
-                    .unwrap()
-                    .instructions
-                    .push(instruction(&op, &args, &regs, &params, globals, line)?);
+                blocks.last_mut().unwrap().instructions.push(instruction(
+                    &op, &args, &regs, &params, globals, &shared, line,
+                )?);
                 total += 1;
             }
         }
@@ -856,44 +1029,35 @@ fn parse_kernel(
             line: b.line,
         });
     }
-    let kernel = Kernel {
+    let mut kernel = Kernel {
         profile,
         globals: globals.clone(),
+        shared,
         name,
         params,
         registers: regs,
         blocks: final_blocks,
     };
+    kernel.validate_block_barriers()?;
     validate_flow(&kernel)?;
-    validate_inferred_pointers(&kernel, &inferred)?;
-    if kernel.blocks.iter().flat_map(|b| &b.instructions).any(|i| {
-        matches!(
-            &i.kind,
-            InstructionKind::Load { ty: Ty::U64, address, .. } | InstructionKind::Store { ty: Ty::U64, address, .. } if !matches!(address,Value::Global(_))
-        )
-    }) && kernel
-        .params
-        .iter()
-        .any(|p| p.kind == ParamKind::Pointer && p.alignment < 8)
-    {
-        return Err(unsupported(1));
-    }
+    kernel.shared_access_roots()?;
+    classify_unannotated_u64(&mut kernel, &mut inferred)?;
+    crate::alignment::validate(&mut kernel, &inferred)?;
     Ok(kernel)
 }
 
-fn validate_inferred_pointers(k: &Kernel, inferred: &[usize]) -> Result<(), Error> {
+fn classify_unannotated_u64(k: &mut Kernel, inferred: &mut Vec<usize>) -> Result<(), Error> {
     let instructions: Vec<_> = k.blocks.iter().flat_map(|b| &b.instructions).collect();
-    for index in inferred {
+    for &index in inferred.iter() {
         let loads: Vec<_> = instructions
             .iter()
             .filter_map(|i| match &i.kind {
-                InstructionKind::Param { dst, index: p } if p == index => Some(dst.as_str()),
+                InstructionKind::Param { dst, index: p } if *p == index => Some(dst.as_str()),
                 _ => None,
             })
             .collect();
-        if loads.is_empty() {
-            return Err(unsupported(1));
-        }
+        let mut pointer = false;
+        let mut scalar = loads.is_empty();
         for register in loads {
             if instructions
                 .iter()
@@ -903,28 +1067,46 @@ fn validate_inferred_pointers(k: &Kernel, inferred: &[usize]) -> Result<(), Erro
             {
                 return Err(unsupported(1));
             }
-            let consumers: Vec<_> = instructions
+            let mut consumed = false;
+            for i in instructions
                 .iter()
                 .filter(|i| reads(&i.kind).contains(&register))
-                .collect();
-            if consumers.is_empty()
-                || consumers
-                    .iter()
-                    .any(|i| !matches!(i.kind, InstructionKind::Compute { op: Op::Cvta, .. }))
             {
+                consumed = true;
+                match i.kind {
+                    InstructionKind::Compute { op: Op::Cvta, .. } => pointer = true,
+                    InstructionKind::Compute {
+                        op: Op::SignedGe | Op::And,
+                        ty: Ty::U64,
+                        ..
+                    } => {
+                        scalar = true;
+                    }
+                    _ => return Err(unsupported(i.line)),
+                }
+            }
+            if !consumed || (pointer && scalar) {
                 return Err(unsupported(1));
             }
         }
+        if scalar {
+            k.params[index].kind = ParamKind::U64;
+            k.params[index].alignment = 8;
+        }
     }
+    inferred.retain(|&index| k.params[index].kind == ParamKind::Pointer);
     Ok(())
 }
 
 fn reads(i: &InstructionKind) -> Vec<&str> {
     let values: Vec<&Value> = match i {
-        InstructionKind::Param { .. } => vec![],
+        InstructionKind::Param { .. } | InstructionKind::BlockBarrier => vec![],
         InstructionKind::Compute { args, .. } => args.iter().collect(),
-        InstructionKind::Load { address, .. } => vec![address],
-        InstructionKind::Store { address, value, .. } => vec![address, value],
+        InstructionKind::Load { address, .. } | InstructionKind::SharedLoad { address, .. } => {
+            vec![address]
+        }
+        InstructionKind::Store { address, value, .. }
+        | InstructionKind::SharedStore { address, value, .. } => vec![address, value],
     };
     values
         .into_iter()
@@ -941,11 +1123,12 @@ fn definition(i: &InstructionKind) -> Option<&str> {
     match i {
         InstructionKind::Param { dst, .. }
         | InstructionKind::Compute { dst, .. }
-        | InstructionKind::Load { dst, .. } => Some(dst),
+        | InstructionKind::Load { dst, .. }
+        | InstructionKind::SharedLoad { dst, .. } => Some(dst),
         _ => None,
     }
 }
-fn validate_flow(k: &Kernel) -> Result<(), Error> {
+pub(crate) fn validate_flow(k: &Kernel) -> Result<(), Error> {
     let n = k.blocks.len();
     let mut preds = vec![Vec::new(); n];
     let mut edges = vec![Vec::new(); n];

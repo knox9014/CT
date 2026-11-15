@@ -38,9 +38,13 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Declared probe failed.' }
     $taskReference | Set-Content -Encoding utf8 "$taskBuild/reference.txt"
     $taskDeclared | Set-Content -Encoding utf8 "$taskBuild/declared.txt"
-    if (Compare-Object $taskReference $taskDeclared -SyncWindow 0) { throw 'CUDA normalized ABI mismatch; see local probe reports.' }
+    # CUDA 12.0 predates this export. Keep the historical comparison scoped
+    # to 12.0 while retaining the full CT declaration report above.
+    $taskDeclared12 = $taskDeclared | Where-Object { $_ -notmatch '^cuFuncGetParamInfo:' }
+    if (Compare-Object $taskReference $taskDeclared12 -SyncWindow 0) { throw 'CUDA normalized ABI mismatch; see local probe reports.' }
     $taskDllPath = (Resolve-Path -LiteralPath $CtDll).Path
     & "$taskBuild/cuda_reference_consumer.exe" $taskDllPath
     if ($LASTEXITCODE -ne 0) { throw 'Official PFN consumer failed.' }
-    Write-Output 'CUDA ABI: 39 signatures, error/query/flag values and official-PFN consumer passed (Windows x64).'
+    $taskSignatureCount = @($taskReference | Where-Object { $_ -match '^cu' }).Count
+    Write-Output ("CUDA ABI: {0} signatures, error/query/flag values and official-PFN consumer passed (Windows x64)." -f $taskSignatureCount)
 } finally { Pop-Location }

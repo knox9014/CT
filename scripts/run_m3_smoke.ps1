@@ -1,8 +1,10 @@
+param([string]$Device)
+
 $ErrorActionPreference = 'Stop'
 $taskRepo = Split-Path -Parent $PSScriptRoot
 Push-Location -LiteralPath $taskRepo
 try {
-    & cargo build -p ct-cuda
+    & cargo build -p ct-cuda -p ct-intel-smoke --bin ct-intel-smoke --lib --features ct-cuda/m3-device-check,ct-intel-smoke/m3-device-check --target-dir .cache/m3-device-target
     if ($LASTEXITCODE -ne 0) { throw 'CT DLL build failed.' }
     $taskVsWhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
     $taskVsRoot = & $taskVsWhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
@@ -23,7 +25,9 @@ try {
     ) | Set-Content -Encoding utf8NoBOM (Join-Path $taskBuild 'build.cmd')
     & cmd.exe /d /c ($taskBuildWin + '\build.cmd')
     if ($LASTEXITCODE -ne 0) { throw 'Independent CUDA consumers build failed.' }
-    & python tests/m3_connection_check.py $taskBuild
+    $taskCheckArgs = @($taskBuild)
+    if ($Device) { $taskCheckArgs += $Device }
+    & python tests/m3_connection_check.py @taskCheckArgs
     if ($LASTEXITCODE -ne 0) { throw 'M3 CUDA connection verification failed.' }
 } finally {
     Pop-Location

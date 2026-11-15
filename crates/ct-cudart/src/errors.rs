@@ -54,6 +54,7 @@ pub fn text(code: i32, description: bool) -> *const c_char {
             b"cudaErrorInvalidResourceHandle\0",
             b"invalid resource handle\0",
         ),
+        600 => (b"cudaErrorNotReady\0", b"operation not yet complete\0"),
         709 => (b"cudaErrorContextIsDestroyed\0", b"context is destroyed\0"),
         801 => (b"cudaErrorNotSupported\0", b"operation not supported\0"),
         999 => (b"cudaErrorUnknown\0", b"unknown error\0"),

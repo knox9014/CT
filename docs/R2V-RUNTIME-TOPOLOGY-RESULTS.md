@@ -1,0 +1,27 @@
+# R2v: actual official Runtime topology prefix
+
+The pinned official CUDA Runtime12.9.79 called device attributes75,76,15,40,16,17 in that order. Under the explicit ct-sm52-subset-v1 software-target policy CT returned5,2,0,0,12, then actual Driver801/output0 for17. Runtime returned3/count-1; application execution and shipping support remain unqualified.
+
+Attribute17 is KERNEL_EXEC_TIMEOUT, whether kernels have a run-time limit, according to the [official CUDA Driver definitions](https://docs.nvidia.com/cuda/archive/12.6.0/cuda-driver-api/group__CUDA__DEVICE.html). No timeout capability is invented from Windows defaults. Next investigate a truthful supported mapping for17, or retain its refusal if the available backend cannot substantiate it, before observing the next actual request.
+
+The16-success value12 is independently controlled by a fresh official-header Level Zero/CT ABI topology qualification on Intel(R) Arc(TM) B390 GPU: maximum dimensions2 and6. This is a CT software-target topology count, not an active NVIDIA SM/EU count or occupancy/performance model. Driver and CT Runtime strict16 refusal remains801. Both new Runtime samples12000/12090 match the independent positive count and physical device name; post-unload direct controls match all forwarded scheduling/topology responses and the observed17 refusal.
+
+All49 fresh native processes passed:25 independent topology/ABI controls,20 strict-policy Runtime baseline children, two opt-in Runtime samples and two strict post-controls. The existing47 native deny-table checks also passed. Exact native context counters1/0/1, deny mask0, typed deny-only callbacks for successful non-forwarded lookups, callback exposure order, boundary latch, Runtime unload, reset and null-current controls are retained. Both saved parent chains are source/hash audited; the saved recheck passed without another GPU run.
+
+Clean immutable CPU qualification passed11/11 lanes: Python394, workspace Rust225 passed/7 ignored, CT Runtime129 passed, formatting/Clippy, registry, profiles and publication checks. Ignored cases are not GPU passes. All115 selected product/compiler/Runtime/header paths match R2u byte-for-byte; this phase adds diagnostic observation and validation. Independent fresh static review found no actionable findings; the reviewer did not independently run GPU/archive operations.
+
+Immutable candidate:3d80de6e109042d09e7a3db703019e79.
+Private source commit:a703250640cc62b18dbf977758a26071ee061375.
+Source fingerprint:4fec14c8ce883f1e9c1c29745d81e704bb339579633478bd6a304fde0846b9d7.
+Fresh Runtime run:a6caa303b5ef4147adfb996381a06d26.
+Independent topology run:d065fad329494d3683f08fc10b59874e.
+
+## Attribute 17 follow-up (2026-11-06)
+
+A fresh read-only probe loaded the Windows system Level Zero loader and called `zesInit(0)`, `zesDriverGet`, `zesDeviceGet` and `zesDeviceEnumSchedulers` in that order. Initialization succeeded. Driver and device enumeration each returned success and one handle. The scheduler count query returned success with a count of zero, leaving no scheduler handle for `zesSchedulerGetCurrentMode` or its timeout properties. This finding applies to the installed loader and driver. [Level Zero scheduler API](https://oneapi-src.github.io/level-zero-spec/level-zero/latest/sysman/api/apis/scheduler.html)
+
+Windows TDR includes a preemption wait. WDDM also exposes timeout-disable flags at context and hardware queue creation, so a system TDR default cannot establish whether CT's actual Level Zero submission path imposes a kernel execution time limit. The probe only queried metadata. Attribute 17 remains unsupported pending a verified limit policy for that submission path. [Windows TDR](https://learn.microsoft.com/en-us/windows-hardware/drivers/display/timeout-detection-and-recovery) · [WDDM context flags](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/d3dukmdt/ns-d3dukmdt-_d3dddi_createcontextflags) · [WDDM hardware queue flags](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/d3dukmdt/ns-d3dukmdt-_d3dddi_createhwqueueflags)
+
+The saved R2v audit was rerun successfully. The 49 recorded child processes still validate, and the captured official Runtime boundary remains attribute 17 with Driver result 801. This audit revalidates the saved run. The Sysman query above is the fresh native evidence for this follow-up.
+
+Root HEAD/index/protected11 and managed worktrees are preserved. Native entry reserved2GiB under40GiB cache/30GiB free limits. After source/report verification, the dedicated clean-CPU target512293112 bytes was removed using the existing ancestor-guarded durable cleanup journal. Source, CPU reports and full native closure remain. Encrypted backup and restoration completed on2026-11-05 via the user-authorized Desktop Drive folder. All6 uploaded files are owner-only and were downloaded through the Drive connector; SHA256 comparisons, all2097 restored file hashes, frozen source verification and the restored49-child saved audit passed. Recovery keys were not uploaded. The encrypted recovery payload contains notebook-local user paths in133 files (including logs/debug build artifacts); it is not PII-free. No public sharing is enabled. This privacy inspection checks known notebook paths and credential filenames, not an exhaustive personal-data audit. Current source and complete native closures remain local; only verified transfer/restoration duplicates and local encrypted volume duplicates were reclaimed.

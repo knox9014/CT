@@ -2,6 +2,120 @@ use ct_codegen_spirv::translate;
 use ct_ptx::ParamKind;
 const SOURCE: &str = include_str!("../../../tests/fixtures/vector_add.ptx");
 
+#[test]
+fn fma_uses_opencl_fused_instruction_and_retains_separate_arithmetic() {
+    assert!(!instructions(&translate(SOURCE).unwrap().spirv)
+        .iter()
+        .any(|(op, _)| *op == 11));
+    let source=".version 8.0 .target sm_52 .address_size 64 .entry fused(){.reg .f32 %f<6>;mov.f32 %f0,0f3f800001;mov.f32 %f1,0f3f7ffffe;mov.f32 %f2,0fbf800000;fma.rn.f32 %f3,%f0,%f1,%f2;mul.rn.f32 %f4,%f0,%f1;add.rn.f32 %f5,%f4,%f2;ret;}";
+    let ops = instructions(&translate(source).unwrap().spirv);
+    let imports: Vec<_> = ops.iter().filter(|(op, _)| *op == 11).collect();
+    assert_eq!(imports.len(), 1);
+    let bytes: Vec<_> = imports[0].1[1..]
+        .iter()
+        .flat_map(|v| v.to_le_bytes())
+        .collect();
+    assert_eq!(&bytes[..11], b"OpenCL.std\0");
+    let fma: Vec<_> = ops.iter().filter(|(op, _)| *op == 12).collect();
+    assert_eq!(fma.len(), 1);
+    assert_eq!(fma[0].1.len(), 7);
+    assert_eq!(fma[0].1[0], 5);
+    assert_eq!(fma[0].1[2], imports[0].1[0]);
+    assert_eq!(fma[0].1[3], 26);
+    assert_eq!(ops.iter().filter(|(op, _)| *op == 133).count(), 1);
+    assert_eq!(ops.iter().filter(|(op, _)| *op == 129).count(), 1);
+    assert!(ops.iter().any(|(op, a)| *op == 16 && a[1] == 31));
+}
+
+#[test]
+fn shared_arrays_have_workgroup_storage_and_distinct_per_entry_identity() {
+    let text=".version 8.0 .target sm_52 .address_size 64 .entry first(){.reg .b32 %r; .shared .align 4 .b8 tile[512]; st.shared.u32 [tile],17; bar.sync 0; ld.shared.u32 %r,[tile]; ret;} .entry second(){.reg .f32 %f; .shared .align 4 .b8 tile[512]; st.shared.f32 [tile],0f3f800000; bar.sync 0; ld.shared.f32 %f,[tile]; ret;}";
+    let ops = instructions(&ct_codegen_spirv::translate_module(text).unwrap().spirv);
+    let objects: Vec<_> = ops
+        .iter()
+        .filter(|(op, a)| *op == 59 && a[2] == 4)
+        .map(|(_, a)| a[1])
+        .collect();
+    assert_eq!(objects.len(), 2);
+    assert_ne!(objects[0], objects[1]);
+    for object in objects {
+        assert_eq!(
+            ops.iter()
+                .filter(|(op, a)| *op == 65 && a[2] == object)
+                .count(),
+            2
+        );
+        assert!(ops
+            .iter()
+            .any(|(op, a)| *op == 71 && a == &vec![object, 44, 4]));
+    }
+    assert!(
+        !ops.iter().any(|(op, _)| *op == 120),
+        "shared offsets must not become physical global pointers"
+    );
+    assert_eq!(ops.iter().filter(|(op, _)| *op == 224).count(), 2);
+    assert_eq!(
+        ops.iter().filter(|(op, _)| *op == 124).count(),
+        2,
+        "F32 values use bitcasts around U32 shared storage"
+    );
+}
+
+#[test]
+fn selective_pointer_promotion_reaches_the_native_signature() {
+    let source = ".version 8.0 .target sm_52 .address_size 64 .entry mixed(.param .u64 wide,.param .u64 narrow) { .reg .b64 %a; .reg .b64 %b; .reg .b64 %c; .reg .b64 %d; .reg .b64 %v; ld.param.u64 %a,[wide]; ld.param.u64 %b,[narrow]; cvta.to.global.u64 %c,%a; cvta.to.global.u64 %d,%b; ld.global.u32 %v,[%d]; st.global.u64 [%c],%v; ret; }";
+    let compiled = translate(source).unwrap();
+    assert_eq!(
+        compiled
+            .params
+            .iter()
+            .map(|p| p.alignment)
+            .collect::<Vec<_>>(),
+        [8, 4]
+    );
+    let params: Vec<_> = instructions(&compiled.spirv)
+        .into_iter()
+        .filter(|(op, _)| *op == 55)
+        .map(|(_, a)| a[0])
+        .collect();
+    assert_eq!(params, [16, 8]);
+}
+
+#[test]
+fn relaxed_memory_converts_registers_but_keeps_four_byte_accesses() {
+    let text = include_str!("../../../tests/fixtures/relaxed_memory.ptx");
+    let ops = instructions(&translate(text).unwrap().spirv);
+    let loads: Vec<_> = ops
+        .iter()
+        .filter(|(op, a)| *op == 61 && a.len() == 5 && a[0] == 3)
+        .collect();
+    assert_eq!(loads.len(), 4);
+    for (_, a) in loads {
+        assert_eq!(a[4], 4, "memory alignment must remain four bytes");
+        let wide = ops
+            .iter()
+            .find(|(op, b)| *op == 113 && b[0] == 4 && b[2] == a[1])
+            .expect("U32 load must be zero-extended");
+        assert!(ops
+            .iter()
+            .any(|(op, b)| *op == 62 && b.len() == 2 && b[1] == wide.1[1]));
+    }
+    let stores: Vec<_> = ops
+        .iter()
+        .filter(|(op, a)| *op == 62 && a.len() == 4 && a[3] == 4)
+        .collect();
+    assert_eq!(stores.len(), 3);
+    for (_, a) in stores {
+        let narrow = ops
+            .iter()
+            .find(|(op, b)| *op == 113 && b[0] == 3 && b[1] == a[1])
+            .expect("U64 store source must be truncated");
+        assert!(ops
+            .iter()
+            .any(|(op, b)| *op == 61 && b[0] == 4 && b[1] == narrow.1[2]));
+    }
+}
+
 fn instructions(bytes: &[u8]) -> Vec<(u32, Vec<u32>)> {
     let words: Vec<_> = bytes
         .chunks_exact(4)
@@ -260,4 +374,27 @@ fn preserves_entry_and_argument_abi_and_does_not_ignore_arithmetic_changes() {
     assert_eq!(renamed.entry, "renamed_entry");
     let subtract = translate(&SOURCE.replace("add.rn.f32", "sub.rn.f32")).unwrap();
     assert_ne!(first.spirv, subtract.spirv);
+}
+
+#[test]
+fn block_barrier_is_control_barrier_with_opencl12_memory_ordering() {
+    let source=".version 8.0 .target sm_52 .address_size 64 .entry sync() { .reg .u32 %v; mov.u32 %v,%tid.x; bar.sync 0; add.u32 %v,%v,1; bar.sync 0; ret; }";
+    let ops = instructions(&translate(source).unwrap().spirv);
+    let constants: std::collections::BTreeMap<_, _> = ops
+        .iter()
+        .filter(|(op, a)| *op == 43 && a[0] == 3)
+        .map(|(_, a)| (a[1], a[2]))
+        .collect();
+    let barriers: Vec<_> = ops.iter().filter(|(op, _)| *op == 224).collect();
+    assert_eq!(barriers.len(), 2);
+    for (_, args) in barriers {
+        assert_eq!(args.len(), 3);
+        assert_eq!(constants[&args[0]], 2);
+        assert_eq!(constants[&args[1]], 2);
+        assert_eq!(constants[&args[2]], 0x310);
+    }
+    assert!(
+        !ops.iter().any(|(op, _)| *op == 225),
+        "memory-only barrier cannot rendezvous threads"
+    );
 }

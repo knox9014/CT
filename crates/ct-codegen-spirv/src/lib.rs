@@ -12,6 +12,8 @@ pub struct Compiled {
 pub struct CompiledEntry {
     pub entry: String,
     pub params: Vec<Param>,
+    /// Conservative aligned static Workgroup storage, already profile-validated.
+    pub static_shared_bytes: u32,
 }
 pub struct CompiledModule {
     pub profile: ct_ptx::Profile,
@@ -30,6 +32,11 @@ pub fn translate_module(source: &str) -> Result<CompiledModule, Error> {
             .kernels
             .into_iter()
             .map(|kernel| CompiledEntry {
+                static_shared_bytes: kernel
+                    .shared
+                    .iter()
+                    .map(|s| s.bytes.next_multiple_of(s.alignment))
+                    .sum(),
                 entry: kernel.name,
                 params: kernel.params,
             })

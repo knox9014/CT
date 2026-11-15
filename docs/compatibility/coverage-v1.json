@@ -71,6 +71,22 @@
       }
     },
     {
+      "id": "driver.cuDeviceGetUuid",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Direct legacy export returns the native Level Zero identifier when nonzero and unique.",
+        "behavior_gap": false
+      },
+      "test_ids": {
+        "resolver": [],
+        "abi": [
+          "tests/cuda_reference_abi.cpp#main"
+        ],
+        "behavior": []
+      }
+    },
+    {
       "id": "driver.cuDeviceGetName",
       "category": "abi",
       "implementation": "partial",
@@ -262,6 +278,20 @@
       }
     },
     {
+      "id": "driver.cuIpcOpenMemHandle_v2",
+      "category": "abi",
+      "implementation": "missing",
+      "limits": {
+        "contract": "Direct export rejects IPC imports; no memory mapping is created.",
+        "behavior_gap": true
+      },
+      "test_ids": {
+        "resolver": [],
+        "abi": ["tests/cuda_reference_abi.cpp#main"],
+        "behavior": []
+      }
+    },
+    {
       "id": "driver.cuMemFree_v2",
       "category": "abi",
       "implementation": "partial",
@@ -353,6 +383,24 @@
       "implementation": "partial",
       "limits": {
         "contract": "Restricted contract: docs/compatibility/driver-api.md and driver-entrypoints.md",
+        "behavior_gap": false
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [],
+        "behavior": [
+          "tests/m3_cuda_app.c#main"
+        ]
+      }
+    },
+    {
+      "id": "driver.cuFuncGetParamInfo",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Reports offsets and scalar widths for supported PTX parameters; see driver-api.md.",
         "behavior_gap": false
       },
       "test_ids": {
@@ -709,7 +757,8 @@
         "synchronous": true,
         "streams": false,
         "dynamic_shared": false,
-        "extra": false,
+        "extra": true,
+        "extra_scope": "bounded 4/8-byte PTX parameter slots with natural alignment",
         "grid_axis_cap": "min(native, I32_MAX)",
         "global_axis_cap": "U32_MAX",
         "block_volume": "checked u64, <= native maxTotalGroupSize"
@@ -745,11 +794,22 @@
     {
       "id": "runtime",
       "category": "runtime",
-      "implementation": "missing",
+      "implementation": "partial",
       "limits": {
-        "implemented": false
+        "implementation": "partial",
+        "scope": "Bounded dynamic CUDA Runtime contract only",
+        "contract": "docs/compatibility/runtime-profile-v1.json",
+        "api_exports": 40,
+        "general_cuda_compatibility": false
       },
-      "test_ids": {}
+      "test_ids": {
+        "semantic": [
+          "crates/ct-cudart/src/state_tests.rs#attribute_uses_device_handle_without_context"
+        ],
+        "native": [
+          "scripts/run_virtual_target.py#def build"
+        ]
+      }
     },
     {
       "id": "amd",
@@ -763,11 +823,22 @@
     {
       "id": "streams",
       "category": "parallel",
-      "implementation": "missing",
+      "implementation": "partial",
       "limits": {
-        "implemented": false
+        "implementation": "partial",
+        "scope": "Runtime-owned logical streams only; no native queue overlap",
+        "contract": "docs/compatibility/runtime-profile-v1.json",
+        "driver_streams": false,
+        "native_overlap": false
       },
-      "test_ids": {}
+      "test_ids": {
+        "semantic": [
+          "crates/ct-cudart/src/stream_tests.rs#stream_registry_context_flags_stale_and_budgets"
+        ],
+        "native": [
+          "scripts/run_owned_streams.py#def build"
+        ]
+      }
     },
     {
       "id": "warp",
@@ -1174,20 +1245,40 @@
     {
       "id": "parallel.shared",
       "category": "parallel",
-      "implementation": "missing",
+      "implementation": "partial",
       "limits": {
-        "scope": "Not implemented; no execution evidence declared."
+        "contract": "Per-kernel static shared arrays, CTA-uniform CFG including loops; 32-bit U32/B32/F32 accesses; symbolic U32/U64 object-relative addresses with proved4-byte alignment and may-shared taint at joins. No dynamic/extern shared, vectors, U64 accesses, atomics, divergent decisions or escapes. Bounds/termination remain caller obligations.",
+        "byte_limit": 16384,
+        "object_limit": 16
       },
-      "test_ids": {}
+      "test_ids": {
+        "semantic": [
+          "crates/ct-ptx/tests/shared.rs#accepts_static_shared_nvcc_address_shapes",
+          "crates/ct-ptx/tests/shared.rs#truncated_shift_count_cannot_forge_shared_alignment",
+          "crates/ct-codegen-spirv/tests/translation.rs#shared_arrays_have_workgroup_storage_and_distinct_per_entry_identity"
+        ],
+        "native": [
+          "scripts/run_static_shared.py#def build"
+        ]
+      }
     },
     {
       "id": "parallel.barrier",
       "category": "parallel",
-      "implementation": "missing",
+      "implementation": "partial",
       "limits": {
-        "scope": "Not implemented; no execution evidence declared."
+        "contract": "Canonical bar.sync0; every conditional branch proved CTA-uniform after fixed point, including backedges. Every block has a possible Return path; runtime termination remains caller obligation. Workgroup execution/memory scopes, SC|WorkgroupMemory|CrossWorkgroupMemory=0x310. No divergent/count/predicated barrier/dynamic IDs/warp/cluster.",
+        "instruction_limit": 4096
       },
-      "test_ids": {}
+      "test_ids": {
+        "semantic": [
+          "crates/ct-ptx/tests/barriers.rs#canonical_block_barriers_parse_in_one_linear_returning_block",
+          "crates/ct-codegen-spirv/tests/translation.rs#block_barrier_is_control_barrier_with_opencl12_memory_ordering"
+        ],
+        "native": [
+          "scripts/run_block_barrier.py#def build"
+        ]
+      }
     },
     {
       "id": "parallel.atomic",
@@ -1681,7 +1772,7 @@
       "category": "runtime",
       "implementation": "partial",
       "limits": {
-        "contract": "Context-specific same-Driver kernel materialization; default stream/shared0 only; bounded retirement; no framework/release/AMD/NVIDIA claim"
+        "contract": "Context-specific same-Driver kernel materialization; default or Runtime-owned logical stream, dynamic shared bytes0; bounded static shared subset and retirement; no framework/release/AMD/NVIDIA claim"
       },
       "test_ids": {
         "semantic": [
@@ -1750,6 +1841,350 @@
         ],
         "validator": [
           "scripts/run_validation.py#validator.global_u64"
+        ]
+      }
+    },
+    {
+      "id": "driver.cuMemHostAlloc",
+      "category": "memory",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Native host storage, flags0, owning context;128/256MiB. No mapped/portable/writecombined/UVA.",
+        "behavior_gap": true
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [
+          "tests/runtime_host_native_abi.cpp#main"
+        ],
+        "semantic": [
+          "crates/ct-backend-intel/src/fault_tests.rs#owned_host_free_failure_keeps_storage_and_never_retries"
+        ]
+      }
+    },
+    {
+      "id": "driver.cuMemFreeHost",
+      "category": "memory",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Native host storage, flags0, owning context;128/256MiB. No mapped/portable/writecombined/UVA.",
+        "behavior_gap": true
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [
+          "tests/runtime_host_native_abi.cpp#main"
+        ],
+        "semantic": [
+          "crates/ct-backend-intel/src/fault_tests.rs#owned_host_free_failure_keeps_storage_and_never_retries"
+        ]
+      }
+    },
+    {
+      "id": "driver.cuEventCreate",
+      "category": "parallel",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Synchronous native Driver, default stream only, flags0,128 live events/current context. Real GPU counter with conservative half-wrap bound. Direct Driver calls do not drain Runtime work; no concurrent native queues.",
+        "behavior_gap": true
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [
+          "tests/driver_event_native_abi.cpp#main"
+        ],
+        "semantic": [
+          "crates/ct-cuda/src/events.rs#elapsed_rejects_multiwrap_and_halfperiod_boundary"
+        ]
+      }
+    },
+    {
+      "id": "driver.cuEventRecord",
+      "category": "parallel",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Synchronous native Driver, default stream only, flags0,128 live events/current context. Real GPU counter with conservative half-wrap bound. Direct Driver calls do not drain Runtime work; no concurrent native queues.",
+        "behavior_gap": true
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [
+          "tests/driver_event_native_abi.cpp#main"
+        ],
+        "semantic": [
+          "crates/ct-cuda/src/events.rs#elapsed_rejects_multiwrap_and_halfperiod_boundary"
+        ]
+      }
+    },
+    {
+      "id": "driver.cuEventSynchronize",
+      "category": "parallel",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Synchronous native Driver, default stream only, flags0,128 live events/current context. Real GPU counter with conservative half-wrap bound. Direct Driver calls do not drain Runtime work; no concurrent native queues.",
+        "behavior_gap": true
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [
+          "tests/driver_event_native_abi.cpp#main"
+        ],
+        "semantic": [
+          "crates/ct-cuda/src/events.rs#elapsed_rejects_multiwrap_and_halfperiod_boundary"
+        ]
+      }
+    },
+    {
+      "id": "driver.cuEventDestroy_v2",
+      "category": "parallel",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Synchronous native Driver, default stream only, flags0,128 live events/current context. Real GPU counter with conservative half-wrap bound. Direct Driver calls do not drain Runtime work; no concurrent native queues.",
+        "behavior_gap": true
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [
+          "tests/driver_event_native_abi.cpp#main"
+        ],
+        "semantic": [
+          "crates/ct-cuda/src/events.rs#elapsed_rejects_multiwrap_and_halfperiod_boundary"
+        ]
+      }
+    },
+    {
+      "id": "driver.cuEventElapsedTime",
+      "category": "parallel",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Synchronous native Driver, default stream only, flags0,128 live events/current context. Real GPU counter with conservative half-wrap bound. Direct Driver calls do not drain Runtime work; no concurrent native queues.",
+        "behavior_gap": true
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [
+          "tests/driver_event_native_abi.cpp#main"
+        ],
+        "semantic": [
+          "crates/ct-cuda/src/events.rs#elapsed_rejects_multiwrap_and_halfperiod_boundary"
+        ]
+      }
+    },
+    {
+      "id": "driver.gpu_events",
+      "category": "parallel",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Synchronous native Driver, default stream only, flags0,128 live events/current context. Real GPU counter with conservative half-wrap bound. Direct Driver calls do not drain Runtime work; no concurrent native queues.",
+        "behavior_gap": true
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#canonical_entries_obey_verified_abi_boundaries"
+        ],
+        "abi": [
+          "tests/driver_event_native_abi.cpp#main"
+        ],
+        "semantic": [
+          "crates/ct-cuda/src/events.rs#elapsed_rejects_multiwrap_and_halfperiod_boundary"
+        ]
+      }
+    },
+    {
+      "id": "runtime.events",
+      "category": "parallel",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Runtime38 event5 generations,128live/4096lifetime; current context, ordered worker, GPU clock; no native overlap/PTDS/Query/flags extensions."
+      },
+      "test_ids": {
+        "semantic": [
+          "crates/ct-cudart/src/event_tests.rs#generation_is_pending_then_done_and_old_snapshot_survives_rerecord_destroy"
+        ],
+        "abi": [
+          "tests/runtime_event_native_abi.cpp#main"
+        ],
+        "native": [
+          "tests/fixtures/event_queue_runtime.cu#int main"
+        ]
+      }
+    },
+    {
+      "id": "runtime.profiler_control",
+      "category": "runtime",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Runtime40 no-collector policy only: context initialization and nonfencing observed error; no actual capture or external profiling tool control."
+      },
+      "test_ids": {
+        "semantic": [
+          "crates/ct-cudart/src/state_tests.rs#profiler_does_not_wait_for_pending_work_or_erase_its_later_error"
+        ],
+        "abi": [
+          "tests/runtime_profiler_native_abi.cpp#main"
+        ],
+        "native": [
+          "tests/fixtures/profiler_queue_runtime.cu#int main"
+        ]
+      }
+    },
+    {
+      "id": "parallel.uniform_control",
+      "category": "parallel",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Whole-CFG CTA-uniform decisions; params/constants/nctaid/ntid/ctaid uniform, tid and all memory loads varying; AND joins, fixed entry facts, strict converged shared-root checks. bra.uni is no proof. Exact nounroll pragma is metadata only; trusted finite execution required.",
+        "block_limit": 128,
+        "analysis_block_visit_limit": 4096,
+        "analysis_instruction_limit": 65536
+      },
+      "test_ids": {
+        "semantic": [
+          "crates/ct-ptx/tests/uniform.rs#accepts_uniform_loop_with_shared_and_barriers",
+          "crates/ct-ptx/tests/uniform.rs#rejects_varying_control_and_shared_taint_at_merges",
+          "crates/ct-ptx/src/uniform.rs#unfinished_uniform_proof_rejects_budget_exhaustion",
+          "crates/ct-ptx/src/shared.rs#unfinished_shared_cfg_proof_rejects_budget_exhaustion",
+          "crates/ct-codegen-spirv/src/emit.rs#mutated_branch_uniformity_is_rechecked_before_emission"
+        ],
+        "native": [
+          "scripts/run_uniform_control.py#def build"
+        ]
+      }
+    },
+    {
+      "id": "compiler.fma_f32",
+      "category": "compiler",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Exact scalar fma.rn.f32 only; explicit OpenCL.std fma26 with unique lazy import. Preserve separate mul/add under ContractionOff. No other rounds, ftz/sat, widths, packed or mad alias. Current Intel compiler mode tested with exact integer oracle/CPU RTE no FTZ/DAZ; NaN classification only, other GPU behavior unverified.",
+        "operand_count": 3
+      },
+      "test_ids": {
+        "semantic": [
+          "crates/ct-ptx/tests/fma.rs#accepts_only_explicit_nearest_even_f32_fma",
+          "crates/ct-codegen-spirv/tests/translation.rs#fma_uses_opencl_fused_instruction_and_retains_separate_arithmetic",
+          "crates/ct-codegen-spirv/src/emit.rs#fma_types_and_arity_are_rechecked_for_public_ir",
+          "tests/test_fma.py#test_literal_ieee_anchors_include_fused_discriminators"
+        ],
+        "native": [
+          "scripts/run_fma.py#def build"
+        ]
+      }
+    },
+    {
+      "id": "product.original_matrix_kernels",
+      "category": "product",
+      "implementation": "partial",
+      "limits": {
+        "contract": "Pinned unchanged original matrixMul PTX through CT Driver only, tile16/32 and four closed dyadic cases. Exact CPU integer-dot/128, complete A/B preservation and16-word guards,9472 output words per seed. Requires1024-thread groups and all queried dimensional limits. This kernel-only diagnostic does not establish an EXE/device-selection/Runtime app or performance claim; separate bounded application evidence is under product.virtual_target.",
+        "ptx_sha256": "999de47c5a9d2610641f37fd5a949523d3e29c3b6c257d5dff7f65e9359ec07b",
+        "cases": [
+          [
+            16,
+            16,
+            16,
+            16
+          ],
+          [
+            16,
+            32,
+            48,
+            64
+          ],
+          [
+            32,
+            32,
+            32,
+            32
+          ],
+          [
+            32,
+            64,
+            64,
+            96
+          ]
+        ]
+      },
+      "test_ids": {
+        "semantic": [
+          "tests/test_matrix_kernel.py#test_integer_dot_has_independent_nonsymmetric_expectations",
+          "tests/test_matrix_kernel.py#test_noop_nan_and_input_or_guard_corruption_fail",
+          "tests/test_matrix_kernel.py#test_full_profile_preflight_rejects_insufficient_device_or_fake_ptx",
+          "tests/test_matrix_kernel.py#test_control_requires_specific_signature_after_api_success"
+        ],
+        "native": [
+          "scripts/run_matrix_kernels.py#def build"
+        ]
+      }
+    },
+    {
+      "id": "driver.streams",
+      "category": "parallel",
+      "implementation": "missing",
+      "limits": {
+        "implemented": false,
+        "scope": "Driver stream API and nonnull Driver launch streams remain unsupported"
+      },
+      "test_ids": {}
+    },
+    {
+      "id": "product.virtual_target",
+      "category": "product",
+      "implementation": "partial",
+      "limits": {
+        "implementation": "partial",
+        "target": "ct-sm52-subset-v1",
+        "contract": "docs/compatibility/virtual-target-v1.json",
+        "default": "strict",
+        "physical_identity": "Intel unchanged",
+        "nvidia_conformance": false
+      },
+      "test_ids": {
+        "semantic": [
+          "crates/ct-cuda/src/virtual_policy_tests.rs#only_exact_explicit_target_is_virtual"
+        ],
+        "native": [
+          "scripts/run_virtual_target.py#def build"
+        ]
+      }
+    },
+    {
+      "id": "driver.cuDeviceTotalMem_v2",
+      "category": "abi",
+      "implementation": "partial",
+      "limits": {
+        "contract": "v3020 size_t output; single driver-reported memory property only",
+        "behavior_gap": true,
+        "property_count": 1,
+        "free_memory": false,
+        "atomic_snapshot": false
+      },
+      "test_ids": {
+        "resolver": [
+          "crates/ct-cuda/tests/entrypoints.rs#total_memory_rejects_legacy_output_width_and_suffix_alias"
+        ],
+        "abi": [
+          "tests/cuda_reference_abi.cpp#main"
+        ],
+        "semantic": [
+          "crates/ct-cuda/src/total_memory.rs#total_memory_requires_initialization_before_device_query"
+        ],
+        "native": [
+          "tests/device_total_native_abi.cpp#wmain"
         ]
       }
     }
@@ -2281,6 +2716,170 @@
     },
     {
       "id": "scripts/run_validation.py#arc.runtime_global_u64",
+      "kind": "native"
+    },
+    {
+      "id": "crates/ct-backend-intel/src/fault_tests.rs#owned_host_free_failure_keeps_storage_and_never_retries",
+      "kind": "semantic"
+    },
+    {
+      "id": "tests/runtime_host_native_abi.cpp#main",
+      "kind": "abi"
+    },
+    {
+      "id": "tests/driver_event_native_abi.cpp#main",
+      "kind": "abi"
+    },
+    {
+      "id": "crates/ct-cuda/src/events.rs#elapsed_rejects_multiwrap_and_halfperiod_boundary",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-cudart/src/event_tests.rs#generation_is_pending_then_done_and_old_snapshot_survives_rerecord_destroy",
+      "kind": "semantic"
+    },
+    {
+      "id": "tests/runtime_event_native_abi.cpp#main",
+      "kind": "abi"
+    },
+    {
+      "id": "tests/fixtures/event_queue_runtime.cu#int main",
+      "kind": "native"
+    },
+    {
+      "id": "crates/ct-cudart/src/state_tests.rs#profiler_does_not_wait_for_pending_work_or_erase_its_later_error",
+      "kind": "semantic"
+    },
+    {
+      "id": "tests/runtime_profiler_native_abi.cpp#main",
+      "kind": "abi"
+    },
+    {
+      "id": "tests/fixtures/profiler_queue_runtime.cu#int main",
+      "kind": "native"
+    },
+    {
+      "id": "crates/ct-ptx/tests/barriers.rs#canonical_block_barriers_parse_in_one_linear_returning_block",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-codegen-spirv/tests/translation.rs#block_barrier_is_control_barrier_with_opencl12_memory_ordering",
+      "kind": "semantic"
+    },
+    {
+      "id": "scripts/run_block_barrier.py#def build",
+      "kind": "native"
+    },
+    {
+      "id": "crates/ct-ptx/tests/shared.rs#accepts_static_shared_nvcc_address_shapes",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-ptx/tests/shared.rs#truncated_shift_count_cannot_forge_shared_alignment",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-codegen-spirv/tests/translation.rs#shared_arrays_have_workgroup_storage_and_distinct_per_entry_identity",
+      "kind": "semantic"
+    },
+    {
+      "id": "scripts/run_static_shared.py#def build",
+      "kind": "native"
+    },
+    {
+      "id": "crates/ct-ptx/tests/uniform.rs#accepts_uniform_loop_with_shared_and_barriers",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-ptx/tests/uniform.rs#rejects_varying_control_and_shared_taint_at_merges",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-ptx/src/uniform.rs#unfinished_uniform_proof_rejects_budget_exhaustion",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-ptx/src/shared.rs#unfinished_shared_cfg_proof_rejects_budget_exhaustion",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-codegen-spirv/src/emit.rs#mutated_branch_uniformity_is_rechecked_before_emission",
+      "kind": "semantic"
+    },
+    {
+      "id": "scripts/run_uniform_control.py#def build",
+      "kind": "native"
+    },
+    {
+      "id": "crates/ct-ptx/tests/fma.rs#accepts_only_explicit_nearest_even_f32_fma",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-codegen-spirv/tests/translation.rs#fma_uses_opencl_fused_instruction_and_retains_separate_arithmetic",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-codegen-spirv/src/emit.rs#fma_types_and_arity_are_rechecked_for_public_ir",
+      "kind": "semantic"
+    },
+    {
+      "id": "tests/test_fma.py#test_literal_ieee_anchors_include_fused_discriminators",
+      "kind": "semantic"
+    },
+    {
+      "id": "scripts/run_fma.py#def build",
+      "kind": "native"
+    },
+    {
+      "id": "tests/test_matrix_kernel.py#test_integer_dot_has_independent_nonsymmetric_expectations",
+      "kind": "semantic"
+    },
+    {
+      "id": "tests/test_matrix_kernel.py#test_noop_nan_and_input_or_guard_corruption_fail",
+      "kind": "semantic"
+    },
+    {
+      "id": "tests/test_matrix_kernel.py#test_full_profile_preflight_rejects_insufficient_device_or_fake_ptx",
+      "kind": "semantic"
+    },
+    {
+      "id": "tests/test_matrix_kernel.py#test_control_requires_specific_signature_after_api_success",
+      "kind": "semantic"
+    },
+    {
+      "id": "scripts/run_matrix_kernels.py#def build",
+      "kind": "native"
+    },
+    {
+      "id": "crates/ct-cudart/src/state_tests.rs#attribute_uses_device_handle_without_context",
+      "kind": "semantic"
+    },
+    {
+      "id": "scripts/run_virtual_target.py#def build",
+      "kind": "native"
+    },
+    {
+      "id": "crates/ct-cudart/src/stream_tests.rs#stream_registry_context_flags_stale_and_budgets",
+      "kind": "semantic"
+    },
+    {
+      "id": "scripts/run_owned_streams.py#def build",
+      "kind": "native"
+    },
+    {
+      "id": "crates/ct-cuda/src/virtual_policy_tests.rs#only_exact_explicit_target_is_virtual",
+      "kind": "semantic"
+    },
+    {
+      "id": "crates/ct-cuda/tests/entrypoints.rs#total_memory_rejects_legacy_output_width_and_suffix_alias",
+      "kind": "resolver"
+    },
+    {
+      "id": "crates/ct-cuda/src/total_memory.rs#total_memory_requires_initialization_before_device_query",
+      "kind": "semantic"
+    },
+    {
+      "id": "tests/device_total_native_abi.cpp#wmain",
       "kind": "native"
     }
   ]

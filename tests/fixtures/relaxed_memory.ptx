@@ -1,0 +1,33 @@
+// Synthetic regression for an nvcc-observed widened-register instruction shape.
+.version 8.0
+.target sm_52
+.address_size 64
+.global .align 4 .u32 narrow = 0x80000001;
+.visible .entry relaxed_memory(
+    .param .u64 .ptr .global .align 8 input,
+    .param .u64 .ptr .global .align 8 output,
+    .param .b64 wide
+) {
+    .reg .b64 %a;
+    .reg .b64 %b;
+    .reg .b64 %x;
+    .reg .b64 %y;
+    ld.param.u64 %a, [input];
+    ld.param.u64 %b, [output];
+    ld.param.b64 %y, [wide];
+    mov.u64 %x, 0xffffffffffffffff;
+    ld.global.u32 %x, [%a];
+    st.global.u64 [%b], %x;
+    st.global.b32 [%b+8], %y;
+    mov.u64 %x, 0xffffffffffffffff;
+    ld.global.b32 %x, [%a+4];
+    st.global.u64 [%b+16], %x;
+    st.global.u32 [%b+24], %y;
+    mov.u64 %x, 0xffffffffffffffff;
+    ld.volatile.global.u32 %x, [narrow];
+    st.global.u64 [%b+32], %x;
+    st.volatile.global.u32 [narrow], %y;
+    ld.global.u32 %x, [narrow];
+    st.global.u64 [%b+40], %x;
+    ret;
+}

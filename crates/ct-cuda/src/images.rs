@@ -71,7 +71,10 @@ pub(crate) unsafe fn read_candidates(image: *const c_void) -> Result<Vec<SourceC
     Err(UNSUPPORTED)
 }
 
-pub(crate) fn compile_candidates(candidates: Vec<SourceCandidate>) -> Result<CompiledModule, i32> {
+pub(crate) fn compile_candidates(
+    candidates: Vec<SourceCandidate>,
+    native_shared: u32,
+) -> Result<CompiledModule, i32> {
     if candidates.is_empty()
         || (candidates.len() != 1 && candidates.iter().any(|c| c.profile.is_none()))
     {
@@ -143,15 +146,25 @@ pub(crate) fn compile_candidates(candidates: Vec<SourceCandidate>) -> Result<Com
             (8, 0, 52) => 1,
             _ => return Err(UNSUPPORTED),
         };
-        if selected.as_ref().is_none_or(|(best, _)| rank > *best) {
+        // Capacity affects selection only after all candidate validation above.
+        if crate::capacity::validate_entries(&compiled.entries, native_shared).is_ok()
+            && selected.as_ref().is_none_or(|(best, _)| rank > *best)
+        {
             selected = Some((rank, compiled));
         }
     }
-    selected.map(|(_, compiled)| compiled).ok_or(INVALID)
+    selected.map(|(_, compiled)| compiled).ok_or(UNSUPPORTED)
 }
 
 #[cfg(test)]
+#[path = "images_capacity_tests.rs"]
+mod capacity_tests;
+
+#[cfg(test)]
 mod tests {
+    fn compile_candidates(candidates: Vec<SourceCandidate>) -> Result<CompiledModule, i32> {
+        super::compile_candidates(candidates, ct_ptx::MAX_STATIC_SHARED_BYTES)
+    }
     #[test]
     fn candidate_lookup_identity_is_observable() {
         fn with_globals(profile: Profile, globals: &str) -> SourceCandidate {
@@ -296,7 +309,7 @@ mod tests {
     #[test]
     fn does_not_hide_unsupported_unselected_candidate() {
         let mut old = candidate(OLD, "choice", "u32");
-        old.text = old.text.replace("ret;", "bar.sync 0; ret;");
+        old.text = old.text.replace("ret;", "bar.sync 1; ret;");
         assert_eq!(
             compile_candidates(vec![candidate(NEW, "choice", "u32"), old]).err(),
             Some(801)
@@ -358,7 +371,7 @@ mod tests {
         let mut invalid = candidate(OLD, "first", "u32");
         invalid
             .text
-            .push_str("\n.visible .entry second() { bar.sync 0; ret; }");
+            .push_str("\n.visible .entry second() { bar.sync 1; ret; }");
         assert_eq!(compile_candidates(vec![invalid]).err(), Some(801));
     }
 }

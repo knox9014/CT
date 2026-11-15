@@ -18,6 +18,10 @@ from prepare_spirv_tools import extract_pinned
 
 
 class RunnerTests(unittest.TestCase):
+    def test_publication_gate_reads_current_working_bytes(self):
+        cases={name:command for name,_,command in steps('cpu',Path('validator'),Path('lock'))}
+        self.assertIn('--working-tree',cases['cpu.publication'])
+
     def test_successful_child_without_native_artifacts_is_rejected(self):
         cache=ROOT/'.cache/runner-tests';cache.mkdir(parents=True,exist_ok=True)
         with tempfile.TemporaryDirectory(dir=cache) as d:

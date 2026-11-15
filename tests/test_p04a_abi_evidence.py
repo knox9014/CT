@@ -17,7 +17,7 @@ class AbiClosureTests(unittest.TestCase):
    p=self.root/'.cache/reference/cuda-12.0/include'/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(name.encode());headers[name]=self.item(p)
   for name in NAMES:(self.folder/name).write_bytes(name.encode())
   target=self.folder/'target/debug/ct_cuda.dll';target.parent.mkdir(parents=True);shutil.copyfile(self.folder/'ct_cuda.dll',target)
-  observations={};data=b'\n'.join([GLOBAL]+[('cu_other_'+str(i)).encode() for i in range(38)])+b'\n'
+  observations={};data=b'\n'.join([GLOBAL]+[('cu_other_'+str(i)).encode() for i in range(46)])+b'\n'
   for label in ('reference','declared','consumer'):
    out=self.folder/(label+'.stdout');err=self.folder/(label+'.stderr');out.write_bytes(CONSUMER if label=='consumer' else data);err.write_bytes(b'');observations[label]=dict(exit_code=0,stdout=self.item(out),stderr=self.item(err))
   p=self.folder/'runtime-abi-manifest.json';p.write_text('{}')

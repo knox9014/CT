@@ -3,10 +3,14 @@ name = "ct-cuda"
 version = "0.1.0"
 edition = "2021"
 publish = false
+license.workspace = true
 
 [lib]
 name = "ct_cuda"
 crate-type = ["cdylib", "rlib"]
+
+[features]
+m3-device-check = []
 
 [dependencies]
 ct-core = { path = "../ct-core" }

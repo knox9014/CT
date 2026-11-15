@@ -120,7 +120,30 @@ impl KernelRuntime {
         config: Config,
         args: *mut *mut c_void,
     ) -> i32 {
-        match unsafe { self.launch_result(runtime, host, config, args) } {
+        let result = if config.stream == 0 {
+            unsafe { self.launch_result(runtime, host, config, args) }
+        } else {
+            let code = preflight(config);
+            if code != 0 {
+                return code;
+            }
+            let context = match runtime.ensure_current() {
+                Ok(c) => c,
+                Err(code) => return crate::errors::from_driver(code),
+            };
+            crate::streams::registry().run(context, config.stream, || unsafe {
+                self.launch_result(
+                    runtime,
+                    host,
+                    Config {
+                        stream: 0,
+                        ..config
+                    },
+                    args,
+                )
+            })
+        };
+        match result {
             Ok(()) => 0,
             Err(c) => c,
         }
@@ -141,72 +164,76 @@ impl KernelRuntime {
         let context = runtime
             .ensure_current()
             .map_err(crate::errors::from_driver)?;
-        runtime.driver.prepare_kernel()?;
-        if !lease.variables().is_empty() {
-            runtime.driver.prepare_globals()?;
-        }
-        let device = runtime
-            .driver
-            .context_device()
-            .map_err(crate::errors::from_driver)?;
-        let mut caps = [0u64; 7];
-        for (i, cap) in caps.iter_mut().enumerate() {
-            let value = runtime
-                .driver
-                .attribute(i as i32 + 1, device)
-                .map_err(crate::errors::from_driver)?;
-            if value <= 0 {
-                return Err(999);
+        crate::submission::scheduler().barrier(context, false, || {
+            runtime.driver.prepare_kernel()?;
+            if !lease.variables().is_empty() {
+                runtime.driver.prepare_globals()?;
             }
-            *cap = value as u64;
-        }
-        let mut volume = 1u64;
-        for axis in 0..3 {
-            let grid = u64::from(config.grid.axes()[axis]);
-            let block = u64::from(config.block.axes()[axis]);
-            if grid > caps[4 + axis] || block > caps[1 + axis] || grid * block > u64::from(u32::MAX)
-            {
+            let device = runtime
+                .driver
+                .context_device()
+                .map_err(crate::errors::from_driver)?;
+            let mut caps = [0u64; 7];
+            for (i, cap) in caps.iter_mut().enumerate() {
+                let value = runtime
+                    .driver
+                    .attribute(i as i32 + 1, device)
+                    .map_err(crate::errors::from_driver)?;
+                if value <= 0 {
+                    return Err(999);
+                }
+                *cap = value as u64;
+            }
+            let mut volume = 1u64;
+            for axis in 0..3 {
+                let grid = u64::from(config.grid.axes()[axis]);
+                let block = u64::from(config.block.axes()[axis]);
+                if grid > caps[4 + axis]
+                    || block > caps[1 + axis]
+                    || grid * block > u64::from(u32::MAX)
+                {
+                    return Err(9);
+                }
+                volume = volume.checked_mul(block).ok_or(9)?;
+            }
+            if volume > caps[0] {
                 return Err(9);
             }
-            volume = volume.checked_mul(block).ok_or(9)?;
-        }
-        if volume > caps[0] {
-            return Err(9);
-        }
-        self.drain(&runtime.driver, context)?;
-        let entry = self.entry(&lease.data, context)?;
-        let mut state = entry.gate.lock().map_err(|_| 999)?;
-        let module = self.ensure_module(&runtime.driver, &lease.data, &mut state)?;
-        let function = if let Some(slot) = state
-            .functions
-            .iter()
-            .find(|s| s.symbol.as_slice() == lease.symbol())
-        {
-            slot.result
-        } else {
-            if state.functions.len() >= 512 {
-                return Err(801);
+            self.drain(&runtime.driver, context)?;
+            let entry = self.entry(&lease.data, context)?;
+            let mut state = entry.gate.lock().map_err(|_| 999)?;
+            let module = self.ensure_module(&runtime.driver, &lease.data, &mut state)?;
+            let function = if let Some(slot) = state
+                .functions
+                .iter()
+                .find(|s| s.symbol.as_slice() == lease.symbol())
+            {
+                slot.result
+            } else {
+                if state.functions.len() >= 512 {
+                    return Err(801);
+                }
+                let result = runtime
+                    .driver
+                    .function(module, lease.symbol())
+                    .map_err(|c| native_error(c, Operation::Lookup));
+                // Capacity and all retirement storage were reserved before native load.
+                state.functions.push(FunctionSlot {
+                    symbol: lease.symbol.clone(),
+                    result,
+                });
+                result
+            }?;
+            let code = unsafe { runtime.driver.launch(function, config, args) };
+            if code != 0 {
+                let mapped = native_error(code, Operation::Launch);
+                if matches!(code, 400 | 709) {
+                    state.phase = Phase::Failed(mapped);
+                }
+                return Err(mapped);
             }
-            let result = runtime
-                .driver
-                .function(module, lease.symbol())
-                .map_err(|c| native_error(c, Operation::Lookup));
-            // Capacity and all retirement storage were reserved before native load.
-            state.functions.push(FunctionSlot {
-                symbol: lease.symbol.clone(),
-                result,
-            });
-            result
-        }?;
-        let code = unsafe { runtime.driver.launch(function, config, args) };
-        if code != 0 {
-            let mapped = native_error(code, Operation::Launch);
-            if matches!(code, 400 | 709) {
-                state.phase = Phase::Failed(mapped);
-            }
-            return Err(mapped);
-        }
-        Ok(())
+            Ok(())
+        })
     }
     fn ensure_module<D: KernelDriver>(
         &self,
@@ -281,23 +308,25 @@ impl KernelRuntime {
         let context = runtime
             .ensure_current()
             .map_err(crate::errors::from_driver)?;
-        runtime.driver.prepare_kernel()?;
-        runtime.driver.prepare_globals()?;
-        self.drain(&runtime.driver, context)?;
-        let entry = self.entry(&lease.data, context)?;
-        let mut state = entry.gate.lock().map_err(|_| 999)?;
-        self.ensure_module(&runtime.driver, &lease.data, &mut state)?;
-        let binding = *state.bindings.get(lease.variable_index).ok_or(801)?;
-        match action(&runtime.driver, binding.pointer, binding.size) {
-            Ok(value) => Ok(value),
-            Err(code) => {
-                let mapped = native_error(code, Operation::Launch);
-                if matches!(code, 400 | 709) {
-                    state.phase = Phase::Failed(mapped);
+        crate::submission::scheduler().barrier(context, false, || {
+            runtime.driver.prepare_kernel()?;
+            runtime.driver.prepare_globals()?;
+            self.drain(&runtime.driver, context)?;
+            let entry = self.entry(&lease.data, context)?;
+            let mut state = entry.gate.lock().map_err(|_| 999)?;
+            self.ensure_module(&runtime.driver, &lease.data, &mut state)?;
+            let binding = *state.bindings.get(lease.variable_index).ok_or(801)?;
+            match action(&runtime.driver, binding.pointer, binding.size) {
+                Ok(value) => Ok(value),
+                Err(code) => {
+                    let mapped = native_error(code, Operation::Launch);
+                    if matches!(code, 400 | 709) {
+                        state.phase = Phase::Failed(mapped);
+                    }
+                    Err(mapped)
                 }
-                Err(mapped)
             }
-        }
+        })
     }
     pub fn drain<D: KernelDriver>(&self, driver: &D, current: Context) -> Result<(), i32> {
         let entries = {

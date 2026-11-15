@@ -21,6 +21,11 @@ int main(void) {
     F(ze_device_properties_t,timerResolution); F(ze_device_properties_t,timestampValidBits);
     F(ze_device_properties_t,kernelTimestampValidBits); F(ze_device_properties_t,uuid);
     LAST(ze_device_properties_t,name);
+    START("DeviceMemoryProperties",ze_device_memory_properties_t);
+    F(ze_device_memory_properties_t,stype); F(ze_device_memory_properties_t,pNext);
+    F(ze_device_memory_properties_t,flags); F(ze_device_memory_properties_t,maxClockRate);
+    F(ze_device_memory_properties_t,maxBusWidth); F(ze_device_memory_properties_t,totalSize);
+    LAST(ze_device_memory_properties_t,name);
     START("ComputeProperties",ze_device_compute_properties_t);
     F(ze_device_compute_properties_t,stype); F(ze_device_compute_properties_t,pNext);
     F(ze_device_compute_properties_t,maxTotalGroupSize); F(ze_device_compute_properties_t,maxGroupSizeX);
@@ -53,6 +58,15 @@ int main(void) {
     START("KernelDesc",ze_kernel_desc_t);
     F(ze_kernel_desc_t,stype); F(ze_kernel_desc_t,pNext);
     F(ze_kernel_desc_t,flags); LAST(ze_kernel_desc_t,pKernelName);
+    /* Kernel UUID is two native 16-byte IDs; include the entire final field. */
+    START("KernelProperties",ze_kernel_properties_t);
+    F(ze_kernel_properties_t,stype); F(ze_kernel_properties_t,pNext);
+    F(ze_kernel_properties_t,numKernelArgs); F(ze_kernel_properties_t,requiredGroupSizeX);
+    F(ze_kernel_properties_t,requiredGroupSizeY); F(ze_kernel_properties_t,requiredGroupSizeZ);
+    F(ze_kernel_properties_t,requiredNumSubGroups); F(ze_kernel_properties_t,requiredSubgroupSize);
+    F(ze_kernel_properties_t,maxSubgroupSize); F(ze_kernel_properties_t,maxNumSubgroups);
+    F(ze_kernel_properties_t,localMemSize); F(ze_kernel_properties_t,privateMemSize);
+    F(ze_kernel_properties_t,spillMemSize); LAST(ze_kernel_properties_t,uuid);
     START("GroupCount",ze_group_count_t);
     F(ze_group_count_t,groupCountX); F(ze_group_count_t,groupCountY); LAST(ze_group_count_t,groupCountZ);
     return 0;

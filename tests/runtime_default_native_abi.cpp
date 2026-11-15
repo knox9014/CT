@@ -15,7 +15,7 @@ int main(int argc,char **argv) {
     auto dos=reinterpret_cast<IMAGE_DOS_HEADER *>(base);
     auto nt=reinterpret_cast<IMAGE_NT_HEADERS64 *>(base+dos->e_lfanew);
     auto exports=reinterpret_cast<IMAGE_EXPORT_DIRECTORY *>(base+nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
-    REQUIRE(exports->NumberOfNames==26&&exports->NumberOfFunctions==26);
+    REQUIRE(exports->NumberOfNames==40&&exports->NumberOfFunctions==40);
     LOAD(__cudaRegisterVar);LOAD(__cudaRegisterFatBinary);LOAD(__cudaRegisterFatBinaryEnd);LOAD(__cudaUnregisterFatBinary);
     LOAD(__cudaRegisterFunction);LOAD(__cudaPushCallConfiguration);LOAD(__cudaPopCallConfiguration);LOAD(cudaLaunchKernel);
     LOAD(cudaGetLastError);LOAD(cudaPeekAtLastError);LOAD(cudaMalloc);LOAD(cudaFree);

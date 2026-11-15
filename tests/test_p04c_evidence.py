@@ -31,7 +31,7 @@ class SymbolEvidenceTests(unittest.TestCase):
   pure=f/'pure';pure.mkdir()
   for name,role in [('native.exe','native'),('cudart64_12.dll','runtime')]:shutil.copyfile(self.files[role],pure/name)
   for role in ('reference','declared','pure'):
-   out=f/(role+'.stdout');err=f/(role+'.stderr');out.write_bytes(b'SYMBOL_NATIVE pure 26 13 21 801\n' if role=='pure' else ABI_EXPECTED);err.write_bytes(b'');m['abi'].append(dict(role=role,exit_code=0,stdout=self.item(out),stderr=self.item(err)))
+   out=f/(role+'.stdout');err=f/(role+'.stderr');out.write_bytes(b'SYMBOL_NATIVE pure 40 13 21 801\n' if role=='pure' else ABI_EXPECTED);err.write_bytes(b'');m['abi'].append(dict(role=role,exit_code=0,stdout=self.item(out),stderr=self.item(err)))
   for i,mode in enumerate(MODES):
    seed=123+i;order=ORDERS.get(mode,0);out=f/(mode+'.stdout');err=f/(mode+'.stderr')
    value=(expected_noop if mode=='noop' else expected)(seed,order) if mode in ORDERS else None

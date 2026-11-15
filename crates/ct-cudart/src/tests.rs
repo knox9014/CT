@@ -473,3 +473,96 @@ fn global_extension_is_separate_and_uses_the_owned_driver() {
     assert_eq!(resolve_global(&Fake, &1234), Err(35));
     assert_eq!(resolve_kernel(&Fake, &1234), Ok([1; 5]));
 }
+
+#[test]
+fn device_attribute_extension_is_independent_and_cached() {
+    use crate::platform::*;
+    use std::cell::Cell;
+    struct Fake {
+        calls: Cell<usize>,
+        fail: bool,
+    }
+    impl Platform for Fake {
+        type Owned = usize;
+        fn load_owned(&self) -> Result<usize, i32> {
+            panic!("no extra DLL")
+        }
+        fn check_identity(&self, _: &usize) -> Result<(), i32> {
+            panic!("already owned")
+        }
+        fn pin(&self, _: &usize) -> Result<(), i32> {
+            panic!("already pinned")
+        }
+        fn resolve(&self, owned: &usize, name: &[u8]) -> Result<usize, i32> {
+            assert_eq!(*owned, 1234);
+            assert_eq!(name, b"cuDeviceGetAttribute\0");
+            self.calls.set(self.calls.get() + 1);
+            if self.fail {
+                Err(35)
+            } else {
+                Ok(42)
+            }
+        }
+    }
+    for fail in [false, true] {
+        let fake = Fake {
+            calls: Cell::new(0),
+            fail,
+        };
+        let cache = std::sync::OnceLock::new();
+        for _ in 0..3 {
+            assert_eq!(
+                crate::cached(&cache, || resolve_device_attribute(&fake, &1234)).copied(),
+                if fail { Err(35) } else { Ok(42) }
+            );
+        }
+        assert_eq!(fake.calls.get(), 1);
+    }
+}
+
+#[test]
+fn host_extension_is_complete_owned_and_cached_independently() {
+    use crate::platform::*;
+    use std::cell::Cell;
+    struct Fake {
+        calls: Cell<usize>,
+        missing: usize,
+    }
+    impl Platform for Fake {
+        type Owned = usize;
+        fn load_owned(&self) -> Result<usize, i32> {
+            panic!("no new loader")
+        }
+        fn check_identity(&self, _: &usize) -> Result<(), i32> {
+            panic!("already owned")
+        }
+        fn pin(&self, _: &usize) -> Result<(), i32> {
+            panic!("already pinned")
+        }
+        fn resolve(&self, owned: &usize, name: &[u8]) -> Result<usize, i32> {
+            assert_eq!(*owned, 77);
+            assert!(name == b"cuMemHostAlloc\0" || name == b"cuMemFreeHost\0");
+            let index = if name == b"cuMemHostAlloc\0" { 1 } else { 2 };
+            self.calls.set(self.calls.get() + 1);
+            if self.missing == index {
+                Err(35)
+            } else {
+                Ok(index)
+            }
+        }
+    }
+    for missing in [0, 1, 2] {
+        let fake = Fake {
+            calls: Cell::new(0),
+            missing,
+        };
+        let cache = std::sync::OnceLock::new();
+        for _ in 0..3 {
+            assert_eq!(
+                crate::cached(&cache, || resolve_host(&fake, &77)).copied(),
+                if missing == 0 { Ok([1, 2]) } else { Err(35) }
+            );
+        }
+        assert_eq!(fake.calls.get(), if missing == 1 { 1 } else { 2 });
+    }
+}

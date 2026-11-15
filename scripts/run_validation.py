@@ -183,7 +183,7 @@ def steps(lane, validator, lock):
         ('cpu.python','semantic',[py,'-m','unittest','discover','-s','tests','-p','test_*.py']),
         ('cpu.registry','semantic',[py,'scripts/check_coverage.py']),
         ('cpu.profile','semantic',[py,'scripts/check_compatibility_profile.py']),
-        ('cpu.publication','semantic',[py,'scripts/check_public_artifacts.py','--tracked'])]
+        ('cpu.publication','semantic',[py,'scripts/check_public_artifacts.py','--working-tree'])]
     cpu += [('cpu.runtime_fmt','semantic',['cargo','fmt','--manifest-path','crates/ct-cudart/Cargo.toml','--check']),
         ('cpu.runtime_clippy','semantic',['cargo','clippy','--manifest-path','crates/ct-cudart/Cargo.toml','--locked','--all-targets','--','-D','warnings']),
         ('cpu.runtime_rust','semantic',['cargo','test','--manifest-path','crates/ct-cudart/Cargo.toml','--locked']),

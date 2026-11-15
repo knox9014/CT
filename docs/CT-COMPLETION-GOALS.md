@@ -1,5 +1,7 @@
 # CT 범용 CUDA 번역기: 전체 목표와 완료 기준
 
+> 이 문서의 초기 현재 위치 표는 역사적 기준이다. 최신 범위는 [2026-10-27 전체 재검토](CT-REVIEW-2026-10-27.md), 다음 작업은 [Intel 후속 실행 계획](superpowers/plans/2026-10-27-intel-qualification-next.md)을 따른다. G0~G14 목표와 완료 문턱은 유지한다.
+
 작성: 2026-10-19. 기준 구현: M3e / `4b0c64f`.
 후속 구현: [M3f](M3f-RESULTS.md)에서 P00 기능 추적과 P01의 제한된 복수 PTX 선택을 검증했다.
 [M3g](M3g-RESULTS.md)는 P02의 제한된 여러 entry 모듈 실행을 검증했다.

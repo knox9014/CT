@@ -13,34 +13,57 @@ pub(crate) struct PrimaryContexts {
 }
 
 impl PrimaryContexts {
+    /// Reset preserved usage but removed the owned native handle.
+    pub fn has_pending_usage(&self, device: i32) -> bool {
+        self.devices
+            .get(&device)
+            .is_some_and(|p| p.references > 0 && p.context.is_none())
+    }
+
+    /// Obtain ownership without adding retained usage. Fresh ownership is inactive;
+    /// usage preserved by reset can make a recreated context active immediately.
+    /// This internal policy does not establish private CUDA reset semantics.
+    pub fn get_or_create_unretained(
+        &mut self,
+        device: i32,
+        create: impl FnOnce() -> Result<usize, i32>,
+    ) -> Result<usize, i32> {
+        if let Some(context) = self.devices.get(&device).and_then(|p| p.context) {
+            return Ok(context);
+        }
+        let context = create()?;
+        self.devices
+            .entry(device)
+            .or_insert(Primary {
+                context: None,
+                references: 0,
+            })
+            .context = Some(context);
+        Ok(context)
+    }
+
     pub fn retain(
         &mut self,
         device: i32,
         create: impl FnOnce() -> Result<usize, i32>,
     ) -> Result<usize, i32> {
-        if let Some(primary) = self.devices.get_mut(&device) {
-            let references = primary.references.checked_add(1).ok_or(999)?;
-            let context = match primary.context {
-                Some(context) => context,
-                None => create()?,
-            };
-            primary.context = Some(context);
-            primary.references = references;
-            return Ok(context);
-        }
-        let context = create()?;
-        self.devices.insert(
-            device,
-            Primary {
-                context: Some(context),
-                references: 1,
-            },
-        );
+        let references = self
+            .devices
+            .get(&device)
+            .map_or(0, |p| p.references)
+            .checked_add(1)
+            .ok_or(999)?;
+        let context = self.get_or_create_unretained(device, create)?;
+        // The successful lookup above always publishes an owned entry.
+        self.devices.get_mut(&device).unwrap().references = references;
         Ok(context)
     }
 
     pub fn release(&mut self, device: i32) -> Result<Option<usize>, i32> {
         let primary = self.devices.get_mut(&device).ok_or(201)?;
+        if primary.references == 0 {
+            return Err(201);
+        }
         if primary.references > 1 {
             primary.references -= 1;
             return Ok(None);
@@ -63,7 +86,7 @@ impl PrimaryContexts {
     pub fn active(&self, device: i32) -> bool {
         self.devices
             .get(&device)
-            .is_some_and(|primary| primary.context.is_some())
+            .is_some_and(|primary| primary.context.is_some() && primary.references > 0)
     }
 
     pub fn owns(&self, context: usize) -> bool {
@@ -80,6 +103,90 @@ impl PrimaryContexts {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn pending_usage_requires_missing_handle_and_positive_references() {
+        let mut state = PrimaryContexts::default();
+        assert!(!state.has_pending_usage(0));
+        state.get_or_create_unretained(0, || Ok(10)).unwrap();
+        assert!(!state.has_pending_usage(0));
+        state.reset(0);
+        assert!(!state.has_pending_usage(0));
+        state.retain(0, || Ok(11)).unwrap();
+        assert!(!state.has_pending_usage(0));
+        state.reset(0);
+        assert!(state.has_pending_usage(0));
+        assert!(!state.has_pending_usage(1));
+        assert_eq!(state.retain(0, || Err(2)), Err(2));
+        assert!(state.has_pending_usage(0));
+        state.retain(0, || Ok(12)).unwrap();
+        assert!(!state.has_pending_usage(0));
+    }
+
+    #[test]
+    fn inactive_lookup_preserves_identity_without_acquiring_usage() {
+        let mut state = PrimaryContexts::default();
+        assert_eq!(state.get_or_create_unretained(0, || Ok(17)), Ok(17));
+        assert!(!state.active(0));
+        assert!(state.owns(17));
+        assert_eq!(state.devices[&0].references, 0);
+        assert_eq!(
+            state.get_or_create_unretained(0, || panic!("reuse")),
+            Ok(17)
+        );
+        assert_eq!(state.release(0), Err(201));
+        assert!(state.owns(17));
+        assert!(!state.retired(17));
+        assert_eq!(state.retain(0, || panic!("same reserved handle")), Ok(17));
+        assert!(state.active(0));
+        assert_eq!(state.devices[&0].references, 1);
+        assert_eq!(
+            state.get_or_create_unretained(0, || panic!("reuse active")),
+            Ok(17)
+        );
+        assert_eq!(state.devices[&0].references, 1);
+        assert_eq!(state.release(0), Ok(Some(17)));
+        assert!(state.retired(17));
+    }
+
+    #[test]
+    fn inactive_creation_failure_and_retained_usage_are_transactional() {
+        let mut state = PrimaryContexts::default();
+        assert_eq!(state.get_or_create_unretained(0, || Err(2)), Err(2));
+        assert!(!state.devices.contains_key(&0));
+        state.retain(0, || Ok(17)).unwrap();
+        state.reset(0);
+        assert_eq!(state.get_or_create_unretained(0, || Err(2)), Err(2));
+        assert_eq!(state.devices[&0].references, 1);
+        assert!(!state.active(0));
+        assert_eq!(state.get_or_create_unretained(0, || Ok(18)), Ok(18));
+        assert!(state.active(0)); // Existing retained usage was preserved by reset.
+        assert_eq!(state.devices[&0].references, 1);
+        state.devices.get_mut(&0).unwrap().references = usize::MAX;
+        assert_eq!(
+            state.retain(0, || panic!("overflow before allocation")),
+            Err(999)
+        );
+        assert_eq!(state.devices[&0].references, usize::MAX);
+        assert!(state.owns(18));
+    }
+
+    #[test]
+    fn inactive_reset_retires_identity_without_touching_other_devices() {
+        let mut state = PrimaryContexts::default();
+        state.get_or_create_unretained(0, || Ok(17)).unwrap();
+        state.retain(1, || Ok(20)).unwrap();
+        assert_eq!(state.reset(0), Some(17));
+        assert!(state.retired(17));
+        assert!(!state.owns(17));
+        assert_eq!(state.reset(0), None);
+        assert_eq!(state.release(0), Err(201));
+        assert_eq!(state.get_or_create_unretained(0, || Ok(18)), Ok(18));
+        assert!(!state.active(0));
+        assert_eq!(state.devices[&0].references, 0);
+        assert!(state.active(1) && state.owns(20));
+        assert_eq!(state.release(1), Ok(Some(20)));
+    }
 
     #[test]
     fn reset_preserves_usage_across_fresh_generation_and_repeated_reset() {

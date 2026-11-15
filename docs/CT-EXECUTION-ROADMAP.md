@@ -1,5 +1,33 @@
 # CT 구현 로드맵: 작업 묶음·의존성·완료 판정
 
+> 2026-11-06 검토 후에는 NVIDIA 드라이버 공존과 GPU 선택 일치를 먼저 해결한다. 다른 Intel 모델에서 공개 예제를 재현한 뒤 실사용 앱의 차단점과 Intel 시험 배포 기준을 검증한다. [최신 Intel 실행 순서](superpowers/plans/2026-10-27-intel-qualification-next.md#2026-11-06-검토-후-실행-순서)
+
+> 2026-10-27 현재 상태와 우선순위는 [전체 재검토](CT-REVIEW-2026-10-27.md)와 [Intel 후속 실행 계획](superpowers/plans/2026-10-27-intel-qualification-next.md)을 따른다. 아래 P 번호·의존성·과거 완료 기록은 보존하며, 머리말의 M3 기준을 최신 구현 범위로 읽지 않는다.
+
+2026-11-06 공개 Driver 경로를 현재 CT 빌드에서 재검증했다. `pwsh -NoProfile -File scripts/run_m3e_smoke.ps1`에서 NVIDIA 원본 vectorAddDrv 호스트가 압축 fatbin으로 50,000개 계산을 통과했다. 공개 CLI가 실행 파일과 fatbin을 그대로 전달했고, 별도 GPU 검증 14건도 통과했다. 이 예제를 공개 Driver 경로의 대조군으로 사용한다.
+
+비샘플 후보는 Numba의 공개 Driver 경로다. [Numba 장치 생성 코드](https://github.com/numba/numba/blob/main/numba/cuda/cudadrv/driver.py#L3043-L3122)는 장치 번호, compute capability, 이름, UUID를 조회한다. 먼저 Windows 배포본과 의존성을 고정하고, 프로세스별 Driver 경로 설정으로 장치 열거와 첫 실패를 기록한다. 위 소스 검토는 후보 선정에만 사용한다. 장치 선택이 통과하면 작은 원본 CUDA 계산과 독립 CPU 정답을 비교한다. CuPy의 미확정 초기화 계약은 [별도 조사 기록](superpowers/plans/2026-10-28-r2b-static-runtime-contract.md)에 유지한다.
+
+Numba 0.65.1 Windows x64 배포본의 첫 실행을 확인했다. CPython 3.14.3의 격리 환경에 공식 wheel 세 개를 설치하고 `NUMBA_CUDA_DRIVER`로 새로 빌드한 CT DLL을 지정했다. 원본 패키지의 `numba.cuda.cudadrv.driver.driver.get_device_count()`는 `cuInit(0)`을 통과한 뒤, `_initialize_extras`에서 `cuIpcOpenMemHandle_v2` 및 구형 이름의 주소를 찾는 과정에서 멈췄다. 두 이름이 모두 없어 Python 대체 함수가 반환됐고, Numba가 그 함수를 C 포인터로 등록하다 `ctypes.ArgumentError`를 냈다. strict와 `ct-sm52-subset-v1`은 같은 지점에서 멈췄다. 동일 DLL의 별도 직접 호출은 Arc B390 한 개를 열거했다.
+
+사용한 wheel SHA-256은 Windows x64 CPython 3.14 배포본 기준이다.
+
+| 패키지 | SHA-256 |
+| --- | --- |
+| numba 0.65.1 | `2a20fcdabdefbdacf88d85caf70c3b18c4bcb7ebb8f82e6a19486383dd26ab63` |
+| llvmlite 0.47.0 | `694e3c2cdc472ed2bd8bd4555ca002eec4310961dd58ef791d508f57b5cc4c94` |
+| numpy 2.4.4 | `715d1c092715954784bc79e1174fc2a90093dc4dc84ea15eb14dad8abdcdeb74` |
+
+다음 검증에서는 정확한 Windows x64 ABI로 주소 조회와 실제 IPC 호출을 구분한다. Numba가 관찰된 경로에서 요구한 것은 등록할 함수 주소다. 별도 네이티브 호출로 미지원 IPC가 오류를 반환하는지 확인한 뒤, 원본 Numba의 장치 열거를 재실행한다. [CUDA Driver IPC 규약](https://docs.nvidia.com/cuda/archive/12.9.0/cuda-driver-api/group__CUDA__MEM.html)
+
+후속 실행에서 CT는 직접 조회용 `cuIpcOpenMemHandle_v2`를 제공했다. NVIDIA 헤더로 컴파일한 Windows x64 호출 시험에서 출력 초기화, 미지원 오류, 널 출력 오류를 확인했다. 원본 Numba 0.65.1은 두 모드 모두 장치 1개를 열거했다. strict에서는 compute capability 조회가 801로 끝났다. 기존 실험 타깃에서는 compute capability와 장치 이름 조회를 지나 `cuDeviceGetUuid` 주소 조회에서 멈췄다. 다음 장치 식별 시험은 네이티브 UUID의 출처와 수명을 검증하고 공개 기록에서 식별자 원문을 제외해야 한다.
+
+`cuDeviceGetUuid` 추가 후 기존 실험 타깃에서 원본 Numba의 장치 상세 조회가 통과했다. Level Zero 기본 시험이 별도 프로세스에서 선택한 UUID와 CT 조회 결과를 비교했고, 식별자 원문은 출력하지 않았다. 이어서 `cuda.current_context()`는 기본 컨텍스트를 확보하고 스레드에 올린 뒤 `cuMemGetInfo` 조회에서 멈췄다. 다음 단계는 실제 가용 메모리의 출처를 확인하는 것이다. 기존 총량 조회만으로 가용 메모리를 구할 수 없다.
+
+Arc B390의 Windows 시스템 Level Zero 로더에서 Sysman 메모리 모듈 한 개를 확인했다. `zesMemoryGetState`는 성공을 반환하고 크기 필드를 채웠지만, 서로 다른 초기값을 넣어 두 번 시험했을 때 `free`를 모두 그대로 두었다. Core의 현재 가용 메모리 확장도 드라이버 목록에 없었고, `zeDeviceGetProperties`에 확장 구조체를 연결한 두 호출은 가용량 필드를 채우지 않았다. 이 구성에서 두 경로 모두 실제 가용량을 제공하지 않아 `cuMemGetInfo`의 구현 근거가 부족하다. [Level Zero Sysman 메모리 규약](https://oneapi-src.github.io/level-zero-spec/level-zero/latest/sysman/api/apis/memory.html) · [Level Zero 가용 메모리 확장](https://oneapi-src.github.io/level-zero-spec/level-zero/1.18.31/core/api/extensions/device.html) · [CUDA 메모리 조회 규약](https://docs.nvidia.com/cuda/cuda-driver-api/cuda_driver_api/group__CUDA__MEM.html)
+
+Windows DXGI 대조 시험에서는 Level Zero가 공개한 LUID와 노드 마스크로 같은 Intel 어댑터의 로컬 메모리 예산을 조회했다. LUID 원문은 출력하지 않았다. 새 프로세스 두 개에서 각각 CT로 32 MiB를 할당하고 전체를 채웠다. 두 실행 모두 DXGI 프로세스 사용량은 39,284,736바이트에서 76,271,616바이트로 증가했다. CT에서 할당을 해제하고 컨텍스트를 닫은 직후와 500ms 뒤에도 같은 사용량이 보고됐다. 이 실험에서 DXGI는 CT 메모리 사용을 관측할 수 있었지만, 관측한 프로세스 예산과 사용량으로 장치 전체의 가용량을 확인할 수는 없었다. `cuMemGetInfo`는 운영체제가 보고하는 장치 가용량을 요구하므로 이 수치로 성공 응답을 제공할 근거는 아직 없다. [DXGI 조회 계약](https://learn.microsoft.com/en-us/windows/win32/api/dxgi1_4/nf-dxgi1_4-idxgiadapter3-queryvideomemoryinfo) · [CUDA 메모리 조회 규약](https://docs.nvidia.com/cuda/cuda-driver-api/cuda_driver_api/group__CUDA__MEM.html)
+
 작성: 2026-10-19. 구현 기준 `4b0c64f` / M3e.
 상태: P00/P01을 [M3f](M3f-RESULTS.md), P02를 M3g로 구현·Arc 검증했다. 나머지 P 작업은 계획이며,
 첫 구현으로 전체26개 작업 또는 기존 M3/M4 릴리스 문턱을 통과한 것은 아니다.
@@ -15,6 +43,20 @@ P03e의32/64비트 정수 비교6종과 정수 선택은 [M3m](M3m-RESULTS.md)�
 P03d의32/64비트 modular add/sub/mul.lo/mad.lo는 [M3l](M3l-RESULTS.md)로 Arc 검증했다. 작은 정수·벡터/구조체 ABI와 나머지 연산은 후속 작업이다.
 첫 실행 명세: [M3f 명세](superpowers/specs/2026-10-19-m3f-selection-design.md).
 첫 실행 계획: [P00/P01 상세 계획](superpowers/plans/2026-10-19-m3f-selection.md).
+
+Numba의 메모리 조회 이후 경로를 확인하기 위해 별도 시험용 DLL을 빌드했다. 기존 CT 호출을 전달하고 `cuMemGetInfo_v2`에는 같은 어댑터의 DXGI 프로세스 예산과 예산 잔여량을 반환한다. 원본 Numba 0.65.1은 실험 타깃에서 컨텍스트 초기화와 메모리 조회를 통과했고, 정수 16개를 GPU로 복사했다가 호스트로 가져와 전부 일치함을 확인했다. JIT 계산은 로컬 환경의 NVVM 라이브러리 부재에서 멈췄다. 프로세스 예산 응답은 시험용 DLL의 동작이며 장치 전체 가용량과는 의미가 다르다.
+
+다음 실행에서는 로컬에 준비된 NVIDIA NVVM과 libdevice를 자식 프로세스에 연결했다. 원본 Numba의 JIT 경로는 컴파일러 부재 오류를 지나 `cuLinkCreate` 주소 조회에서 멈췄다. 같은 정수 증가 커널을 Numba의 `compile_ptx`로 별도 컴파일해 PTX 8.0 / sm_52 입력을 생성했다. 링크 단계를 건너뛴 별도 진단에서 CT의 `cuModuleLoadData`도 그 입력을 218로 거부했다. 따라서 Driver 링크 API와 생성 PTX 수용 범위를 각각 검증해야 한다. 커널 실행과 정답 검사는 아직 이뤄지지 않았다.
+
+PTX 파서에 원본 출력을 직접 넣으니 첫 실패는 128바이트 제한을 넘는 컴파일러 생성 전역 이름이었다. 이 출력의 가장 긴 이름은 173바이트다. 이름 한도를 256바이트로 늘리고, 단일 모듈에서 초기값이 없는 정렬 8바이트 `.common .global .u64` 선언을 허용했다. 이후 원본 입력은 포인터 추론에서 멈췄다. 진단 복사본에서 배열 데이터 주소를 제외한 여섯 매개변수 선언만 같은 폭의 `.b64`로 표시하자 파싱이 통과했다. 원본 Numba 출력은 배열 길이, 스트라이드, 쓰이지 않는 슬롯도 `.u64`로 선언하므로 CT가 사용처로 구분해야 한다. 진단 복사본은 GPU에서 실행하지 않았다.
+
+후속 구현은 선언의 사용처를 검사한다. 읽지 않는 슬롯과 한정된 정수 연산에만 쓰이는 슬롯을 스칼라로 분류하고, 명시적인 전역 주소 변환에 쓰이는 인자에는 기존 포인터 검증을 적용한다. Intel 백엔드의 전역 이름 한도도 256바이트로 맞췄다. 수정하지 않은 Numba PTX를 CT Driver로 직접 로드해 Arc B390에서 입력 크기 1, 16, 37을 실행했다. 증가 결과 54개와 경계 검사값 96개가 모두 일치했다. 이 시험은 별도 호스트에서 커널을 실행했으므로 원본 Numba의 JIT 호출 경로에는 Driver 링크 API가 남아 있다.
+
+별도 시험용 DLL에 단일 PTX 입력용 Driver 링크 경로를 연결했다. 링크 결과는 소유권을 관리하는 NUL 종료 PTX이며, CT의 기존 모듈 로더로 전달한다. 원본 Numba 0.65.1의 JIT 실행에서 링크 상태 생성, PTX 입력, 결과 복사, 상태 해제, 모듈 로드와 커널 핸들 조회까지 통과했다. 다음 실제 실패는 `cuFuncGetAttribute` 주소 조회다. 설치된 Numba의 코드에서 첫 요청은 레지스터 수이며, 이어서 상수·로컬·공유 메모리 크기와 최대 스레드 수를 요청한다. 해당 값의 출처를 확인해야 하며, 이 실행에서는 커널을 아직 제출하지 않았다.
+
+2026-11-08에는 Numba의 커널 속성 사용처를 검사했다. 고정된 블록 크기로 실행하는 시험에서 속성들은 리소스 정보 조회용으로 보관된다. 시험 프로세스에서만 Numba의 속성 조회를 `None` 값으로 대체하고, 같은 시험용 메모리·링크 DLL로 JIT 실행을 검증했다. Arc B390에서 크기 1, 16, 37, 257의 정수 증가 계산 311개와 경계 검사값 128개가 일치했다. 이 결과에는 Numba 메타데이터 어댑터와 DXGI 프로세스 예산 정책이 필요하다. 재현 명령은 `.cache/numba-0651/env/Scripts/python.exe -I -B scripts/numba_jit_experiment.py --provider .cache/numba-0651/dxgi/link-probe.dll --toolkit .cache/p09a2-producer/toolkit`이다. 실행기는 종료 시 Numba의 조회 메서드를 복원한다. 초기 실행기의 명시적 컨텍스트 종료는 살아 있는 장치 배열보다 먼저 일어나 해제 오류 201을 냈고, 종료 순서를 Numba의 기존 수명 관리에 맡겨 재실행을 통과했다.
+
+같은 실행기를 두 커널과 반복 실행으로 확장했다. 정수 증가와 정수 affine 커널을 동일 GPU 배열에서 번갈아 총 28번 실행했다. 입력 길이 0, 1, 16, 32, 33, 37, 257을 포함해 빈 입력, 블록 경계와 블록보다 큰 입력을 확인했다. 별도 프로세스 두 번 모두 정답 비교 752개와 경계 검사값 448개가 일치했다. 이 총계는 반복 실행마다 다시 확인한 결과를 포함한다. 두 실행 모두 기존 메타데이터 어댑터와 프로세스 예산 정책을 사용했다.
 
 ## 1. 실행 원칙
 

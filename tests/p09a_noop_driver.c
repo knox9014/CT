@@ -21,6 +21,9 @@ CUresult CT_CUDA_API cuDeviceGet(CUdevice *device, int ordinal) {
 CUresult CT_CUDA_API cuDeviceGetName(char *name, int length, CUdevice device) {
     PFN_cuDeviceGetName ct_proc=(PFN_cuDeviceGetName)resolve("cuDeviceGetName"); return ct_proc?ct_proc(name,length,device):999;
 }
+CUresult CT_CUDA_API cuDeviceTotalMem_v2(size_t *bytes, CUdevice device) {
+    PFN_cuDeviceTotalMem_v2 ct_proc=(PFN_cuDeviceTotalMem_v2)resolve("cuDeviceTotalMem_v2"); return ct_proc?ct_proc(bytes,device):999;
+}
 CUresult CT_CUDA_API cuDeviceGetAttribute(int *value, int attribute, CUdevice device) {
     PFN_cuDeviceGetAttribute ct_proc=(PFN_cuDeviceGetAttribute)resolve("cuDeviceGetAttribute"); return ct_proc?ct_proc(value,attribute,device):999;
 }
@@ -64,8 +67,13 @@ CUresult CT_CUDA_API cuCtxGetDevice(CUdevice *device) {
     PFN_cuCtxGetDevice ct_proc=(PFN_cuCtxGetDevice)resolve("cuCtxGetDevice"); return ct_proc?ct_proc(device):999;
 }
 CUresult CT_CUDA_API cuCtxSynchronize(void) {
+#ifdef CT_PROFILER_TRAP_SYNC
+ return 1;
+#else
     PFN_cuCtxSynchronize ct_proc=(PFN_cuCtxSynchronize)resolve("cuCtxSynchronize"); return ct_proc?ct_proc():999;
+#endif
 }
+
 CUresult CT_CUDA_API cuMemAlloc_v2(CUdeviceptr *pointer, size_t bytes) {
     PFN_cuMemAlloc_v2 ct_proc=(PFN_cuMemAlloc_v2)resolve("cuMemAlloc_v2"); return ct_proc?ct_proc(pointer,bytes):999;
 }

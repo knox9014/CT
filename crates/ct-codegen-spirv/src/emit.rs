@@ -43,6 +43,8 @@ fn global_pointer(t: Ty) -> u32 {
 struct Writer {
     next: u32,
     types: Vec<u32>,
+    imports: Vec<u32>,
+    opencl: Option<u32>,
     globals: Vec<u32>,
     annotations: Vec<u32>,
     body: Vec<u32>,
@@ -52,6 +54,8 @@ struct Writer {
     module_globals: BTreeMap<String, u32>,
     signatures: BTreeMap<Vec<u32>, u32>,
     current_builtins: BTreeSet<u32>,
+    shared_pointer: u32,
+    shared_objects: Vec<u32>,
 }
 impl Writer {
     fn id(&mut self) -> u32 {
@@ -83,6 +87,7 @@ impl Writer {
         match v {
             Value::Reg(n) => self.result(61, type_id(t), &[self.registers[n]]),
             Value::Global(n) => self.result(117, 4, &[self.module_globals[n]]),
+            Value::Shared(_) => self.constant(t, 0),
             Value::Bits(t, b) => self.constant(*t, *b),
             Value::Builtin(kind, component) => {
                 let variable = if let Some(&id) = self.builtins.get(kind) {
@@ -132,7 +137,7 @@ impl Writer {
         let is_float = t == Ty::F32;
         let tid = type_id(t);
         match op {
-            Op::Mov | Op::Cvta => ids[0],
+            Op::Mov | Op::Cvta | Op::CvtaShared => ids[0],
             Op::Convert { to, signed } => {
                 if to == t {
                     return ids[0];
@@ -186,6 +191,19 @@ impl Writer {
             Op::Mad => {
                 let product = self.result(132, tid, &ids[..2]);
                 self.result(128, tid, &[product, ids[2]])
+            }
+            Op::Fma => {
+                let set = if let Some(id) = self.opencl {
+                    id
+                } else {
+                    let id = self.id();
+                    let mut args = vec![id];
+                    args.extend(string_words("OpenCL.std"));
+                    inst(&mut self.imports, 11, &args);
+                    self.opencl = Some(id);
+                    id
+                };
+                self.result(12, tid, &[set, 26, ids[0], ids[1], ids[2]])
             }
             Op::Div => self.result(134, tid, &ids),
             Op::Rem => self.result(137, tid, &ids),
@@ -247,9 +265,40 @@ pub(super) fn generate_module(kernels: &[Kernel]) -> Result<Vec<u8>, Error> {
         });
     }
 
+    for kernel in kernels {
+        for i in kernel.blocks.iter().flat_map(|b| &b.instructions) {
+            if let InstructionKind::Compute {
+                dst,
+                op: Op::Fma,
+                ty,
+                args,
+            } = &i.kind
+            {
+                if *ty != Ty::F32
+                    || kernel.registers.get(dst) != Some(&Ty::F32)
+                    || args.len() != 3
+                    || args.iter().any(|a| match a {
+                        Value::Reg(n) => kernel.registers.get(n) != Some(&Ty::F32),
+                        Value::Bits(Ty::F32, b) => *b > u32::MAX as u64,
+                        _ => true,
+                    })
+                {
+                    return Err(Error {
+                        line: i.line,
+                        unsupported: true,
+                        message: "invalid F32 FMA IR",
+                    });
+                }
+            }
+        }
+        kernel.validate_block_barriers()?;
+        kernel.shared_access_roots()?;
+    }
     let mut w = Writer {
         next: 17,
         types: vec![],
+        imports: vec![],
+        opencl: None,
         globals: vec![],
         annotations: vec![],
         body: vec![],
@@ -259,6 +308,8 @@ pub(super) fn generate_module(kernels: &[Kernel]) -> Result<Vec<u8>, Error> {
         module_globals: BTreeMap::new(),
         signatures: BTreeMap::new(),
         current_builtins: BTreeSet::new(),
+        shared_pointer: 0,
+        shared_objects: Vec::new(),
     };
     inst(&mut w.types, 19, &[1]);
     inst(&mut w.types, 20, &[2]);
@@ -274,6 +325,10 @@ pub(super) fn generate_module(kernels: &[Kernel]) -> Result<Vec<u8>, Error> {
     inst(&mut w.types, 32, &[16, 5, 4]);
     for t in [Ty::Pred, Ty::U32, Ty::U64, Ty::F32] {
         inst(&mut w.types, 32, &[register_pointer(t), 7, type_id(t)]);
+    }
+    if kernels.iter().any(|k| !k.shared.is_empty()) {
+        w.shared_pointer = w.id();
+        inst(&mut w.types, 32, &[w.shared_pointer, 4, 3]); // Workgroup -> U32
     }
     for global in first.globals.iter() {
         let stored = match global.storage {
@@ -318,6 +373,7 @@ pub(super) fn generate_module(kernels: &[Kernel]) -> Result<Vec<u8>, Error> {
             &string_words("SPV_INTEL_global_variable_host_access"),
         );
     }
+    out.extend(w.imports);
     inst(&mut out, 14, &[2, 2]);
     for entry in &entries {
         inst(&mut out, 15, entry);
@@ -337,6 +393,22 @@ pub(super) fn generate_module(kernels: &[Kernel]) -> Result<Vec<u8>, Error> {
 fn generate_kernel(w: &mut Writer, k: &Kernel) -> u32 {
     w.registers.clear();
     w.current_builtins.clear();
+    w.shared_objects.clear();
+    for s in &k.shared {
+        let length = w.constant(Ty::U32, (s.bytes / 4) as u64);
+        let array = w.id();
+        inst(&mut w.types, 28, &[array, 3, length]);
+        let pointer = w.id();
+        inst(&mut w.types, 32, &[pointer, 4, array]);
+        let object = w.id();
+        inst(&mut w.globals, 59, &[pointer, object, 4]);
+        inst(&mut w.annotations, 71, &[object, 44, s.alignment]);
+        w.shared_objects.push(object);
+    }
+    let roots = k
+        .shared_access_roots()
+        .expect("validated before generating module");
+    let mut roots = roots.into_iter();
     let types: Vec<u32> = k
         .params
         .iter()
@@ -384,7 +456,51 @@ fn generate_kernel(w: &mut Writer, k: &Kernel) -> u32 {
             }
         }
         for instruction in &b.instructions {
+            let root = roots.next().unwrap();
             match &instruction.kind {
+                InstructionKind::SharedLoad {
+                    ty,
+                    dst,
+                    address,
+                    offset,
+                    volatile,
+                } => {
+                    let ptr = shared_address(w, k, address, *offset, root.unwrap());
+                    let loaded = w.result(61, 3, &[ptr, if *volatile { 3 } else { 2 }, 4]);
+                    let value = if *ty == Ty::F32 {
+                        w.result(124, 5, &[loaded])
+                    } else {
+                        loaded
+                    };
+                    inst(&mut w.body, 62, &[w.registers[dst], value]);
+                }
+                InstructionKind::SharedStore {
+                    ty,
+                    address,
+                    offset,
+                    value,
+                    volatile,
+                } => {
+                    let ptr = shared_address(w, k, address, *offset, root.unwrap());
+                    let value = w.read(value, *ty);
+                    let bits = if *ty == Ty::F32 {
+                        w.result(124, 3, &[value])
+                    } else {
+                        value
+                    };
+                    inst(
+                        &mut w.body,
+                        62,
+                        &[ptr, bits, if *volatile { 3 } else { 2 }, 4],
+                    );
+                }
+                InstructionKind::BlockBarrier => {
+                    // Kernel/OpenCL1.2: CTA rendezvous and visibility for shared
+                    // and global accesses. Workgroup scope, SC memory ordering.
+                    let scope = w.constant(Ty::U32, 2);
+                    let semantics = w.constant(Ty::U32, 0x10 | 0x100 | 0x200);
+                    inst(&mut w.body, 224, &[scope, scope, semantics]);
+                }
                 InstructionKind::Param { dst, index } => {
                     let id = if k.params[*index].kind == ParamKind::Pointer {
                         w.result(117, 4, &[parameters[*index]])
@@ -414,6 +530,11 @@ fn generate_kernel(w: &mut Writer, k: &Kernel) -> u32 {
                             if *ty == Ty::U64 { 8 } else { 4 },
                         ],
                     );
+                    let id = if *ty == Ty::U32 && k.registers[dst] == Ty::U64 {
+                        w.result(113, type_id(Ty::U64), &[id]) // OpUConvert: zero extend
+                    } else {
+                        id
+                    };
                     inst(&mut w.body, 62, &[w.registers[dst], id]);
                 }
                 InstructionKind::Store {
@@ -424,7 +545,14 @@ fn generate_kernel(w: &mut Writer, k: &Kernel) -> u32 {
                     volatile,
                 } => {
                     let ptr = w.address(address, *offset, *ty);
-                    let id = w.read(value, *ty);
+                    let wide = *ty == Ty::U32
+                        && matches!(value, Value::Reg(r) if k.registers[r] == Ty::U64);
+                    let id = w.read(value, if wide { Ty::U64 } else { *ty });
+                    let id = if wide {
+                        w.result(113, type_id(Ty::U32), &[id]) // OpUConvert: low 32 bits
+                    } else {
+                        id
+                    };
                     inst(
                         &mut w.body,
                         62,
@@ -459,9 +587,97 @@ fn generate_kernel(w: &mut Writer, k: &Kernel) -> u32 {
     function
 }
 
+fn shared_address(w: &mut Writer, k: &Kernel, address: &Value, offset: u64, root: usize) -> u32 {
+    let ty = match address {
+        Value::Reg(n) => k.registers[n],
+        _ => Ty::U64,
+    };
+    let mut bytes = w.read(address, ty);
+    if offset != 0 {
+        let off = w.constant(ty, offset);
+        bytes = w.result(128, type_id(ty), &[bytes, off]);
+    }
+    let two = w.constant(ty, 2);
+    let index = w.result(194, type_id(ty), &[bytes, two]);
+    w.result(65, w.shared_pointer, &[w.shared_objects[root], index])
+}
+
 #[cfg(test)]
 mod global_tests {
     use super::*;
+    #[test]
+    fn fma_types_and_arity_are_rechecked_for_public_ir() {
+        let source=".version 8.0 .target sm_52 .address_size 64 .entry f(){.reg .f32 %f<4>;mov.f32 %f0,0f3f800000;fma.rn.f32 %f1,%f0,%f0,%f0;ret;}";
+        let k = ct_ptx::parse(source).unwrap();
+        for change in 0..3 {
+            let mut bad = k.clone();
+            if let InstructionKind::Compute { ty, args, .. } =
+                &mut bad.blocks[0].instructions[1].kind
+            {
+                match change {
+                    0 => *ty = Ty::U32,
+                    1 => {
+                        args.pop();
+                    }
+                    _ => args[0] = Value::Bits(Ty::U32, 0),
+                }
+            }
+            assert!(generate(&bad).unwrap_err().unsupported);
+        }
+    }
+    #[test]
+    fn mutated_branch_uniformity_is_rechecked_before_emission() {
+        let source=".version 8.0 .target sm_52 .address_size 64 .entry sync(){.reg .pred %p; .reg .b32 %r; mov.u32 %r,%ntid.x;setp.eq.u32 %p,%r,0;@%p bra.uni END;bar.sync 0;END:ret;}";
+        let mut k = ct_ptx::parse(source).unwrap();
+        if let InstructionKind::Compute { args, .. } = &mut k.blocks[0].instructions[0].kind {
+            args[0] = Value::Builtin(27, 0);
+        }
+        assert!(generate(&k).unwrap_err().unsupported);
+    }
+    #[test]
+    fn shared_proof_is_rechecked_for_mutated_public_ir() {
+        let source=".version 8.0 .target sm_52 .address_size 64 .entry sync(){.reg .b32 %r; .shared .align 4 .b8 tile[512]; mov.u32 %r,tile; st.shared.u32 [%r],7; ret;}";
+        let k = ct_ptx::parse(source).unwrap();
+        let mut bad = k.clone();
+        bad.shared[0].bytes = 16388;
+        assert!(generate(&bad).unwrap_err().unsupported);
+        let mut bad = k.clone();
+        bad.shared.clear();
+        assert!(generate(&bad).unwrap_err().unsupported);
+        let mut bad = k.clone();
+        if let InstructionKind::Compute { args, .. } = &mut bad.blocks[0].instructions[0].kind {
+            args[0] = Value::Bits(Ty::U32, 0);
+        }
+        assert!(generate(&bad).unwrap_err().unsupported);
+        let mut bad = k;
+        bad.blocks[0].instructions[1].kind = InstructionKind::Store {
+            ty: Ty::U32,
+            address: Value::Reg("%r".into()),
+            offset: 0,
+            value: Value::Bits(Ty::U32, 7),
+            volatile: false,
+        };
+        assert!(generate(&bad).unwrap_err().unsupported);
+    }
+    #[test]
+    fn mutated_truncated_shift_count_cannot_forge_shared_alignment() {
+        let source=".version 8.0 .target sm_52 .address_size 64 .entry sync(){.reg .b32 %r<8>; .reg .b64 %rd; .shared .align 4 .b8 tile[512]; mov.u64 %rd,4294967296; cvt.u32.u64 %r0,%rd; mov.u32 %r1,%tid.x; shl.b32 %r2,%r1,2; mov.u32 %r3,tile; add.u32 %r4,%r3,%r2; ld.shared.u32 %r5,[%r4];ret;}";
+        let mut k = ct_ptx::parse(source).unwrap();
+        if let InstructionKind::Compute { args, .. } = &mut k.blocks[0].instructions[3].kind {
+            args[1] = Value::Reg("%r0".into());
+        }
+        assert!(generate(&k).unwrap_err().unsupported);
+    }
+    #[test]
+    fn rejects_invalid_barrier_cfg_even_for_mutated_public_ir() {
+        let mut k = ct_ptx::parse(
+            ".version 8.0 .target sm_52 .address_size 64 .entry sync(){bar.sync 0;ret;}",
+        )
+        .unwrap();
+        k.blocks.push(k.blocks[0].clone());
+        k.blocks[0].terminator = Terminator::Jump(2);
+        assert!(generate_module(&[k]).unwrap_err().unsupported);
+    }
     #[test]
     fn rejects_inconsistent_module_global_tables() {
         let source = ".version 8.0\n.target sm_52\n.address_size 64\n.global .align 4 .u32 g=7; .entry first() { ret; } .entry second() { ret; }";

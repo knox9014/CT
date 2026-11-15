@@ -30,7 +30,7 @@ fn rejects_duplicate_colliding_and_invalid_later_entries() {
     assert!(parse_module(&format!("{HEADER}{global}{ENTRY}")).is_err());
     for second in [
         ".visible .entry second(){",
-        ".visible .entry second(){ bar.sync 0; ret; }",
+        ".visible .entry second(){ bar.sync 1; ret; }",
         ".func ignored(){ret;}",
     ] {
         let error = parse_module(&format!("{HEADER}{ENTRY}\n{second}")).unwrap_err();

@@ -26,3 +26,17 @@ cudaGetSymbolAddress
 cudaGetSymbolSize
 cudaMemcpyToSymbol
 cudaMemcpyFromSymbol
+cudaDeviceGetAttribute
+cudaStreamSynchronize
+cudaStreamCreateWithFlags
+cudaStreamDestroy
+cudaHostAlloc
+cudaFreeHost
+cudaMemcpyAsync
+cudaEventCreate
+cudaEventRecord
+cudaEventSynchronize
+cudaEventDestroy
+cudaEventElapsedTime
+cudaProfilerStart
+cudaProfilerStop

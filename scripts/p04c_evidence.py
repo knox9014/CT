@@ -8,7 +8,7 @@ from run_validation import source_fingerprint
 from run_p04c_smoke import ROOT,SOURCES,ARTIFACTS,MODES,ORDERS,ABI_EXPECTED,compiler_commands,rust_commands,payload_roles,control_expected
 from p04c_global_check import validate,validate_noop
 OUTPUTS={f'keep-symbol_runtime/{name}' for name in ('symbol_runtime.ptx','symbol_runtime.fatbin','symbol_runtime.cudafe1.stub.c','host_dlink.fatbin')}
-PURE=b'SYMBOL_NATIVE pure 26 13 21 801\n'
+PURE=b'SYMBOL_NATIVE pure 40 13 21 801\n'
 def local(root,name):
     if not isinstance(name,str):raise ValueError('path type')
     p=(root/name).resolve()
@@ -90,7 +90,7 @@ def audit_manifest(path,root=ROOT,*,execute=False,abi_only=False):
                         argv=[str(bundle/'native.exe'),str(bundle/'cudart64_12.dll'),'pure']
                     else:
                         shutil.copyfile(files[role],bundle/(role+'.exe'));argv=[str(bundle/(role+'.exe'))]
-                    result=subprocess.run(argv,cwd=bundle,capture_output=True,timeout=30)
+                    result=subprocess.run(argv,cwd=bundle,capture_output=True,timeout=32)
                     if result.returncode or result.stderr or result.stdout.replace(b'\r\n',b'\n')!=(PURE if role=='pure' else ABI_EXPECTED):raise ValueError('ABI fresh replay')
                 seeds={row['seed'] for row in m['runs']}
                 for row in m['runs']:

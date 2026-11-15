@@ -1,4 +1,4 @@
-"""Independent original-header Driver39 plus existing Runtime22 ABI evidence."""
+"""Independent original-header Driver47 plus existing Runtime22 ABI evidence."""
 import json,shutil,subprocess,tempfile
 from pathlib import Path
 from prepare_nvcc_probe import digest,audit_probe
@@ -57,7 +57,7 @@ def audit(path,root=ROOT,*,execute=False):
    out=item(root,row['stdout']);err=item(root,row['stderr'])
    if out!=folder/(name+'.stdout') or err!=folder/(name+'.stderr') or err.read_bytes():return ['global ABI logs']
    outputs[name]=out.read_bytes().replace(b'\r\n',b'\n')
-  if outputs['reference']!=outputs['declared'] or GLOBAL not in outputs['reference'].splitlines() or sum(line.startswith(b'cu') for line in outputs['reference'].splitlines())!=39 or outputs['consumer']!=CONSUMER:return ['global ABI normalized signatures']
+  if outputs['reference']!=outputs['declared'] or GLOBAL not in outputs['reference'].splitlines() or sum(line.startswith(b'cu') for line in outputs['reference'].splitlines())!=47 or outputs['consumer']!=CONSUMER:return ['global ABI normalized signatures']
   runtime=item(root,m['runtime_abi'])
   errors=runtime_audit(runtime,root,execute=execute)
   if errors:return errors

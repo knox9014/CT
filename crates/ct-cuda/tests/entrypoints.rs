@@ -19,6 +19,7 @@ fn canonical_entries_obey_verified_abi_boundaries() {
         ("cuDeviceGetCount", 2000),
         ("cuDeviceGet", 2000),
         ("cuDeviceGetName", 2000),
+        ("cuDeviceTotalMem", 3020),
         ("cuDeviceGetAttribute", 2000),
         ("cuDevicePrimaryCtxRetain", 7000),
         ("cuDevicePrimaryCtxGetState", 7000),
@@ -36,6 +37,13 @@ fn canonical_entries_obey_verified_abi_boundaries() {
         ("cuCtxSynchronize", 2000),
         ("cuMemAlloc", 3020),
         ("cuMemFree", 3020),
+        ("cuMemHostAlloc", 2020),
+        ("cuEventCreate", 2000),
+        ("cuEventRecord", 2000),
+        ("cuEventSynchronize", 2000),
+        ("cuEventDestroy", 4000),
+        ("cuEventElapsedTime", 2000),
+        ("cuMemFreeHost", 2000),
         ("cuMemGetAddressRange", 3020),
         ("cuPointerGetAttribute", 4000),
         ("cuMemcpyHtoD", 3020),
@@ -48,6 +56,7 @@ fn canonical_entries_obey_verified_abi_boundaries() {
         ("cuGetErrorString", 6000),
         ("cuModuleLoadData", 2000),
         ("cuModuleGetFunction", 2000),
+        ("cuFuncGetParamInfo", 12040),
         ("cuModuleGetGlobal", 3020),
         ("cuModuleUnload", 2000),
         ("cuLaunchKernel", 4000),
@@ -66,6 +75,24 @@ fn canonical_entries_obey_verified_abi_boundaries() {
         assert!(!query("cuCtxCreate", 11039, 0).1.is_null());
         assert_eq!(query("cuCtxCreate", 11040, 0), (0, null_mut(), 2));
         assert_eq!(query("cuCtxCreate", 12000, 0), (0, null_mut(), 2));
+        assert!(!query("cuFuncGetParamInfo", 12090, 0).1.is_null());
+        assert_eq!(query("cuFuncGetParamInfo", 12091, 0), (801, null_mut(), 1));
+        assert_eq!(query("cuFuncGetParamInfo", 12040, 2), (801, null_mut(), 1));
+    }
+}
+
+#[test]
+fn total_memory_rejects_legacy_output_width_and_suffix_alias() {
+    unsafe {
+        let pointer = query("cuDeviceTotalMem", 3020, 0).1;
+        assert_eq!(
+            pointer,
+            ct_cuda::cuDeviceTotalMem_v2 as *const () as *mut c_void
+        );
+        assert_eq!(query("cuDeviceTotalMem", 2000, 0), (0, null_mut(), 2));
+        assert_eq!(query("cuDeviceTotalMem", 3019, 0), (0, null_mut(), 2));
+        assert_eq!(query("cuDeviceTotalMem", 12000, 0).1, pointer);
+        assert_eq!(query("cuDeviceTotalMem_v2", 3020, 0), (0, null_mut(), 1));
     }
 }
 
@@ -97,8 +124,8 @@ fn rejection_initializes_outputs_and_preserves_distinct_resolver_contracts() {
         for (version, flags, expected) in [
             (0, 0, 1),
             (-1, 0, 1),
-            (12001, 0, 801),
-            (2000, 2, 801),
+            (12091, 0, 801),
+            (12091, 2, 801),
             (2000, 3, 1),
             (2000, 4, 1),
         ] {
@@ -119,6 +146,90 @@ fn rejection_initializes_outputs_and_preserves_distinct_resolver_contracts() {
         );
         let f: unsafe extern "system" fn(u32) -> i32 = std::mem::transmute(p);
         assert_eq!(f(1), 1); // Calls the actual implementation, not a fabricated success stub.
+    }
+}
+
+#[test]
+fn audited_bootstrap_lookups_preserve_stream_independent_pointer_identity() {
+    unsafe {
+        for (name, floor) in [
+            ("cuInit", 2000),
+            ("cuDriverGetVersion", 2020),
+            ("cuDeviceGetCount", 2000),
+        ] {
+            let expected = query(name, floor, 0).1;
+            for version in [floor, 12000, 12090] {
+                for flags in [0, 1, 2] {
+                    assert_eq!(
+                        query(name, version, flags),
+                        (0, expected, 0),
+                        "{name}/{version}/{flags}"
+                    );
+                }
+            }
+            assert_eq!(query(name, floor - 1, 2), (0, null_mut(), 2));
+            assert_eq!(query(name, 12091, 0), (801, null_mut(), 1));
+        }
+        let pointer = query("cuDriverGetVersion", 12090, 2).1;
+        let version: unsafe extern "system" fn(*mut i32) -> i32 = std::mem::transmute(pointer);
+        let mut value = -1;
+        assert_eq!(version(&mut value), 801);
+        assert_eq!(value, 0); // Lookup support is not a fabricated supported Driver version.
+        assert_eq!(version(null_mut()), 1);
+        for name in [
+            "cuMemcpyHtoD",
+            "cuMemcpyDtoH",
+            "cuMemcpyDtoD",
+            "cuMemsetD8",
+            "cuMemsetD16",
+            "cuMemsetD32",
+            "cuEventRecord",
+            "cuLaunchKernel",
+            "cuCtxSynchronize",
+            "missing",
+        ] {
+            assert_eq!(query(name, 12000, 2), (801, null_mut(), 1), "{name}");
+            assert_eq!(query(name, 12090, 0), (801, null_mut(), 1), "{name}");
+        }
+        assert_eq!(query("cuCtxCreate", 11040, 0), (0, null_mut(), 2));
+    }
+}
+
+#[test]
+fn audited_resolver_self_lookup_keeps_both_abis_and_missing_symbol_results() {
+    unsafe {
+        for flags in [0, 1, 2] {
+            let old = query("cuGetProcAddress", 11999, flags).1;
+            let new = query("cuGetProcAddress", 12090, flags).1;
+            assert_eq!(old, query("cuGetProcAddress", 11999, 0).1);
+            assert_eq!(new, query("cuGetProcAddress", 12000, 0).1);
+            assert!(!old.is_null() && !new.is_null() && old != new);
+            let old: unsafe extern "system" fn(*const c_char, *mut *mut c_void, i32, u64) -> i32 =
+                std::mem::transmute(old);
+            let new: unsafe extern "system" fn(
+                *const c_char,
+                *mut *mut c_void,
+                i32,
+                u64,
+                *mut i32,
+            ) -> i32 = std::mem::transmute(new);
+            let mut output = dangling_mut();
+            let mut status = -1;
+            assert_eq!(old(c"cuInit".as_ptr(), &mut output, 12090, 2), 0);
+            assert_eq!(output, query("cuInit", 2000, 0).1);
+            assert_eq!(
+                new(c"cuInit".as_ptr(), &mut output, 12090, 2, &mut status),
+                0
+            );
+            assert_eq!(status, 0);
+            assert_eq!(old(c"missing".as_ptr(), &mut output, 12000, 0), 500);
+            assert!(output.is_null());
+            assert_eq!(
+                new(c"missing".as_ptr(), &mut output, 12000, 0, &mut status),
+                0
+            );
+            assert_eq!((output, status), (null_mut(), 1));
+        }
     }
 }
 
@@ -150,6 +261,8 @@ fn resolver_self_selection_uses_distinct_function_signatures() {
                 for _ in 0..100 {
                     unsafe {
                         assert_eq!(query("cuLaunchKernel", 4000, 0).2, 0);
+                        assert_eq!(query("cuInit", 12090, 2).2, 0);
+                        assert_eq!(query("cuGetProcAddress", 12090, 2).2, 0);
                     }
                 }
             })

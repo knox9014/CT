@@ -1,0 +1,16 @@
+# Queued cudaMemcpyAsync implementation
+
+Implement Runtime33/Driver41: actual background submission for directions1/2/3, default or owned streams. HtoD/DtoH require CT Runtime-owned host allocations; unknown/pageable storage801, invalid extent/overflow1, HtoH/default-direction801, unknown direction21. Kind/stream/null/overflow preflight is GPU-free; valid zero byte no-op still validates kind/stream. No UVA/PTDS or overlap/performance claim.
+
+One lazy process worker and bounded256-job channel serialize native operations. Up to128 context nodes over process lifetime; each has a submission gate and separate pending/error mutex+CV. A context-wide barrier holds its submission gate while waiting pending0; worker never acquires that gate. A single sticky first async error is bounded; later accepted jobs for that failed context are skipped/completed and other contexts continue. Worker selects captured context and calls raw Driver copy, catches panic999, always drops host leases and publishes completion. Job drop also completes rejected/abandoned jobs so no waiter is stranded. Enqueue/startup failures must not leave phantom pending counts.
+
+Lock order: named-stream phase -> context submission gate -> host-entry state. Acquire host leases inside submission gate before enqueue, never outside it. Worker only accesses progress and host-entry state on completion. Host metadata is reserved before native allocation, exact extents/context checked on acquire; free excludes new uses and waits for leases. Successful cleanup removes metadata even if its API subsequently reports a prior async error; failed native free retains state/budget and never retries uncertain free.
+
+Every relevant synchronous Runtime path must fence pending work: kernel launch, stream/device synchronize, stream destruction, device memory copy/fill/allocate/free and symbol/module loading/retirement. CPU host-to-host synchronous memcpy remains its pre-existing caller-managed fast path. Cleanup actions run even after sticky queue errors, then return the action error preferentially or prior async error. Direct external Driver free/context destruction while pending is unsupported.
+
+TDD units:
+1. Scheduler: deterministic early return, FIFO, same-context wait and other-context progress, pending cleanup, startup/enqueue failure, job panic and independent-context recovery; no GPU.
+2. Host ownership registry: reserve/publish, checked spans/context, acquire/close race, released/failed entries and exact free, held use prevents freeing; isolated fake native callbacks.
+3. Connect queue barriers and cudaMemcpyAsync using owned closures/addresses and host leases; preflight/TLS/error mapping tests. Preserve Driver loader/preparation domains.
+4. Migrate current Runtime33 ABI/profile/count gates preserving14/21/22 subsets/history. Official header/nvcc consumer: queued HtoD->created-stream kernel->queued DtoH, stream/device waits, early host free, queued device free, omission controls. Keep tests deterministic and separate ordering from measured overlap.
+5. Independent source review; freeze source, full Rust/Python/profile checks, fresh upstream vectorAdd capture/replay and matrixMul offline triage, privacy/baseline checks. Only then reduce missing import count8 to7; shared memory/FMA/device-selection remain separate blockers.

@@ -1,4 +1,23 @@
 use ct_ptx::{parse_module, GlobalStorage, InstructionKind, Value};
+
+#[test]
+fn standalone_common_scalar_with_long_compiler_symbol() {
+    let name = "g".repeat(ct_ptx::MAX_IDENTIFIER_BYTES);
+    let declaration = format!(".common .global .align 8 .u64 {name}");
+    let parsed = parse_module(&source(&format!("{declaration};"), "")).unwrap();
+    assert_eq!(parsed.globals[0].name, name);
+    assert_eq!(
+        parsed.globals[0].storage,
+        GlobalStorage::MutableU64 { initializer: 0 }
+    );
+    for invalid in [
+        format!("{declaration}x;"),
+        format!("{declaration} = 1;"),
+        format!("{declaration}; {declaration};"),
+    ] {
+        assert!(parse_module(&source(&invalid, "")).is_err());
+    }
+}
 fn source(globals: &str, body: &str) -> String {
     format!(".version 8.0\n.target sm_52\n.address_size 64\n{globals}\n.visible .entry test() {{ .reg .b32 %r<2>; {body} ret; }}")
 }

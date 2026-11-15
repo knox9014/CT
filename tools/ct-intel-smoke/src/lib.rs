@@ -40,6 +40,30 @@ pub fn group_count(n: usize, group_size: u32) -> Result<u32, String> {
 }
 
 pub fn run_smoke(module: &[u8], device_name: &str) -> Result<String, String> {
+    run_smoke_with_filter(module, Some(device_name)).map(|(report, _)| report)
+}
+
+pub fn run_smoke_auto(module: &[u8]) -> Result<String, String> {
+    run_smoke_with_filter(module, None).map(|(report, _)| report)
+}
+
+#[cfg(feature = "m3-device-check")]
+pub fn run_smoke_for_m3(module: &[u8], device_name: Option<&str>) -> Result<String, String> {
+    let (report, uuid) = run_smoke_with_filter(module, device_name)?;
+    use std::fmt::Write as _;
+    let mut encoded = String::with_capacity(32);
+    for byte in uuid {
+        write!(&mut encoded, "{byte:02x}").expect("writing to String cannot fail");
+    }
+    Ok(format!(
+        "{{\"selected_uuid\":\"{encoded}\",\"report\":{report}}}"
+    ))
+}
+
+fn run_smoke_with_filter(
+    module: &[u8],
+    device_name: Option<&str>,
+) -> Result<(String, [u8; 16]), String> {
     #[cfg(all(windows, target_pointer_width = "64"))]
     {
         level_zero::run(module, device_name)

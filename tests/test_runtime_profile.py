@@ -9,20 +9,27 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 import check_runtime_profile as profile
 
 class RuntimeProfileTests(unittest.TestCase):
-    def test_default_profile_has_exact26_and_retains_subsets(self):
-        self.assertEqual(len(profile.SIGNATURES),26)
+    def test_default_profile_has_exact40_and_retains_subsets(self):
+        self.assertEqual(len(profile.SIGNATURES),40)
         self.assertEqual(len(profile.REGISTRATION_SIGNATURES),22)
         self.assertEqual(set(profile.SIGNATURES)-set(profile.REGISTRATION_SIGNATURES),
-                         {'cudaGetSymbolAddress','cudaGetSymbolSize','cudaMemcpyToSymbol','cudaMemcpyFromSymbol'})
+                         {'cudaGetSymbolAddress','cudaGetSymbolSize','cudaMemcpyToSymbol','cudaMemcpyFromSymbol','cudaDeviceGetAttribute','cudaStreamSynchronize','cudaStreamCreateWithFlags','cudaStreamDestroy','cudaHostAlloc','cudaFreeHost','cudaMemcpyAsync','cudaEventCreate','cudaEventRecord','cudaEventSynchronize','cudaEventDestroy','cudaEventElapsedTime','cudaProfilerStart','cudaProfilerStop'})
         self.assertIn('__cudaRegisterFatBinary',profile.SIGNATURES)
         self.assertIn('__cudaPushCallConfiguration',profile.SIGNATURES)
         self.assertIn('__cudaRegisterVar',profile.SIGNATURES)
         self.assertEqual(len(profile.KERNEL_SIGNATURES),21)
         self.assertEqual(len(profile.BASE_SIGNATURES),14)
+    def test_current_symbol_control_stdout_matches_full_export_count(self):
+        from run_p04b_smoke import control_expected as symbol
+        from run_p04c_smoke import control_expected as wide
+        for control in (symbol,wide):
+            self.assertEqual(control('retire'),b'SYMBOL_NATIVE retire 40 123 13 1\n')
+            for mode in ('missing','forwarded'):
+                self.assertEqual(control(mode),('SYMBOL_NATIVE '+mode+' 40 35 123\n').encode())
     def test_limits_describe_current_stored_symbol_contract(self):
         value=json.loads((profile.REPO/profile.PROFILE).read_text())
         text=' '.join(value['limits'])
-        self.assertIn('Runtime26',text)
+        self.assertIn('Runtime40',text)
         for stale in ('Runtime21','default22/prelinked/Var excluded','any variable blocks','cudadevrt=none only'):
             self.assertNotIn(stale,json.dumps(value))
         self.assertIn('size4',text)

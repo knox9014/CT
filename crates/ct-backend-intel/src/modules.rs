@@ -128,7 +128,7 @@ impl Backend {
             .try_reserve_exact(globals.len())
             .map_err(|_| 0x70000003u32)?;
         for &(name, size) in globals {
-            if name.is_empty() || name.len() > 128 || !matches!(size, 4 | 8) || !unique.insert(name)
+            if name.is_empty() || name.len() > 256 || !matches!(size, 4 | 8) || !unique.insert(name)
             {
                 return Err(BAD_ARGUMENT);
             }

@@ -82,7 +82,7 @@ pub unsafe extern "system" fn cuPointerGetAttribute(
             pointer,
         )?;
         match attribute {
-            8 => data.cast::<u32>().write(0), // Only native device allocations exist.
+            8 => data.cast::<u32>().write(0), // Only native device allocations are included here.
             9 => data
                 .cast::<i32>()
                 .write(i32::try_from(device).map_err(|_| UNKNOWN)?),

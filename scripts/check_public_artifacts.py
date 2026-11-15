@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 import argparse
 import hashlib
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 import re
 import subprocess
 import sys
@@ -76,6 +76,51 @@ def inspect_index(staged: bool) -> list[Finding]:
     return findings
 
 
+def worktree_path(root: Path, name: str) -> Path | None:
+    relative = PurePosixPath(name)
+    if (not relative.parts or relative.is_absolute() or '..' in relative.parts
+            or '\\' in name or ':' in name or '.git' in relative.parts):
+        raise ValueError('unsafe working-tree path')
+    path = root
+    for part in relative.parts:
+        path = path / part
+        if path.is_symlink() or path.is_junction():
+            raise ValueError('working-tree link requires explicit review')
+    if not path.exists():
+        return None # Deleted tracked files have no current bytes; index/history are separate.
+    if not path.resolve().is_relative_to(root.resolve()) or not path.is_file():
+        raise ValueError('working-tree path is not a regular owned file')
+    return path
+
+
+def working_tree_blobs(root: Path | None = None) -> tuple[dict[str, bytes], list[Finding]]:
+    root = Path(git('rev-parse', '--show-toplevel').decode().strip()).resolve() if root is None else root.resolve()
+    top=subprocess.check_output(['git','rev-parse','--show-toplevel'],cwd=root,stderr=subprocess.DEVNULL).decode().strip()
+    if Path(top).resolve()!=root:
+        raise ValueError('working-tree root differs from repository root')
+    names = subprocess.check_output(['git','ls-files','--cached','--others','--exclude-standard','-z'],
+                                    cwd=root,stderr=subprocess.DEVNULL).decode().split('\0')
+    blobs, findings = {}, []
+    for name in sorted(set(filter(None,names))):
+        path = worktree_path(root,name)
+        if path is None:
+            continue
+        early = [] if name in REVIEWED_BINARIES else inspect_blob(name,b'')
+        if early:
+            findings.extend(early)
+            continue
+        data = path.read_bytes()
+        if worktree_path(root,name) != path:
+            raise ValueError('working-tree file changed during inspection')
+        findings.extend(inspect_blob(name,data))
+        blobs[name] = data
+    return blobs, findings
+
+
+def inspect_working_tree() -> list[Finding]:
+    return working_tree_blobs()[1]
+
+
 def safe_email(value: str) -> bool:
     return bool(re.fullmatch(r'[^\s@]+@users\.noreply\.github\.com', value, re.I))
 
@@ -117,6 +162,7 @@ def main() -> int:
     scope = parser.add_mutually_exclusive_group(required=True)
     scope.add_argument('--staged', action='store_true')
     scope.add_argument('--tracked', action='store_true')
+    scope.add_argument('--working-tree', action='store_true', help='inspect current tracked and untracked nonignored file bytes; index/history checks are separate')
     scope.add_argument('--revision')
     scope.add_argument('--pre-push', action='store_true')
     parser.add_argument('--identity', action='store_true')
@@ -134,6 +180,8 @@ def main() -> int:
                         findings.append(Finding('push references', 1, 'only branch commits are automatically reviewed; tags/other objects require explicit metadata review'))
                         continue
                     findings.extend(inspect_history(local, None if set(remote) == {'0'} else remote))
+        elif args.working_tree:
+            findings.extend(inspect_working_tree())
         elif args.revision:
             tip = git('rev-parse', '--verify', args.revision + '^{commit}').decode().strip()
             findings.extend(inspect_history(tip))
@@ -144,7 +192,8 @@ def main() -> int:
         if findings:
             print('Publication blocked; sensitive matched content is withheld.', file=sys.stderr)
             return 1
-        print('Publication checks passed (matched content is never printed).')
+        label = 'working tree' if args.working_tree else 'staged index' if args.staged else 'tracked index' if args.tracked else 'history'
+        print(f'Publication checks passed: {label} (matched content is never printed).')
         return 0
     except (subprocess.CalledProcessError, UnicodeError, ValueError, OSError):
         print('Publication check could not finish; refusing to publish. No file contents printed.', file=sys.stderr)

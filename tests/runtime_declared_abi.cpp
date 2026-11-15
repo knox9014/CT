@@ -16,6 +16,11 @@ CHECK(cudaGetErrorName,const char * (CT_RUNTIME_API *)(int));
 CHECK(cudaGetErrorString,const char * (CT_RUNTIME_API *)(int));
 CHECK(cudaDriverGetVersion,int (CT_RUNTIME_API *)(int *));
 CHECK(cudaRuntimeGetVersion,int (CT_RUNTIME_API *)(int *));
+CHECK(cudaEventCreate,int (CT_RUNTIME_API *)(CT_cudaEvent_t *));
+CHECK(cudaEventRecord,int (CT_RUNTIME_API *)(CT_cudaEvent_t,CT_cudaStream_t));
+CHECK(cudaEventSynchronize,int (CT_RUNTIME_API *)(CT_cudaEvent_t));
+CHECK(cudaEventDestroy,int (CT_RUNTIME_API *)(CT_cudaEvent_t));
+CHECK(cudaEventElapsedTime,int (CT_RUNTIME_API *)(float *,CT_cudaEvent_t,CT_cudaEvent_t));
 int main() {
     static_assert(sizeof(int)==4 && sizeof(size_t)==8 && sizeof(void *)==8);
     std::printf("ABI 14 4 4 8 8\n0 1 2 3 4\n0 1 2 3 21 35 49 100 101 709 801 999\n");

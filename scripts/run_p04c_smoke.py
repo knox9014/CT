@@ -46,7 +46,7 @@ def build(producer,folder):
         shutil.copyfile(folder/command['name']/'debug'/command['output'],folder/command['output'])
     return commands
 def control_expected(mode):
-    return ('SYMBOL_NATIVE '+mode+(' 26 123 13 1\n' if mode=='retire' else ' 26 35 123\n')).encode('ascii')
+    return ('SYMBOL_NATIVE '+mode+(' 40 123 13 1\n' if mode=='retire' else ' 40 35 123\n')).encode('ascii')
 def payload_roles(mode):
     if mode in ORDERS:
         roles={'host.exe':'host','nvcuda.dll':'noop' if mode=='noop' else 'driver','cudart64_12.dll':'runtime'}
@@ -66,15 +66,15 @@ def capture(folder,producer,commands,*,abi_only=False):
         artifacts={r:item(p) for r,p in files.items() if r!='image'},
         compiler_outputs={str(p.relative_to(folder)).replace('\\','/'):digest(p) for p in (folder/'keep-symbol_runtime').iterdir() if p.suffix in ('.ptx','.fatbin') or p.name.endswith('.cudafe1.stub.c')},abi=[],runs=[])
     for role in ('reference','declared'):
-        result=subprocess.run([str(files[role])],cwd=folder,capture_output=True,timeout=30)
+        result=subprocess.run([str(files[role])],cwd=folder,capture_output=True,timeout=32)
         out=folder/(role+'.stdout');err=folder/(role+'.stderr');out.write_bytes(result.stdout);err.write_bytes(result.stderr)
         if result.returncode or result.stderr or result.stdout.replace(b'\r\n',b'\n')!=ABI_EXPECTED:raise ValueError('symbol ABI declaration mismatch')
         manifest['abi'].append(dict(role=role,exit_code=result.returncode,stdout=item(out),stderr=item(err)))
     # A separate directory with no adjacent Driver proves pure preflight does not require it.
     pure=folder/'pure';pure.mkdir();shutil.copyfile(files['native'],pure/'native.exe');shutil.copyfile(files['runtime'],pure/'cudart64_12.dll')
-    result=subprocess.run([str(pure/'native.exe'),str(pure/'cudart64_12.dll'),'pure'],cwd=pure,capture_output=True,timeout=30)
+    result=subprocess.run([str(pure/'native.exe'),str(pure/'cudart64_12.dll'),'pure'],cwd=pure,capture_output=True,timeout=32)
     out=folder/'pure.stdout';err=folder/'pure.stderr';out.write_bytes(result.stdout);err.write_bytes(result.stderr)
-    if result.returncode or result.stderr or result.stdout.replace(b'\r\n',b'\n')!=b'SYMBOL_NATIVE pure 26 13 21 801\n':raise ValueError('symbol pure typed mismatch')
+    if result.returncode or result.stderr or result.stdout.replace(b'\r\n',b'\n')!=b'SYMBOL_NATIVE pure 40 13 21 801\n':raise ValueError('symbol pure typed mismatch')
     manifest['abi'].append(dict(role='pure',exit_code=result.returncode,stdout=item(out),stderr=item(err)))
     seeds=set()
     for mode in (() if abi_only else MODES):

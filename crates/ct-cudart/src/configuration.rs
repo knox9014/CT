@@ -26,10 +26,13 @@ thread_local! { pub static FAIL_RESERVATION:std::cell::Cell<bool> = const {std::
 pub fn preflight(c: Config) -> i32 {
     if c.grid.axes().contains(&0) || c.block.axes().contains(&0) {
         9
-    } else if c.shared != 0 || c.stream != 0 {
+    } else if c.shared != 0 {
         801
     } else {
-        0
+        crate::streams::registry()
+            .preflight(c.stream)
+            .err()
+            .unwrap_or(0)
     }
 }
 pub fn push(c: Config) -> i32 {
