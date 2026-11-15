@@ -17,6 +17,18 @@ int wmain(int argc, wchar_t **argv) {
     if (name(CUDA_ERROR_NOT_SUPPORTED, &result) != CUDA_SUCCESS || !result || std::strcmp(result, "CUDA_ERROR_NOT_SUPPORTED")) return 1;
     int v = -1;
     if (version(&v) != CUDA_ERROR_NOT_SUPPORTED || v != 0) return 1;
+    auto ipc_open = reinterpret_cast<PFN_cuIpcOpenMemHandle_v11000>(
+        GetProcAddress(dll, "cuIpcOpenMemHandle_v2"));
+    CUipcMemHandle ipc_handle{};
+    CUdeviceptr mapped = 1;
+    if (!ipc_open || ipc_open(&mapped, ipc_handle, CU_IPC_MEM_LAZY_ENABLE_PEER_ACCESS)
+            != CUDA_ERROR_NOT_SUPPORTED || mapped != 0) return 1;
+    if (ipc_open(nullptr, ipc_handle, 0) != CUDA_ERROR_INVALID_VALUE) return 1;
+    auto device_uuid = reinterpret_cast<PFN_cuDeviceGetUuid_v9020>(
+        GetProcAddress(dll, "cuDeviceGetUuid"));
+    CUuuid uuid{};
+    if (!device_uuid || device_uuid(&uuid, 0) != CUDA_ERROR_NOT_INITIALIZED ||
+        device_uuid(nullptr, 0) != CUDA_ERROR_INVALID_VALUE) return 1;
     void *function = nullptr;
     if (old_query("cuGetErrorName", &function, 6000, 0) || !function) return 1;
     CUdriverProcAddressQueryResult status = CU_GET_PROC_ADDRESS_VERSION_NOT_SUFFICIENT;
@@ -60,6 +72,12 @@ int wmain(int argc, wchar_t **argv) {
     unsigned int managed = 99;
     if (!range || !attribute || range(nullptr, nullptr, 0) != CUDA_ERROR_NOT_INITIALIZED ||
         attribute(&managed, CU_POINTER_ATTRIBUTE_IS_MANAGED, 0) != CUDA_ERROR_NOT_INITIALIZED || managed != 99) return 1;
+    auto global = reinterpret_cast<PFN_cuModuleGetGlobal_v3020>(GetProcAddress(dll, "cuModuleGetGlobal_v2"));
+    CUdeviceptr global_pointer = ~CUdeviceptr(0); size_t global_size = ~size_t(0);
+    if (!global || global(&global_pointer, &global_size, nullptr, "g") != CUDA_ERROR_NOT_INITIALIZED || global_pointer || global_size) return 1;
+    global_pointer = ~CUdeviceptr(0); global_size = ~size_t(0);
+    if (global(nullptr, &global_size, nullptr, "g") != CUDA_ERROR_NOT_INITIALIZED || global_size) return 1;
+    if (global(&global_pointer, nullptr, nullptr, "g") != CUDA_ERROR_NOT_INITIALIZED || global_pointer) return 1;
     FreeLibrary(dll);
     std::puts("Official PFN consumer: error mapping, resolver ABI versions and primary calls passed.");
 }

@@ -1,0 +1,31 @@
+# R2t: actual official Runtime scheduling prefix
+
+The pinned official CUDA Runtime12.9.79 made real device-attribute calls75,76,15,40,16, in that order. Under the existing explicit software-target policy, CT returned5,2,0,0, then actual Driver801/output0 for16. Runtime returned3/count-1. Direct post-unload controls independently confirmed15/40 successful zero and16 unsupported zero. Attribute16 is MULTIPROCESSOR_COUNT, the number of multiprocessors, per the [official CUDA definitions](https://nvidia.github.io/cuda-python/cuda-bindings/12.6.1/module/driver.html). No NVIDIA multiprocessor count was invented from Intel hardware information.
+
+The fresh pipeline passed24 children and47 native deny-table checks: the existing20-child strict/name/total/context parent, two explicit software-target samples12000/12090 and two fresh strict controls. Real device identity was Intel(R) Arc(TM) B390 GPU. Reported total memory17578409984 bytes is neither free memory nor an allocation budget. Default strict75 and production version queries remained801/output0; strict children inherited no CT environment configuration. Private context counters1/0/1, deny mask0, Runtime unload, reset and null-current checks passed. Saved recheck reproduced the capture without another GPU execution.
+
+The observer forwards only the reviewed attribute prefix and one actual unsupported query, then stops forwarding. The Runtime also resolves many functions without calling them. In the new scheduling child,31 successful non-forwarded symbols received typed deny-only callbacks rather than raw native addresses. Calling one invalidates the diagnostic, and previously cached wrappers remain subject to the boundary latch. Known signatures/aliases follow CT's existing audited header; unknown successful symbols fail closed. Pointer arguments remain opaque. Exact first-exposure evidence and null current context immediately after unload are required by saved validation.
+
+Independent pre-native review found the inherited raw-pointer escape and missing post-unload current-context validation. Regression tests reproduced the gaps, and follow-up review accepted the fixes. A further exposure-order regression prevents an impossible repeated-first-lookup chronology. The first fresh attempt safely stopped because Runtime requested supported attribute40 after15; a private diagnostic recorded that request without forwarding it. The prefix was extended to the observed40 step, its regression went RED then GREEN, and a new immutable source received new CPU and native qualification. The first attempt is retained as rejected diagnostic evidence, never as a native pass.
+
+Final clean CPU passed11/11 lanes: Python370, Rust223 passed/7 ignored, CT Runtime129 passed, formatting/Clippy, registry, profiles and publication. Ignored cases are not GPU passes. All115 selected production Cargo/crates/tools/include paths remain byte-identical to R2s; this phase changes diagnostic observation and evidence validation, not production Rust APIs. Fourteen focused scheduling tests pass. Root HEAD/index, protected11 and managed worktrees were preserved; raw paths, binaries and logs remain ignored.
+
+Final immutable candidate: `ab4cd34dc57e4801849f955293acc696`.
+Private source commit: `34893952a1ab1bef7525978f8e98e976155eae74`.
+Source fingerprint: `2f0896b95606c94e0bb98d45524745ab161befcf584f147fb2bb99a9e7af6866`.
+Accepted fresh native capture: `40cefab98e8e42f783a44a844f0d5b6f`.
+Scheduling capture SHA256: `0dccfe38edf7bc6d26e46993e4a7c31b5e72be5a487b4ccb2daa2e8683621c2b`.
+
+## Next capability decision
+
+The next real boundary is attribute16. Define how CT's explicit software target describes execution-unit topology before returning a successful count; distinguish physical Intel topology from a CUDA software-target property, validate positive/overflow/error cases through Driver and CT Runtime, then inspect the next actual official Runtime request. This result does not establish application execution, general compute-capability conformance or a shipping CUDA version. Successful lookup counts and diagnostic progress are not application compatibility.
+
+## Storage
+
+The runner checks a2GiB conservative peak before parent creation, within a40GiB cache ceiling and30GiB free floor. Final source, CPU reports and the entire accepted native SDK/build/observation closure were uploaded as an encrypted private Drive unit. The rejected first attempt, its source and private diagnostic are preserved in a locally verified ZIP included inside that encrypted unit; its contents are not published as plaintext. Keys stay notebook-only.
+
+The unit has1802 files/255920417 logical bytes and68224446 encrypted data bytes in3 volumes, with zero exclusions. All7 transferred data/helper/guide files were verified owner-only, read back byte-for-byte by SHA256 and fully restored. Frozen source verification and the restored24-child saved audit passed. These are recovery/consistency checks, not another GPU execution. Independent final code review and bounded cleanup-helper review found no remaining findings; reviewers did not independently execute the qualification or Drive operations.
+
+The prior R2r native run was matched against its authenticated archive inventory; its existing full recovery proof was supplemented with a new live Drive volume SHA256 readback. After quarantine and rescan, its285 files/203598424 bytes were reclaimed. The accepted R2t native closure remains local. Dedicated CPU output, transfer/restore copies, volume duplicates and the now-backed rejected-attempt ZIP were also reclaimed:2807 files/1241467958 bytes in the final cleanup. The earlier failed-run compression had separately reclaimed196063338 bytes while retaining its fully verified ZIP. Recovery keys, source candidates and current native dependencies remain.
+
+Measured cache grew from40185757855 to40199948438 bytes, a net14190583 bytes (about14MB), while adding the qualified source and replacing the warm native run. Existing historical cache/tools remain about37.4GiB. This is scoped development retention, not global cache eviction or background Drive synchronization. The private recovery catalog now points to R2t as the working Runtime run and marks R2r archived.

@@ -35,7 +35,7 @@
     {
       "symbol": "cudaDeviceSynchronize",
       "signature_id": "i32()",
-      "behavior": "One pinned Driver; preserve ordinary current context; process-lifetime primary retain.",
+      "behavior": "One pinned Driver; preserve ordinary current context; process-lifetime primary retain. Context-wide pending copy fence before native action; cleanup actions still run after prior async error.",
       "test_ids": [
         "crates/ct-cudart/src/state_tests.rs#set_device_is_eager_and_retains_once",
         "tests/runtime_reference_abi.cpp#main",
@@ -55,7 +55,7 @@
     {
       "symbol": "cudaFree",
       "signature_id": "i32(ptr)",
-      "behavior": "Synchronous explicit memory path; zero-size and context rules follow P09a1 spec.",
+      "behavior": "Synchronous explicit memory path; zero-size and context rules follow P09a1 spec. Context-wide pending copy fence before native action; cleanup actions still run after prior async error.",
       "test_ids": [
         "crates/ct-cudart/src/memory_tests.rs#unsupported_kind_is_not_hidden_by_zero_size",
         "tests/runtime_reference_abi.cpp#main",
@@ -65,7 +65,7 @@
     {
       "symbol": "cudaMemcpy",
       "signature_id": "i32(ptr,const_ptr,size,i32)",
-      "behavior": "Synchronous explicit memory path; zero-size and context rules follow P09a1 spec.",
+      "behavior": "Synchronous explicit memory path; zero-size and context rules follow P09a1 spec. Context-wide pending copy fence before native action; cleanup actions still run after prior async error.",
       "test_ids": [
         "crates/ct-cudart/src/memory_tests.rs#unsupported_kind_is_not_hidden_by_zero_size",
         "tests/runtime_reference_abi.cpp#main",
@@ -75,7 +75,7 @@
     {
       "symbol": "cudaMemset",
       "signature_id": "i32(ptr,i32,size)",
-      "behavior": "Synchronous explicit memory path; zero-size and context rules follow P09a1 spec.",
+      "behavior": "Synchronous explicit memory path; zero-size and context rules follow P09a1 spec. Context-wide pending copy fence before native action; cleanup actions still run after prior async error.",
       "test_ids": [
         "crates/ct-cudart/src/memory_tests.rs#unsupported_kind_is_not_hidden_by_zero_size",
         "tests/runtime_reference_abi.cpp#main",
@@ -141,10 +141,311 @@
         "tests/runtime_reference_abi.cpp#main",
         "tests/p09a_runtime_app.c#main"
       ]
+    },
+    {
+      "symbol": "__cudaRegisterFatBinary",
+      "signature_id": "ptr_ptr(ptr)",
+      "behavior": "Bounded CPU registration/configuration and synchronous context-specific module launch; version1 non-RDC PTX with default device-runtime registration. No device-runtime function calls or device linking.",
+      "test_ids": [
+        "tests/runtime_kernel_native_abi.cpp#main",
+        "crates/ct-cudart/src/tests.rs#exported_registration_and_configuration_are_gpu_free"
+      ]
+    },
+    {
+      "symbol": "__cudaRegisterFatBinaryEnd",
+      "signature_id": "void(ptr_ptr)",
+      "behavior": "Bounded CPU registration/configuration and synchronous context-specific module launch; version1 non-RDC PTX with default device-runtime registration. No device-runtime function calls or device linking.",
+      "test_ids": [
+        "tests/runtime_kernel_native_abi.cpp#main",
+        "crates/ct-cudart/src/tests.rs#exported_registration_and_configuration_are_gpu_free"
+      ]
+    },
+    {
+      "symbol": "__cudaUnregisterFatBinary",
+      "signature_id": "void(ptr_ptr)",
+      "behavior": "Bounded CPU registration/configuration and synchronous context-specific module launch; version1 non-RDC PTX with default device-runtime registration. No device-runtime function calls or device linking.",
+      "test_ids": [
+        "tests/runtime_kernel_native_abi.cpp#main",
+        "crates/ct-cudart/src/tests.rs#exported_registration_and_configuration_are_gpu_free"
+      ]
+    },
+    {
+      "symbol": "__cudaRegisterFunction",
+      "signature_id": "void(ptr_ptr,const_char_ptr,char_ptr,const_char_ptr,i32,uint3_ptr,uint3_ptr,dim3_ptr,dim3_ptr,i32_ptr)",
+      "behavior": "Bounded CPU registration/configuration and synchronous context-specific module launch; version1 non-RDC PTX with default device-runtime registration. No device-runtime function calls or device linking.",
+      "test_ids": [
+        "tests/runtime_kernel_native_abi.cpp#main",
+        "crates/ct-cudart/src/tests.rs#exported_registration_and_configuration_are_gpu_free"
+      ]
+    },
+    {
+      "symbol": "__cudaPushCallConfiguration",
+      "signature_id": "u32(dim3,dim3,size,stream)",
+      "behavior": "Bounded CPU registration/configuration and synchronous context-specific module launch; version1 non-RDC PTX with default device-runtime registration. No device-runtime function calls or device linking. Owned synchronous stream tokens accepted; launch checks context and holds stream gate through completion, passing default stream to the synchronous Driver. No independent native queues.",
+      "test_ids": [
+        "tests/runtime_kernel_native_abi.cpp#main",
+        "crates/ct-cudart/src/tests.rs#exported_registration_and_configuration_are_gpu_free"
+      ]
+    },
+    {
+      "symbol": "__cudaPopCallConfiguration",
+      "signature_id": "i32(dim3_ptr,dim3_ptr,size_ptr,ptr)",
+      "behavior": "Bounded CPU registration/configuration and synchronous context-specific module launch; version1 non-RDC PTX with default device-runtime registration. No device-runtime function calls or device linking.",
+      "test_ids": [
+        "tests/runtime_kernel_native_abi.cpp#main",
+        "crates/ct-cudart/src/tests.rs#exported_registration_and_configuration_are_gpu_free"
+      ]
+    },
+    {
+      "symbol": "cudaLaunchKernel",
+      "signature_id": "i32(const_ptr,dim3,dim3,ptr_ptr,size,stream)",
+      "behavior": "Bounded CPU registration/configuration and synchronous context-specific module launch; version1 non-RDC PTX with default device-runtime registration. No device-runtime function calls or device linking. Owned synchronous stream tokens accepted; launch checks context and holds stream gate through completion, passing default stream to the synchronous Driver. No independent native queues. Context-wide pending copy fence before native action; cleanup actions still run after prior async error.",
+      "test_ids": [
+        "tests/runtime_kernel_native_abi.cpp#main",
+        "crates/ct-cudart/src/tests.rs#exported_registration_and_configuration_are_gpu_free",
+        "tests/fixtures/owned_streams_runtime.cu#main"
+      ]
+    },
+    {
+      "symbol": "__cudaRegisterVar",
+      "signature_id": "void(ptr_ptr,char_ptr,char_ptr,const_char_ptr,i32,size,i32,i32)",
+      "behavior": "Owned CPU metadata frozen at End; version1 flags0 scalar size4/8 bindings verified once through the same pinned Driver and shared by launch and synchronous symbol APIs. Other sizes/types/version2 remain801.",
+      "test_ids": [
+        "crates/ct-cudart/src/tests.rs#exported_variable_callback_is_cpu_only_and_preserves_first_failure",
+        "tests/runtime_default_reference_abi.cpp#main",
+        "tests/runtime_default_native_abi.cpp#main"
+      ]
+    },
+    {
+      "symbol": "cudaGetSymbolAddress",
+      "signature_id": "i32(out_ptr,const_ptr)",
+      "behavior": "Opaque registered host symbol; same context/module-owned size4/8 storage. Queries preserve outputs on errors; copies check direction, offset and extent; no UVA/async. Unknown/retired/ambiguous13. Context-wide pending copy fence before native action; cleanup actions still run after prior async error.",
+      "test_ids": [
+        "crates/ct-cudart/src/symbol_tests.rs#symbol_export_preflight_and_tls",
+        "crates/ct-cudart/src/symbol_tests.rs#symbol_copy_bounds_and_zero",
+        "crates/ct-cudart/src/symbol_tests.rs#symbol_query_outputs_unchanged",
+        "tests/runtime_symbol_reference_abi.cpp#SymbolError",
+        "tests/runtime_symbol_native_abi.cpp#main",
+        "tests/fixtures/p04b/symbol_runtime.cu#main"
+      ]
+    },
+    {
+      "symbol": "cudaGetSymbolSize",
+      "signature_id": "i32(size_ptr,const_ptr)",
+      "behavior": "Opaque registered host symbol; same context/module-owned size4/8 storage. Queries preserve outputs on errors; copies check direction, offset and extent; no UVA/async. Unknown/retired/ambiguous13. Context-wide pending copy fence before native action; cleanup actions still run after prior async error.",
+      "test_ids": [
+        "crates/ct-cudart/src/symbol_tests.rs#symbol_export_preflight_and_tls",
+        "crates/ct-cudart/src/symbol_tests.rs#symbol_copy_bounds_and_zero",
+        "crates/ct-cudart/src/symbol_tests.rs#symbol_query_outputs_unchanged",
+        "tests/runtime_symbol_reference_abi.cpp#SymbolError",
+        "tests/runtime_symbol_native_abi.cpp#main",
+        "tests/fixtures/p04b/symbol_runtime.cu#main"
+      ]
+    },
+    {
+      "symbol": "cudaMemcpyToSymbol",
+      "signature_id": "i32(const_ptr,const_ptr,size,size,i32)",
+      "behavior": "Opaque registered host symbol; same context/module-owned size4/8 storage. Queries preserve outputs on errors; copies check direction, offset and extent; no UVA/async. Unknown/retired/ambiguous13. Context-wide pending copy fence before native action; cleanup actions still run after prior async error.",
+      "test_ids": [
+        "crates/ct-cudart/src/symbol_tests.rs#symbol_export_preflight_and_tls",
+        "crates/ct-cudart/src/symbol_tests.rs#symbol_copy_bounds_and_zero",
+        "crates/ct-cudart/src/symbol_tests.rs#symbol_query_outputs_unchanged",
+        "tests/runtime_symbol_reference_abi.cpp#SymbolError",
+        "tests/runtime_symbol_native_abi.cpp#main",
+        "tests/fixtures/p04b/symbol_runtime.cu#main"
+      ]
+    },
+    {
+      "symbol": "cudaMemcpyFromSymbol",
+      "signature_id": "i32(ptr,const_ptr,size,size,i32)",
+      "behavior": "Opaque registered host symbol; same context/module-owned size4/8 storage. Queries preserve outputs on errors; copies check direction, offset and extent; no UVA/async. Unknown/retired/ambiguous13. Context-wide pending copy fence before native action; cleanup actions still run after prior async error.",
+      "test_ids": [
+        "crates/ct-cudart/src/symbol_tests.rs#symbol_export_preflight_and_tls",
+        "crates/ct-cudart/src/symbol_tests.rs#symbol_copy_bounds_and_zero",
+        "crates/ct-cudart/src/symbol_tests.rs#symbol_query_outputs_unchanged",
+        "tests/runtime_symbol_reference_abi.cpp#SymbolError",
+        "tests/runtime_symbol_native_abi.cpp#main",
+        "tests/fixtures/p04b/symbol_runtime.cu#main"
+      ]
+    },
+    {
+      "symbol": "cudaDeviceGetAttribute",
+      "signature_id": "i32(out_i32,i32,i32)",
+      "behavior": "Attributes1..8,15,16,20,40,75/76 forwarded to the device handle returned by Driver.75/76 now delegate policy to Driver (strict801; explicit ct-sm52-subset-v1 gives5/2); Runtime never reads configuration. Attribute16: explicit software target only, checked maximum native slices*subslices topology count fitting i32; strict/zero/overflow801, never active NVIDIA SM or Intel EU count. Attributes15/40 report zero for CT synchronous scheduling (not physical Intel engine counts). These queries now load/init Driver: absent or invalid optional binding35, invalid positive ordinal101, invalid latched configuration1. Attribute8=min(native Level Zero maxSharedLocalMemory,16384); dynamic shared launch bytes unsupported. Preflight null1, negative ordinal101, other unsupported attribute801 stays Driver-free. No context creation/change; output unchanged on every error. Raw Driver errors mapped once. Success preserves TLS errors.",
+      "test_ids": [
+        "crates/ct-cudart/src/state_tests.rs#attribute_preflight_is_driver_free",
+        "crates/ct-cudart/src/state_tests.rs#attribute_uses_device_handle_without_context",
+        "crates/ct-cudart/src/state_tests.rs#attribute_error_domains_and_output_preservation",
+        "crates/ct-cudart/src/state_tests.rs#attribute_export_preflight_and_tls",
+        "tests/runtime_attribute_native_abi.cpp#main",
+        "tests/test_runtime_attribute.py#test_positive_requires_all_eleven_values_and_unchanged_context",
+        "tests/virtual_target_native_abi.cpp#main"
+      ]
+    },
+    {
+      "symbol": "cudaStreamSynchronize",
+      "signature_id": "i32(stream)",
+      "behavior": "Null/default or owned created stream. Preflight rejects unknown801/stale400 before Driver loading; context mismatch400. Ensure current context, serialize owned stream use, drain matching-context retired modules, Driver synchronize. Preserve drain errors; map raw Driver errors once. Success preserves TLS. Context-wide pending copy fence before native action; cleanup actions still run after prior async error.",
+      "test_ids": [
+        "crates/ct-cudart/src/state_tests.rs#stream_sync_rejects_nonnull_before_context_or_drain",
+        "crates/ct-cudart/src/state_tests.rs#stream_sync_orders_context_drain_and_sync",
+        "crates/ct-cudart/src/state_tests.rs#stream_sync_creates_default_context_when_needed",
+        "crates/ct-cudart/src/state_tests.rs#stream_sync_preserves_error_domains_and_short_circuits",
+        "crates/ct-cudart/src/state_tests.rs#stream_sync_selection_failure_skips_drain_and_sync",
+        "tests/runtime_stream_native_abi.cpp#main",
+        "tests/test_default_stream_sync.py#test_controls_require_exact_errors_and_ordinary_context",
+        "crates/ct-cudart/src/state_tests.rs#created_stream_sync_context_and_configuration",
+        "tests/fixtures/owned_streams_runtime.cu#main"
+      ]
+    },
+    {
+      "symbol": "cudaStreamCreateWithFlags",
+      "signature_id": "i32(stream_ptr,u32)",
+      "behavior": "Context-owned stream flags0/1; native kernels remain synchronous, copies use shared context FIFO. No independent native queues or overlap claim. Create output preserved on error. Destroy waits for active use then invalidates, including finish errors; no token reuse. Unknown801, stale/cross-context400, null destroy400. 128live/4096lifetime; poisoned entry999 retains budget.",
+      "test_ids": [
+        "crates/ct-cudart/src/stream_tests.rs#stream_registry_context_flags_stale_and_budgets",
+        "crates/ct-cudart/src/stream_tests.rs#stream_close_waits_for_active_use_without_blocking_other_entries",
+        "crates/ct-cudart/src/stream_tests.rs#stream_two_closes_and_delayed_lease_fail_closed",
+        "crates/ct-cudart/src/state_tests.rs#stream_create_preflight_and_errors_preserve_output",
+        "crates/ct-cudart/src/state_tests.rs#created_stream_sync_context_and_configuration",
+        "tests/fixtures/owned_streams_runtime.cu#main"
+      ]
+    },
+    {
+      "symbol": "cudaStreamDestroy",
+      "signature_id": "i32(stream)",
+      "behavior": "Context-owned stream flags0/1; native kernels remain synchronous, copies use shared context FIFO. No independent native queues or overlap claim. Create output preserved on error. Destroy waits for active use then invalidates, including finish errors; no token reuse. Unknown801, stale/cross-context400, null destroy400. 128live/4096lifetime; poisoned entry999 retains budget. Context-wide pending copy fence before native action; cleanup actions still run after prior async error.",
+      "test_ids": [
+        "crates/ct-cudart/src/stream_tests.rs#stream_registry_context_flags_stale_and_budgets",
+        "crates/ct-cudart/src/stream_tests.rs#stream_close_waits_for_active_use_without_blocking_other_entries",
+        "crates/ct-cudart/src/stream_tests.rs#stream_two_closes_and_delayed_lease_fail_closed",
+        "crates/ct-cudart/src/state_tests.rs#stream_create_preflight_and_errors_preserve_output",
+        "crates/ct-cudart/src/state_tests.rs#created_stream_sync_context_and_configuration",
+        "tests/fixtures/owned_streams_runtime.cu#main"
+      ]
+    },
+    {
+      "symbol": "cudaHostAlloc",
+      "signature_id": "i32(out_ptr,size,u32)",
+      "behavior": "Genuine native host allocation via optional owned Driver host2 extension; flags0 only; preflight null/zero/unknownflags1, known unsupported flags801. Owning current context required. Preserve create output on all errors; prepare35 unchanged, raw Driver mapping once. Runtime-owned host use leases survive queued commands; free waits, successful cleanup removes ownership even when reporting a prior async error. Uncertain native free remains failed/charged.",
+      "test_ids": [
+        "crates/ct-cudart/src/memory_tests.rs#host_allocation_preflight_is_gpu_free_and_preserves_output",
+        "crates/ct-cudart/src/memory_tests.rs#host_allocation_and_free_preserve_error_domains",
+        "tests/runtime_host_native_abi.cpp#main",
+        "crates/ct-cudart/src/tests.rs#host_extension_is_complete_owned_and_cached_independently",
+        "tests/fixtures/host_streams_runtime.cu#main"
+      ]
+    },
+    {
+      "symbol": "cudaFreeHost",
+      "signature_id": "i32(ptr)",
+      "behavior": "Genuine native host allocation via optional owned Driver host2 extension; flags0 only; preflight null/zero/unknownflags1, known unsupported flags801. Owning current context required. Preserve create output on all errors; prepare35 unchanged, raw Driver mapping once. Runtime-owned host use leases survive queued commands; free waits, successful cleanup removes ownership even when reporting a prior async error. Uncertain native free remains failed/charged.",
+      "test_ids": [
+        "crates/ct-cudart/src/memory_tests.rs#host_allocation_preflight_is_gpu_free_and_preserves_output",
+        "crates/ct-cudart/src/memory_tests.rs#host_allocation_and_free_preserve_error_domains",
+        "tests/runtime_host_native_abi.cpp#main",
+        "crates/ct-cudart/src/tests.rs#host_extension_is_complete_owned_and_cached_independently",
+        "tests/fixtures/host_streams_runtime.cu#main"
+      ]
+    },
+    {
+      "symbol": "cudaMemcpyAsync",
+      "signature_id": "i32(ptr,const_ptr,size,i32,stream)",
+      "behavior": "Actually queues owned copies on one worker with captured context and retained Runtime-host use leases. Directions1/2/3 only, validated default/owned stream; zero validates kind/stream then no-op. Nonzero null/overflow/overlap1; Runtime-unowned host801. Worker raw Driver errors mapped once and surfaced as bounded sticky first context error by later fences. Kernel/symbol/memory/sync/cleanup paths fence pending work. No caller argument-stack capture or overlap claim.",
+      "test_ids": [
+        "crates/ct-cudart/src/memory_tests.rs#async_copy_preflight_preserves_kind_stream_and_pointer_errors",
+        "crates/ct-cudart/src/memory_tests.rs#async_copy_worker_selects_context_and_maps_driver_errors_once",
+        "crates/ct-cudart/src/memory_tests.rs#async_host_free_waits_for_the_accepted_copy",
+        "crates/ct-cudart/src/submission_tests.rs#queue_returns_before_work_completes_and_preserves_fifo",
+        "crates/ct-cudart/src/submission_tests.rs#queue_failed_send_releases_real_host_use_before_free",
+        "crates/ct-cudart/src/host_ownership_tests.rs#host_free_waits_for_use_and_excludes_new_acquires",
+        "tests/fixtures/queued_copy_runtime.cu#main",
+        "tests/runtime_async_native_abi.cpp#main",
+        "tests/test_queued_copy.py#test_independent_kernel_oracle_checks_all_stream_rows_and_words"
+      ]
+    },
+    {
+      "symbol": "cudaEventCreate",
+      "signature_id": "i32(event_ptr)",
+      "behavior": "Context-owned opaque event generations over queued Driver event work; default/owned streams. Sync snapshots latest generation; elapsed pending600,unrecorded400; destroy queues cleanup. GPU counter timing only.",
+      "test_ids": [
+        "crates/ct-cudart/src/event_tests.rs#generation_is_pending_then_done_and_old_snapshot_survives_rerecord_destroy",
+        "tests/runtime_event_native_abi.cpp#main"
+      ]
+    },
+    {
+      "symbol": "cudaEventRecord",
+      "signature_id": "i32(event,stream)",
+      "behavior": "Context-owned opaque event generations over queued Driver event work; default/owned streams. Sync snapshots latest generation; elapsed pending600,unrecorded400; destroy queues cleanup. GPU counter timing only.",
+      "test_ids": [
+        "crates/ct-cudart/src/event_tests.rs#generation_is_pending_then_done_and_old_snapshot_survives_rerecord_destroy",
+        "tests/runtime_event_native_abi.cpp#main"
+      ]
+    },
+    {
+      "symbol": "cudaEventSynchronize",
+      "signature_id": "i32(event)",
+      "behavior": "Context-owned opaque event generations over queued Driver event work; default/owned streams. Sync snapshots latest generation; elapsed pending600,unrecorded400; destroy queues cleanup. GPU counter timing only.",
+      "test_ids": [
+        "crates/ct-cudart/src/event_tests.rs#generation_is_pending_then_done_and_old_snapshot_survives_rerecord_destroy",
+        "tests/runtime_event_native_abi.cpp#main"
+      ]
+    },
+    {
+      "symbol": "cudaEventDestroy",
+      "signature_id": "i32(event)",
+      "behavior": "Context-owned opaque event generations over queued Driver event work; default/owned streams. Sync snapshots latest generation; elapsed pending600,unrecorded400; destroy queues cleanup. GPU counter timing only.",
+      "test_ids": [
+        "crates/ct-cudart/src/event_tests.rs#generation_is_pending_then_done_and_old_snapshot_survives_rerecord_destroy",
+        "tests/runtime_event_native_abi.cpp#main"
+      ]
+    },
+    {
+      "symbol": "cudaEventElapsedTime",
+      "signature_id": "i32(f32_ptr,event,event)",
+      "behavior": "Context-owned opaque event generations over queued Driver event work; default/owned streams. Sync snapshots latest generation; elapsed pending600,unrecorded400; destroy queues cleanup. GPU counter timing only.",
+      "test_ids": [
+        "crates/ct-cudart/src/event_tests.rs#generation_is_pending_then_done_and_old_snapshot_survives_rerecord_destroy",
+        "tests/runtime_event_native_abi.cpp#main"
+      ]
+    },
+    {
+      "symbol": "cudaProfilerStart",
+      "signature_id": "i32()",
+      "behavior": "Explicit no-collector mode: require initialized current context, sample already observed queue error without waiting, otherwise successful no effect. No collection/tool control/trace output.",
+      "test_ids": [
+        "crates/ct-cudart/src/state_tests.rs#profiler_no_collector_initializes_but_never_syncs_or_reserves_queue_nodes",
+        "tests/runtime_profiler_native_abi.cpp#main"
+      ]
+    },
+    {
+      "symbol": "cudaProfilerStop",
+      "signature_id": "i32()",
+      "behavior": "Explicit no-collector mode: require initialized current context, sample already observed queue error without waiting, otherwise successful no effect. No collection/tool control/trace output.",
+      "test_ids": [
+        "crates/ct-cudart/src/state_tests.rs#profiler_no_collector_initializes_but_never_syncs_or_reserves_queue_nodes",
+        "tests/runtime_profiler_native_abi.cpp#main"
+      ]
     }
   ],
   "limits": [
-    "Windows x64; app-local single Driver; synchronous explicit copies only.",
-    "No launch, registration, UVA, streams, reset recovery or framework claim."
+    "Windows x64 EXE constructors; app-local single owned/pinned Driver; Runtime40 diagnostic preview.",
+    "nvcc12 non-RDC PTX8.0/sm52, cudart=shared; bounded default device-runtime registration, no device-runtime function calls or device linking.",
+    "Zero shared memory; default/owned context-bound streams with queued copies and synchronous kernels; no UVA/PTDS, reset recovery or framework claim.",
+    "Registration64 live/1024 lifetime,512 functions each/4096 host mappings,1024-byte names,16MiB images/64MiB owned raw total.",
+    "128 native ownership records and module slots,64 TLS configurations; detected fallible reservation errors2, budget exhaustion801.",
+    "No native cleanup in callbacks/destructors; matching-context retirement drain on explicit Launch, symbol operation or Synchronize.",
+    "Unsupported MSVC producer is diagnostic; no supported-host compiler pin registered.",
+    "Version2: up to32 raw prelinked images,33 unique including primary, no linking; version2 launch801.",
+    "Variable metadata:256 per token/2048 live,1024-byte names,size1..16MiB metadata; native launch/symbol eligibility version1 flags0 scalar size4 u32 / size8 u64 only.",
+    "Synchronous symbol To kinds1/3, From2/3; Default4 returns801, wrong direction21; offset+count<=the symbol width4/8 including zero count which still resolves the symbol.",
+    "Symbol queries preserve outputs on all errors; opaque unknown/retired/ambiguous13; CT combined-error precedence is specified by the P04c design (legacy bound4 on lookup errors), not a general NVIDIA parity claim.",
+    "Device attributes1..8/20 and delegated75/76. Strict75/76 returns801; explicit virtual target gives5/2 with no NVIDIA hardware/conformance claim. Driver alone latches CT_VIRTUAL_TARGET at first valid cuInit(0) attempt before native initialization, including failure; nonzero flags do not latch. Runtime never snapshots environment. Other attributes801. Static shared requirements fit owning device before native creation. Precedence is bounded CT policy, not NVIDIA combined-error parity.",
+    "Stream create flags0/1,128live/4096lifetime non-reusing context-owned tokens. Per-stream use/close gates; context-wide FIFO copy queue, no independent native queues or overlap claim. Stale/cross-context400, unknown/sentinel non-null801; null destroy400. Error creation preserves output; close invalidates even on finish error. Poisoned entries fail closed999 and retain budget.",
+    "Destroy owned streams before externally destroying their context. External context destruction does not reclaim registry live slots yet; lifetime IDs are never reused by current Driver. Context-wide FIFO copy worker; do not nest stream gate callbacks.",
+    "Host allocation flags0, zero size1; known unsupported flags1/2/4 combinations801, unknown bits1. Current-context-owned native storage; per-context128/256MiB. No mapped/UVA/portable/writecombined. Queued copy uses Runtime-owned host leases. Runtime output preserved on errors; host free null1. Separate lazy owned host2 symbols; missing/forwarded extension35.",
+    "cudaMemcpyAsync directions1/2/3, default/owned streams; host sides must be live Runtime-owned host allocations, checked extent/context. Unknown/pageable host801, bad extent/overflow/overlap1, kind0/4 unsupported801, other kinds21. Bounded256channel/128lifetimecontext nodes, one worker; Runtime host metadata1024live. First context async error sticky; cleanup still frees/removes records before returning prior error. No PTDS/UVA, overlap or independently concurrent native queues. Direct external Driver free/unload/context destruction while pending is unsupported.",
+    "Runtime events:128 live/4096 lifetime nonreusing tokens. Generation snapshot waits, queued logical destroy; no Query/CreateWithFlags/PTDS/native queue overlap. Raw Driver calls do not synchronize pending Runtime jobs. Event elapsed reports600 pending or400 unrecorded; genuine GPU counter timing includes dispatch/idle gaps.",
+    "Profiler Start/Stop: explicit no-collector context control, no capture state/files/collector integration or implicit synchronization. Previous published queue errors propagate; pending work may finish later. No NVIDIA-reference behavior parity claim."
   ]
 }

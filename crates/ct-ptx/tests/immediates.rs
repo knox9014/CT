@@ -31,7 +31,11 @@ fn signed_literals_preserve_exact_bits_at_declared_operand_width() {
             );
         }
     }
-    assert!(ct_ptx::parse(&source("add.u32 %r,1,-1; cvt.u64.s32 %d,-2147483648; shl.b64 %d,%d,-1; setp.lt.s64 %p,%d,-1; selp.b64 %d,-1,+0,%p; st.global.u64 [%d],-1;")).is_ok());
+    // Exercise the signed store literal without treating a computed scalar as
+    // a proved device pointer under the access-specific alignment profile.
+    let text = source("add.u32 %r,1,-1; cvt.u64.s32 %d,-2147483648; shl.b64 %d,%d,-1; setp.lt.s64 %p,%d,-1; selp.b64 %d,-1,+0,%p; st.global.u64 [result],-1;")
+        .replace(".visible .entry", ".global .align 8 .u64 result; .visible .entry");
+    assert!(ct_ptx::parse(&text).is_ok());
 }
 
 #[test]

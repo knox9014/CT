@@ -135,6 +135,118 @@
         "jit.nvrtc"
       ],
       "test_ids": []
+    },
+    {
+      "id": "vectorAdd.runtime",
+      "execution_path": "runtime_dynamic",
+      "evidence_tier": "upstream_adjusted_build",
+      "inventory_state": "pinned",
+      "source": {
+        "repository": "https://github.com/NVIDIA/cuda-samples",
+        "revision": "2b689228b746248b7bb7d2778d5ea0701669f7d3",
+        "recipe_ref": "scripts/run_upstream_vectoradd.py"
+      },
+      "artifacts": [
+        {
+          "role": "executable",
+          "sha256": "d546a4cd28309ffa671d47a1582284c467498266c5f90989977f2dde37920e7c",
+          "availability": "local_only"
+        },
+        {
+          "role": "capture_manifest",
+          "sha256": "67309a6654ac38d68cb9274d2cabd5dd8f0550c9bfe20ec97a3b0e9c5ccc7341",
+          "availability": "local_only"
+        },
+        {
+          "role": "replay_report",
+          "sha256": "a01c8eadaf17f3c138e4b25c8751df26cb7e8e26878e9111e6c730f25f18b903",
+          "availability": "local_only"
+        }
+      ],
+      "required_features": [
+        "loader",
+        "runtime",
+        "runtime.kernel_launch"
+      ],
+      "test_ids": [
+        "scripts/run_upstream_vectoradd.py#def build"
+      ]
+    },
+    {
+      "id": "matrixMul.virtual",
+      "execution_path": "runtime_dynamic",
+      "evidence_tier": "upstream_adjusted_build",
+      "inventory_state": "pinned",
+      "source": {
+        "repository": "https://github.com/NVIDIA/cuda-samples",
+        "revision": "2b689228b746248b7bb7d2778d5ea0701669f7d3",
+        "recipe_ref": "scripts/run_virtual_target.py"
+      },
+      "artifacts": [
+        {
+          "role": "executable",
+          "sha256": "fe81bdd687f4c8cae82ab141ea5d43dd2304c9521e88ff00e46088a152c15107",
+          "availability": "local_only"
+        },
+        {
+          "role": "capture_manifest",
+          "sha256": "7328f76bd16c3aa3457dfea1f25b65c8471b8d7d72e14b8febc0c6715e691b1d",
+          "availability": "local_only"
+        },
+        {
+          "role": "replay_report",
+          "sha256": "715d8c442e92cde5121b79e0b296712eef5c50c48201106b29cd8c0d7c1abc5c",
+          "availability": "local_only"
+        }
+      ],
+      "required_features": [
+        "loader",
+        "runtime",
+        "streams",
+        "parallel.shared",
+        "parallel.barrier",
+        "compiler.fma_f32",
+        "product.virtual_target"
+      ],
+      "test_ids": [
+        "scripts/run_virtual_target.py#def build"
+      ]
+    },
+    {
+      "id": "cupy.bootstrap",
+      "execution_path": "runtime_static",
+      "evidence_tier": "distributed_binary",
+      "inventory_state": "pinned",
+      "source": {
+        "repository": "https://github.com/cupy/cupy",
+        "revision": "dc1552a32f5489bdf6a5a721dfd952a92d47d934",
+        "recipe_ref": "docs/CUPY-BOOTSTRAP-RECIPE.md"
+      },
+      "artifacts": [
+        {
+          "role": "cupy_wheel",
+          "sha256": "5f08fc1d651d2446c1d18ad94f1a710224fab36d46634d4aa356423926964591",
+          "availability": "public_reference"
+        },
+        {
+          "role": "pathfinder_wheel",
+          "sha256": "85a4e708c725d603f576042ef32781a3d1737c51e84c35fe361d2680191af65a",
+          "availability": "public_reference"
+        },
+        {
+          "role": "numpy_wheel",
+          "sha256": "2ca144f15135b6212a5c47b1e2aeca6e412f102f95a2d5d88d8aec77eb255de3",
+          "availability": "public_reference"
+        }
+      ],
+      "required_features": [
+        "loader",
+        "driver.cuDriverGetVersion"
+      ],
+      "test_ids": [
+        "scripts/run_cupy_bootstrap.py#def capture",
+        "tests/test_cupy_bootstrap.py#def test_workload_trace_must_match_workload_stage"
+      ]
     }
   ]
 }

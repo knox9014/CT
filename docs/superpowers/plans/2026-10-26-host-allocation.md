@@ -1,0 +1,9 @@
+# Genuine host allocation implementation
+
+Expose Level Zero zeMemAllocHost through standard Driver cuMemHostAlloc/cuMemFreeHost (Driver41), then Runtime cudaHostAlloc/cudaFreeHost (Runtime32). Official pinned cudaTypedefs.h verifies host allocation v2020 and host free v2000. Mandatory Runtime bootstrap15/kernel5 remain unchanged; new optional host2 resolver must preserve owned-module checking and preparation error35.
+
+Bound flags0 only; unknown bits1, legal unsupported bits1/2/4 combinations801. Null output/zero size1 before load. Preserve Runtime output on errors. Each owning Driver context tracks at most128 host allocations/256MiB separately from device ranges, reserves a Vec slot before native allocation and never retries an uncertain free. Context cleanup unloads modules, destroys command list, frees mixed allocations, then destroys context. Caller must free from owning current context. No mapped/portable/writecombined/UVA/async-lifetime claim.
+
+Tests first: backend actual allocation method exercised through fake native FFI (success/readwrite/free, OOM retry, fatal allocation poison, failed free retained/no retry); Driver pure host book bounds/checked sums/exact-base free/malformed spans and context cleanup. Runtime injected preflight/prepare/Driver mapping/output tests and optional resolver controls. Native official-header/nvcc consumer must write/read host memory, transfer data to device and back, free/doublefree, isolate host from device pointer metadata, test missing/forwarded optional symbols35. Update profiles and active ABI gates; freeze source for final regressions and privacy check.
+
+Queued asynchronous usage requires an additional acquire-use/free exclusion/lifetime registry; current synchronous map alone is not sufficient and must not be advertised as that support.

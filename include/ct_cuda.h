@@ -14,12 +14,17 @@ typedef unsigned long long CUdeviceptr;
 typedef struct CTmodule *CUmodule;
 typedef struct CTfunction *CUfunction;
 typedef struct CTstream *CUstream;
+typedef struct CTevent *CUevent;
+typedef struct { char reserved[64]; } CUipcMemHandle;
+typedef struct { char bytes[16]; } CUuuid;
 #define CT_DRIVER_FUNCTIONS(X) \
  X(cuInit, (unsigned int flags)) \
  X(cuDriverGetVersion, (int *version)) \
  X(cuDeviceGetCount, (int *count)) \
  X(cuDeviceGet, (CUdevice *device, int ordinal)) \
  X(cuDeviceGetName, (char *name, int length, CUdevice device)) \
+ X(cuDeviceGetUuid, (CUuuid *output, CUdevice device)) \
+ X(cuDeviceTotalMem_v2, (size_t *bytes, CUdevice device)) \
  X(cuDeviceGetAttribute, (int *value, int attribute, CUdevice device)) \
  X(cuDevicePrimaryCtxRetain, (CUcontext *context, CUdevice device)) \
  X(cuDevicePrimaryCtxSetFlags_v2, (CUdevice device, unsigned int flags)) \
@@ -37,6 +42,14 @@ typedef struct CTstream *CUstream;
  X(cuCtxSynchronize, (void)) \
  X(cuMemAlloc_v2, (CUdeviceptr *pointer, size_t bytes)) \
  X(cuMemFree_v2, (CUdeviceptr pointer)) \
+ X(cuIpcOpenMemHandle_v2, (CUdeviceptr *output, CUipcMemHandle handle, unsigned int flags)) \
+ X(cuEventCreate, (CUevent *event, unsigned int flags)) \
+ X(cuEventRecord, (CUevent event, CUstream stream)) \
+ X(cuEventSynchronize, (CUevent event)) \
+ X(cuEventDestroy_v2, (CUevent event)) \
+ X(cuEventElapsedTime, (float *milliseconds, CUevent start, CUevent end)) \
+ X(cuMemHostAlloc, (void **pointer, size_t bytes, unsigned int flags)) \
+ X(cuMemFreeHost, (void *pointer)) \
  X(cuMemGetAddressRange_v2, (CUdeviceptr *base, size_t *size, CUdeviceptr pointer)) \
  X(cuPointerGetAttribute, (void *data, int attribute, CUdeviceptr pointer)) \
  X(cuMemcpyHtoD_v2, (CUdeviceptr destination, const void *source, size_t bytes)) \
@@ -48,7 +61,9 @@ typedef struct CTstream *CUstream;
  X(cuGetErrorName, (CUresult code, const char **name)) \
  X(cuGetErrorString, (CUresult code, const char **message)) \
  X(cuModuleLoadData, (CUmodule *module, const void *image)) \
+ X(cuModuleGetGlobal_v2, (CUdeviceptr *pointer, size_t *bytes, CUmodule module, const char *name)) \
  X(cuModuleGetFunction, (CUfunction *function, CUmodule module, const char *name)) \
+ X(cuFuncGetParamInfo, (CUfunction function, size_t index, size_t *offset, size_t *size)) \
  X(cuModuleUnload, (CUmodule module)) \
  X(cuLaunchKernel, (CUfunction function, unsigned int gx, unsigned int gy, unsigned int gz, unsigned int bx, unsigned int by, unsigned int bz, unsigned int shared, CUstream stream, void **arguments, void **extra)) \
  X(cuGetProcAddress, (const char *symbol, void **function, int version, unsigned long long flags)) \

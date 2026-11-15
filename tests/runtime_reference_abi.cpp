@@ -17,6 +17,11 @@ CHECK(cudaGetErrorName,const char * (CUDARTAPI *)(cudaError_t));
 CHECK(cudaGetErrorString,const char * (CUDARTAPI *)(cudaError_t));
 CHECK(cudaDriverGetVersion,cudaError_t (CUDARTAPI *)(int *));
 CHECK(cudaRuntimeGetVersion,cudaError_t (CUDARTAPI *)(int *));
+CHECK(cudaEventCreate,cudaError_t (CUDARTAPI *)(cudaEvent_t *));
+CHECK(cudaEventRecord,cudaError_t (CUDARTAPI *)(cudaEvent_t,cudaStream_t));
+CHECK(cudaEventSynchronize,cudaError_t (CUDARTAPI *)(cudaEvent_t));
+CHECK(cudaEventDestroy,cudaError_t (CUDARTAPI *)(cudaEvent_t));
+CHECK(cudaEventElapsedTime,cudaError_t (CUDARTAPI *)(float *,cudaEvent_t,cudaEvent_t));
 int main() {
     static_assert(sizeof(cudaError_t)==4 && sizeof(cudaMemcpyKind)==4 && sizeof(size_t)==8 && sizeof(void *)==8);
     std::printf("ABI 14 4 4 8 8\n%d %d %d %d %d\n%d %d %d %d %d %d %d %d %d %d %d %d\n",

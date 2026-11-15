@@ -11,6 +11,7 @@ sys.path.insert(0, str(ROOT / 'scripts'))
 from compatibility_registry import (RegistryContext, canonical_hash, validate_applications,
     validate_configuration, validate_coverage, validate_environment, validate_report,
     validate_toolchain, validate_tool_execution)
+from check_coverage import validate_scope_alignment
 
 TEST = 'tests/test_coverage_registry.py#test_static_registries'
 COMMIT = 'a' * 40
@@ -18,6 +19,36 @@ HASH = 'b' * 64
 
 
 class RegistryTests(unittest.TestCase):
+    def test_current_registry_scope_agrees_with_profile_and_pins_real_apps(self):
+        folder=ROOT/'docs/compatibility'
+        profile=json.loads((folder/'profile-v1.json').read_bytes())
+        coverage=json.loads((folder/'coverage-v1.json').read_bytes())
+        features={f['id']:f for f in coverage['features']}
+        for feature in profile['features']:
+            if feature['id'] in ('runtime','streams','driver.streams','product.virtual_target'):
+                self.assertEqual(features[feature['id']]['limits'],feature['limits'])
+                self.assertEqual(features[feature['id']]['implementation'],'missing' if feature['state']=='unsupported' else 'partial')
+        apps=json.loads((folder/'applications.json').read_bytes())
+        self.assertEqual(validate_applications(apps,ROOT,set(features)),[])
+        index={a['id']:a for a in apps['applications']}
+        for name in ('vectorAdd.runtime','matrixMul.virtual'):
+            app=index[name];self.assertEqual(app['inventory_state'],'pinned')
+            self.assertEqual(app['evidence_tier'],'upstream_adjusted_build')
+            self.assertEqual(app['source']['revision'],'2b689228b746248b7bb7d2778d5ea0701669f7d3')
+            self.assertTrue({'executable','capture_manifest','replay_report'}<={a['role'] for a in app['artifacts']})
+            self.assertTrue(all(a['availability']=='local_only' and len(a['sha256'])==64 for a in app['artifacts']))
+
+    def test_scope_validator_rejects_false_promotions_and_catalog_drift(self):
+        folder=ROOT/'docs/compatibility'
+        p=json.loads((folder/'profile-v1.json').read_bytes());c=json.loads((folder/'coverage-v1.json').read_bytes())
+        runtime=json.loads((folder/'runtime-profile-v1.json').read_bytes())
+        self.assertEqual(validate_scope_alignment(p,c,runtime),[])
+        for name,key,value in [('runtime','general_cuda_compatibility',True),('streams','driver_streams',True),('product.virtual_target','nvidia_conformance',True)]:
+            bad=copy.deepcopy(p);f=next(f for f in bad['features'] if f['id']==name);f['limits'][key]=value
+            self.assertTrue(validate_scope_alignment(bad,c,runtime))
+        bad=copy.deepcopy(c);next(f for f in bad['features'] if f['id']=='runtime')['implementation']='implemented'
+        self.assertTrue(validate_scope_alignment(p,bad,runtime))
+
     def setUp(self):
         self.coverage = dict(schema_version=1, source_baseline=COMMIT,
             test_catalog=[dict(id=TEST, kind='resolver')], features=[dict(

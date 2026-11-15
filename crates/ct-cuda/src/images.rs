@@ -17,6 +17,14 @@ fn raw(text: String) -> Vec<SourceCandidate> {
     }]
 }
 
+fn fatbin_error(error: ct_fatbin::Error) -> i32 {
+    match error {
+        ct_fatbin::Error::Invalid => 218,
+        ct_fatbin::Error::Unsupported => UNSUPPORTED,
+        ct_fatbin::Error::Allocation => 2,
+    }
+}
+
 /// Caller supplies a readable C string or the full readable declared fatbin.
 /// The cap precedes formation of its binary slice, not host-pointer validation.
 pub(crate) unsafe fn read_candidates(image: *const c_void) -> Result<Vec<SourceCandidate>, i32> {
@@ -32,15 +40,11 @@ pub(crate) unsafe fn read_candidates(image: *const c_void) -> Result<Vec<SourceC
         data.push(byte);
     }
     if data == ct_fatbin::MAGIC {
-        let error = |e| match e {
-            ct_fatbin::Error::Invalid => 218,
-            ct_fatbin::Error::Unsupported => UNSUPPORTED,
-        };
         let header = std::slice::from_raw_parts(image.cast::<u8>(), 16);
-        let size = ct_fatbin::image_size(header).map_err(error)?;
+        let size = ct_fatbin::image_size(header).map_err(fatbin_error)?;
         let bytes = std::slice::from_raw_parts(image.cast::<u8>(), size);
         return ct_fatbin::extract_candidates(bytes)
-            .map_err(error)?
+            .map_err(fatbin_error)?
             .into_iter()
             .map(|candidate| {
                 Ok(SourceCandidate {
@@ -67,7 +71,10 @@ pub(crate) unsafe fn read_candidates(image: *const c_void) -> Result<Vec<SourceC
     Err(UNSUPPORTED)
 }
 
-pub(crate) fn compile_candidates(candidates: Vec<SourceCandidate>) -> Result<CompiledModule, i32> {
+pub(crate) fn compile_candidates(
+    candidates: Vec<SourceCandidate>,
+    native_shared: u32,
+) -> Result<CompiledModule, i32> {
     if candidates.is_empty()
         || (candidates.len() != 1 && candidates.iter().any(|c| c.profile.is_none()))
     {
@@ -78,6 +85,7 @@ pub(crate) fn compile_candidates(candidates: Vec<SourceCandidate>) -> Result<Com
     }
     let mut profiles = Vec::new();
     let mut identity: Option<BTreeMap<String, Vec<(ParamKind, u32)>>> = None;
+    let mut global_identity = None;
     let mut selected: Option<(u8, CompiledModule)> = None;
     for candidate in candidates {
         let compiled = ct_codegen_spirv::translate_module(&candidate.text).map_err(|e| {
@@ -96,6 +104,18 @@ pub(crate) fn compile_candidates(candidates: Vec<SourceCandidate>) -> Result<Com
             return Err(UNSUPPORTED);
         }
         profiles.push(compiled.profile);
+        let globals: BTreeMap<_, _> = compiled
+            .globals
+            .iter()
+            .map(|g| (g.name.clone(), g.storage.clone()))
+            .collect();
+        if let Some(expected) = &global_identity {
+            if *expected != globals {
+                return Err(UNSUPPORTED);
+            }
+        } else {
+            global_identity = Some(globals);
+        }
         let entries: BTreeMap<_, _> = compiled
             .entries
             .iter()
@@ -126,15 +146,81 @@ pub(crate) fn compile_candidates(candidates: Vec<SourceCandidate>) -> Result<Com
             (8, 0, 52) => 1,
             _ => return Err(UNSUPPORTED),
         };
-        if selected.as_ref().is_none_or(|(best, _)| rank > *best) {
+        // Capacity affects selection only after all candidate validation above.
+        if crate::capacity::validate_entries(&compiled.entries, native_shared).is_ok()
+            && selected.as_ref().is_none_or(|(best, _)| rank > *best)
+        {
             selected = Some((rank, compiled));
         }
     }
-    selected.map(|(_, compiled)| compiled).ok_or(INVALID)
+    selected.map(|(_, compiled)| compiled).ok_or(UNSUPPORTED)
 }
 
 #[cfg(test)]
+#[path = "images_capacity_tests.rs"]
+mod capacity_tests;
+
+#[cfg(test)]
 mod tests {
+    fn compile_candidates(candidates: Vec<SourceCandidate>) -> Result<CompiledModule, i32> {
+        super::compile_candidates(candidates, ct_ptx::MAX_STATIC_SHARED_BYTES)
+    }
+    #[test]
+    fn candidate_lookup_identity_is_observable() {
+        fn with_globals(profile: Profile, globals: &str) -> SourceCandidate {
+            let mut c = candidate(profile, "test", "u32");
+            c.text = c
+                .text
+                .replace(".visible .entry", &format!("{globals}\n.visible .entry"));
+            c
+        }
+        for (a, b, accepted) in [
+            (
+                ".global .align 4 .u32 g=7;",
+                ".global .align 4 .u32 g=8;",
+                false,
+            ),
+            (
+                ".global .align 4 .u32 g;",
+                ".global .align 4 .u32 h;",
+                false,
+            ),
+            (
+                ".global .align 4 .u32 g;",
+                ".global .align 8 .u64 g;",
+                false,
+            ),
+            (".global .align 8 .u64 g;", "", false),
+            (
+                ".global .align 8 .u64 g=1;",
+                ".global .align 8 .b8 g[2];",
+                false,
+            ),
+            (
+                ".global .align 8 .u64 g=0xffffffffffffffff;",
+                ".global .align 8 .u64 g=-1;",
+                true,
+            ),
+            (
+                ".global .align 4 .u32 g=7; .global .align 4 .u32 h;",
+                ".visible .global .align 4 .u32 h=0; .global .align 4 .u32 g=7;",
+                true,
+            ),
+        ] {
+            let result = compile_candidates(vec![with_globals(OLD, a), with_globals(NEW, b)]);
+            if accepted {
+                assert!(result.is_ok());
+            } else {
+                assert!(matches!(result, Err(801)));
+            }
+        }
+    }
+    #[test]
+    fn allocation_maps_to_out_of_memory() {
+        assert_eq!(super::fatbin_error(ct_fatbin::Error::Allocation), 2);
+        assert_eq!(super::fatbin_error(ct_fatbin::Error::Invalid), 218);
+        assert_eq!(super::fatbin_error(ct_fatbin::Error::Unsupported), 801);
+    }
     use super::*;
     use ct_ptx::Profile;
     const OLD: Profile = Profile {
@@ -223,7 +309,7 @@ mod tests {
     #[test]
     fn does_not_hide_unsupported_unselected_candidate() {
         let mut old = candidate(OLD, "choice", "u32");
-        old.text = old.text.replace("ret;", "bar.sync 0; ret;");
+        old.text = old.text.replace("ret;", "bar.sync 1; ret;");
         assert_eq!(
             compile_candidates(vec![candidate(NEW, "choice", "u32"), old]).err(),
             Some(801)
@@ -285,7 +371,7 @@ mod tests {
         let mut invalid = candidate(OLD, "first", "u32");
         invalid
             .text
-            .push_str("\n.visible .entry second() { bar.sync 0; ret; }");
+            .push_str("\n.visible .entry second() { bar.sync 1; ret; }");
         assert_eq!(compile_candidates(vec![invalid]).err(), Some(801));
     }
 }

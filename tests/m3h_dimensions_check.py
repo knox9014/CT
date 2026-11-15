@@ -108,13 +108,16 @@ def rejected_launches(device, handle):
                 if code!=1: raise RuntimeError('invalid dimension was not rejected with INVALID_VALUE')
             device.call('cuMemcpyDtoH_v2',c.cast(output,P),pointers[0],c.sizeof(output))
             if any(v!=SENTINEL for v in output): raise RuntimeError('invalid launch changed output')
-        for shared,stream,extra in [(1,None,None),(0,P(1),None),(0,None,args)]:
-            if device.dll.cuLaunchKernel(handle,1,1,1,1,1,1,shared,stream,args,extra)!=801:
+        for shared,stream in [(1,None),(0,P(1))]:
+            if device.dll.cuLaunchKernel(handle,1,1,1,1,1,1,shared,stream,args,None)!=801:
                 raise RuntimeError('unsupported launch option accepted')
+        if device.dll.cuLaunchKernel(handle,1,1,1,1,1,1,0,None,args,args)!=1:
+            raise RuntimeError('simultaneous kernelParams and extra were not rejected')
     finally:
         for address in pointers:device.call('cuMemFree_v2',address)
     run_coordinates(device,handle,(2,3,2),(3,2,2))
-    return dict(invalid_shapes=len(cases),invalid_calls=len(cases)*2,unsupported_options=3,limits=caps)
+    return dict(invalid_shapes=len(cases),invalid_calls=len(cases)*2,unsupported_options=2,
+                simultaneous_argument_forms_rejected=True,limits=caps)
 
 
 def application_check(build,asset):

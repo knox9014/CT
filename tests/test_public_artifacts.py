@@ -4,13 +4,47 @@ import subprocess
 import tempfile
 import os
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from check_public_artifacts import inspect_blob
+from check_public_artifacts import inspect_blob, worktree_path
 
 
 class PublicationChecks(unittest.TestCase):
+    def test_working_tree_rejects_escape_and_links_before_reading(self):
+        with tempfile.TemporaryDirectory(dir=self.temp_root) as directory:
+            root=Path(directory).resolve();(root/'sample.txt').write_text('safe')
+            for name in ('../outside','/absolute','C:/outside','.git/config','a\\b'):
+                with self.assertRaises(ValueError):worktree_path(root,name)
+            self.assertIsNone(worktree_path(root,'deleted.txt'))
+            for method in ('is_symlink','is_junction'):
+                with patch.object(Path,method,return_value=True),patch.object(Path,'read_bytes') as read:
+                    with self.assertRaises(ValueError):worktree_path(root,'sample.txt')
+                    read.assert_not_called()
+
+    def test_working_tree_checks_modified_and_untracked_bytes_not_index(self):
+        with tempfile.TemporaryDirectory(dir=self.temp_root) as directory:
+            root=Path(directory)
+            subprocess.run(['git','init','-q',directory],check=True)
+            (root/'.gitignore').write_text('.cache/\n')
+            (root/'tracked.txt').write_text('safe index')
+            subprocess.run(['git','-C',directory,'add','tracked.txt','.gitignore'],check=True)
+            secret=b'gh'+b'p_'+b'a'*36
+            (root/'tracked.txt').write_bytes(secret)
+            (root/'new.txt').write_bytes(secret)
+            (root/'.cache').mkdir();(root/'.cache/ignored.txt').write_bytes(secret)
+            script=Path(__file__).resolve().parents[1]/'scripts/check_public_artifacts.py'
+            result=subprocess.run([sys.executable,str(script),'--working-tree'],cwd=root,capture_output=True,text=True)
+            self.assertEqual(result.returncode,1)
+            self.assertIn('tracked.txt',result.stderr);self.assertIn('new.txt',result.stderr)
+            self.assertNotIn('ignored.txt',result.stderr);self.assertNotIn('a'*36,result.stderr)
+            clean=subprocess.run([sys.executable,str(script),'--tracked'],cwd=root,capture_output=True,text=True)
+            self.assertEqual(clean.returncode,0)
+            subprocess.run(['git','-C',directory,'add','-f','.cache/ignored.txt'],check=True)
+            forced=subprocess.run([sys.executable,str(script),'--working-tree'],cwd=root,capture_output=True,text=True)
+            self.assertEqual(forced.returncode,1);self.assertIn('must not be published',forced.stderr)
+
     def setUp(self):
         repo = Path(__file__).resolve().parents[1]
         self.temp_root = (repo / '.cache/privacy-tests').resolve()

@@ -1,0 +1,35 @@
+.version 8.0
+.target sm_52
+.address_size 64
+
+.visible .entry no_shared(.param .u64 .ptr .global .align 4 output)
+{
+    .reg .u64 %out;
+    ld.param.u64 %out, [output];
+    st.global.u32 [%out], 1;
+    ret;
+}
+
+.visible .entry with_shared(.param .u64 .ptr .global .align 4 output)
+{
+    .shared .align 4 .b8 scratch[4096];
+    .reg .u32 %r<8>;
+    .reg .u64 %rd<3>;
+    ld.param.u64 %rd0, [output];
+    mov.u32 %r0, %tid.x;
+    mov.u32 %r1, %ntid.x;
+    shl.b32 %r2, %r0, 2;
+    mov.u32 %r3, scratch;
+    add.u32 %r4, %r3, %r2;
+    st.volatile.shared.u32 [%r4], %r0;
+    bar.sync 0;
+    add.u32 %r5, %r0, 1;
+    rem.u32 %r5, %r5, %r1;
+    shl.b32 %r6, %r5, 2;
+    add.u32 %r7, %r3, %r6;
+    ld.volatile.shared.u32 %r5, [%r7];
+    mul.wide.u32 %rd1, %r0, 4;
+    add.u64 %rd2, %rd0, %rd1;
+    st.global.u32 [%rd2], %r5;
+    ret;
+}

@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "id": "ct-sm52-subset-v1",
+  "experimental": true,
+  "release_claim": false,
+  "opt_in": {
+    "environment": "CT_VIRTUAL_TARGET",
+    "value": "ct-sm52-subset-v1",
+    "default": "strict",
+    "authority": "Driver first cuInit(0) attempt, before native initialization",
+    "immutable_for_process": true,
+    "invalid_configuration_error": 1
+  },
+  "compute_capability": {
+    "major": 5,
+    "minor": 2,
+    "meaning": "virtual PTX selection target, not NVIDIA hardware or conformance"
+  },
+  "physical_identity": "unchanged Intel device name",
+  "accepted_ptx_pairs": [
+    "7.0/sm_50",
+    "8.0/sm_52"
+  ],
+  "api_contracts": [
+    "docs/compatibility/profile-v1.json",
+    "docs/compatibility/runtime-profile-v1.json"
+  ],
+  "operations_and_limits": "docs/compatibility/profile-v1.json#features",
+  "syntax_and_semantics": "docs/compatibility/ptx-profile.md",
+  "static_shared_capacity": "min(native Level Zero maxSharedLocalMemory,16384)",
+  "selection": "highest fully validated fitting PTX candidate; native failure does not retry alternatives",
+  "unsupported": [
+    "NVIDIA architecture conformance",
+    "automatic NVIDIA SM/clock performance ranking",
+    "NVIDIA machine code execution",
+    "nonzero dynamic shared launch bytes",
+    "unlisted PTX operations and APIs"
+  ],
+  "failure_behavior": "unsupported and late-registered code rejected; ordinary errors preserved; no fabricated success",
+  "first_application_scope": "explicit device selection on Intel; unchanged pinned adjusted-build matrixMul EXE with external finite numerical checks",
+  "topology_count": {
+    "attribute": 16,
+    "strict_result": 801,
+    "source": "Level Zero maximum numSlices and numSubslicesPerSlice",
+    "mapping": "checked positive maximum-dimension product fitting i32",
+    "meaning": "CT software-target topology count, not active NVIDIA SMs, Intel EUs or occupancy",
+    "invalid_result": 801
+  }
+}

@@ -2,12 +2,12 @@
 use super::*;
 
 fn copy_ranges(
-    ranges: &AllocationRanges,
+    ranges: &impl DeviceRanges,
     destination: u64,
     source: u64,
     size: usize,
 ) -> CudaResult {
-    if !ranges.contains(destination, size) || !ranges.contains(source, size) {
+    if !ranges.contains_device(destination, size) || !ranges.contains_device(source, size) {
         return Err(INVALID);
     }
     // contains established nonoverflowing ends. Overlap is a CT restriction,
@@ -19,13 +19,13 @@ fn copy_ranges(
 }
 
 fn fill_range(
-    ranges: &AllocationRanges,
+    ranges: &impl DeviceRanges,
     destination: u64,
     count: usize,
     width: usize,
 ) -> Result<usize, i32> {
     let size = count.checked_mul(width).ok_or(INVALID)?;
-    if !destination.is_multiple_of(width as u64) || !ranges.contains(destination, size) {
+    if !destination.is_multiple_of(width as u64) || !ranges.contains_device(destination, size) {
         return Err(INVALID);
     }
     Ok(size)
@@ -40,7 +40,7 @@ pub extern "system" fn cuMemcpyDtoD_v2(destination: u64, source: u64, size: usiz
         if c.native.poisoned {
             return Err(UNKNOWN);
         }
-        copy_ranges(&c.allocations, destination, source, size)?;
+        copy_ranges(c, destination, source, size)?;
         b.copy_device(&mut c.native, destination, source, size)
             .map_err(native_error)
     })
@@ -54,7 +54,7 @@ fn fill(destination: u64, value: u32, count: usize, width: usize) -> i32 {
         if c.native.poisoned {
             return Err(UNKNOWN);
         }
-        let size = fill_range(&c.allocations, destination, count, width)?;
+        let size = fill_range(c, destination, count, width)?;
         b.fill_device(&mut c.native, destination, value, width, size)
             .map_err(native_error)
     })

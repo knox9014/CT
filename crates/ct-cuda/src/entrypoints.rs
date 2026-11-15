@@ -7,18 +7,20 @@ struct Entry {
     name: &'static [u8],
     minimum: i32,
     maximum: i32,
+    stream_independent_fallback: bool,
     pointer: *mut c_void,
 }
 
 // Version floors/signature transition verified against NVIDIA 12.0.107
 // cudaTypedefs.h. This is a lookup ceiling, not a CUDA driver version claim.
-fn entries() -> [Entry; 38] {
+fn entries() -> [Entry; 48] {
     macro_rules! e {
         ($name:literal, $function:path, $minimum:literal, $maximum:literal) => {
             Entry {
                 name: $name,
                 minimum: $minimum,
                 maximum: $maximum,
+                stream_independent_fallback: false,
                 pointer: $function as *const () as *mut c_void,
             }
         };
@@ -26,12 +28,23 @@ fn entries() -> [Entry; 38] {
             e!($name, $function, $minimum, 12000)
         };
     }
+    // Only these bootstrap signatures/modes were also audited against 12.9.79
+    // cudaTypedefs.h. This grants lookup compatibility, not a Driver version.
+    macro_rules! g {
+        ($name:literal, $function:path, $minimum:literal, $maximum:literal) => {
+            Entry {
+                stream_independent_fallback: true,
+                ..e!($name, $function, $minimum, $maximum)
+            }
+        };
+    }
     [
-        e!(b"cuInit", cuInit, 2000),
-        e!(b"cuDriverGetVersion", cuDriverGetVersion, 2020),
-        e!(b"cuDeviceGetCount", cuDeviceGetCount, 2000),
+        g!(b"cuInit", cuInit, 2000, 12090),
+        g!(b"cuDriverGetVersion", cuDriverGetVersion, 2020, 12090),
+        g!(b"cuDeviceGetCount", cuDeviceGetCount, 2000, 12090),
         e!(b"cuDeviceGet", cuDeviceGet, 2000),
         e!(b"cuDeviceGetName", cuDeviceGetName, 2000),
+        e!(b"cuDeviceTotalMem", cuDeviceTotalMem_v2, 3020),
         e!(b"cuDeviceGetAttribute", cuDeviceGetAttribute, 2000),
         e!(b"cuDevicePrimaryCtxRetain", cuDevicePrimaryCtxRetain, 7000),
         e!(
@@ -65,6 +78,13 @@ fn entries() -> [Entry; 38] {
         e!(b"cuCtxSynchronize", cuCtxSynchronize, 2000),
         e!(b"cuMemAlloc", cuMemAlloc_v2, 3020),
         e!(b"cuMemFree", cuMemFree_v2, 3020),
+        e!(b"cuMemHostAlloc", cuMemHostAlloc, 2020),
+        e!(b"cuEventCreate", cuEventCreate, 2000),
+        e!(b"cuEventRecord", cuEventRecord, 2000),
+        e!(b"cuEventSynchronize", cuEventSynchronize, 2000),
+        e!(b"cuEventDestroy", cuEventDestroy_v2, 4000),
+        e!(b"cuEventElapsedTime", cuEventElapsedTime, 2000),
+        e!(b"cuMemFreeHost", cuMemFreeHost, 2000),
         e!(b"cuMemGetAddressRange", cuMemGetAddressRange_v2, 3020),
         e!(b"cuPointerGetAttribute", cuPointerGetAttribute, 4000),
         e!(b"cuMemcpyHtoD", cuMemcpyHtoD_v2, 3020),
@@ -76,11 +96,18 @@ fn entries() -> [Entry; 38] {
         e!(b"cuGetErrorName", cuGetErrorName, 6000),
         e!(b"cuGetErrorString", cuGetErrorString, 6000),
         e!(b"cuModuleLoadData", modules::cuModuleLoadData, 2000),
+        e!(b"cuModuleGetGlobal", modules::cuModuleGetGlobal_v2, 3020),
         e!(b"cuModuleGetFunction", modules::cuModuleGetFunction, 2000),
+        e!(
+            b"cuFuncGetParamInfo",
+            modules::cuFuncGetParamInfo,
+            12040,
+            12090
+        ),
         e!(b"cuModuleUnload", modules::cuModuleUnload, 2000),
         e!(b"cuLaunchKernel", modules::cuLaunchKernel, 4000),
-        e!(b"cuGetProcAddress", cuGetProcAddress, 11030, 11999),
-        e!(b"cuGetProcAddress", cuGetProcAddress_v2, 12000),
+        g!(b"cuGetProcAddress", cuGetProcAddress, 11030, 11999),
+        g!(b"cuGetProcAddress", cuGetProcAddress_v2, 12000, 12090),
     ]
 }
 
@@ -123,12 +150,22 @@ pub unsafe extern "system" fn cuGetProcAddress_v2(
     if symbol.is_null() || output.is_null() || version <= 0 || flags > 2 {
         return INVALID;
     }
-    if version > 12000 || flags == 2 {
+    let name = CStr::from_ptr(symbol).to_bytes();
+    let entries = entries();
+    let audited_bootstrap = entries.iter().any(|entry| {
+        name == entry.name && entry.stream_independent_fallback && version <= entry.maximum
+    });
+    let audited_param_info = name == b"cuFuncGetParamInfo"
+        && entries
+            .iter()
+            .any(|entry| name == entry.name && version <= entry.maximum);
+    if (flags == 2 && !audited_bootstrap)
+        || (version > 12000 && !audited_bootstrap && !audited_param_info)
+    {
         return UNSUPPORTED;
     }
-    let name = CStr::from_ptr(symbol).to_bytes();
     let mut found = false;
-    for entry in entries() {
+    for entry in entries {
         if name == entry.name {
             found = true;
             if (entry.minimum..=entry.maximum).contains(&version) {

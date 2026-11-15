@@ -66,7 +66,7 @@ def main(baseline_only=False):
             ('duplicate-profile',producer.make_many([(old,b'50'),(old,b'50')],False),801),
             ('entry-mismatch',producer.make_many([(old,b'50'),(new.replace(b'ct_choice',b'different_entry'),b'52')],True),801),
             ('abi-mismatch',producer.make_many([(old,b'50'),(new.replace(b'.param .u32 n',b'.param .u32 n, .param .u32 extra'),b'52')],True),801),
-            ('unselected-unsupported',producer.make_many([(old.replace(b'ret;',b'bar.sync 0; ret;'),b'50'),(new,b'52')],True),801),
+            ('unselected-unsupported',producer.make_many([(old.replace(b'ret;',b'bar.sync 1; ret;'),b'50'),(new,b'52')],True),801),
         ]
         # These two are deliberately modified producer outputs, not genuine unmodified variants.
         mismatch=bytearray(producer.make_many([(old,b'50')],False));mismatch[42:44]=(8).to_bytes(2,'little');mismatch[44:48]=(52).to_bytes(4,'little')

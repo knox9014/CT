@@ -33,9 +33,9 @@ def audit_manifest(path,root=ROOT,*,execute=False):
             if set(item)!={'path','sha256'} or digest(local(root,item['path']).read_bytes())!=item['sha256']:return ['artifact mismatch']
             if role!='application':inspect_pe(local(root,item['path']).read_bytes(),dll=True)
         imports=inspect_pe(local(root,m['artifacts']['application']['path']).read_bytes(),runtime=True)['imports']
-        from check_runtime_profile import SIGNATURES
+        from check_runtime_profile import BASE_SIGNATURES
         observed=[i for i in imports if i['library'].lower()=='cudart64_12.dll']
-        if len(observed)!=1 or set(observed[0]['symbols'])!=set(SIGNATURES):return ['Runtime imports mismatch']
+        if len(observed)!=1 or set(observed[0]['symbols'])!=set(BASE_SIGNATURES):return ['Runtime imports mismatch']
         if len(m['modes'])!=11 or {x['mode'] for x in m['modes']}!=set(MODES):return ['missing modes']
         for record in m['modes']:
             if set(record)!={'mode','seed','exit_code','bundle','stdout','stderr','payloads'}:return ['invalid observation']

@@ -1,7 +1,10 @@
 use ct_ptx::{Error, InstructionKind, Kernel, Op, Param, ParamKind, Terminator, Ty, Value};
+use ct_ptx::{Global, GlobalStorage};
 use std::collections::BTreeMap;
+use std::sync::Arc;
 pub struct Compiled {
     pub profile: ct_ptx::Profile,
+    pub globals: Arc<[Global]>,
     pub entry: String,
     pub params: Vec<Param>,
     pub spirv: Vec<u8>,
@@ -9,22 +12,31 @@ pub struct Compiled {
 pub struct CompiledEntry {
     pub entry: String,
     pub params: Vec<Param>,
+    /// Conservative aligned static Workgroup storage, already profile-validated.
+    pub static_shared_bytes: u32,
 }
 pub struct CompiledModule {
     pub profile: ct_ptx::Profile,
+    pub globals: Arc<[Global]>,
     pub entries: Vec<CompiledEntry>,
     pub spirv: Vec<u8>,
 }
 mod emit;
 pub fn translate_module(source: &str) -> Result<CompiledModule, Error> {
     let module = ct_ptx::parse_module(source)?;
-    let spirv = emit::generate_module(&module.kernels);
+    let spirv = emit::generate_module(&module.kernels)?;
     Ok(CompiledModule {
         profile: module.profile,
+        globals: module.globals,
         entries: module
             .kernels
             .into_iter()
             .map(|kernel| CompiledEntry {
+                static_shared_bytes: kernel
+                    .shared
+                    .iter()
+                    .map(|s| s.bytes.next_multiple_of(s.alignment))
+                    .sum(),
                 entry: kernel.name,
                 params: kernel.params,
             })
@@ -34,9 +46,10 @@ pub fn translate_module(source: &str) -> Result<CompiledModule, Error> {
 }
 pub fn translate(source: &str) -> Result<Compiled, Error> {
     let k = ct_ptx::parse(source)?;
-    let spirv = emit::generate(&k);
+    let spirv = emit::generate(&k)?;
     Ok(Compiled {
         profile: k.profile,
+        globals: k.globals,
         entry: k.name,
         params: k.params,
         spirv,

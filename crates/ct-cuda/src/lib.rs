@@ -20,31 +20,53 @@ const UNKNOWN: i32 = 999;
 struct OwnedContext {
     native: Context,
     allocations: AllocationRanges,
+    host: host_memory::HostAllocations,
+    events: events::Events,
     modules: BTreeMap<usize, OwnedModule>,
     functions: BTreeMap<usize, OwnedFunction>,
 }
 struct OwnedModule {
     native: Module,
     entries: Vec<ct_codegen_spirv::CompiledEntry>,
+    globals: std::sync::Arc<[ct_ptx::Global]>,
 }
 struct OwnedFunction {
     module: usize,
     entry: usize,
 }
+mod capacity;
 mod context_stack;
+mod device_ranges;
+use device_ranges::DeviceRanges;
 mod entrypoints;
+mod events;
+mod host_memory;
+pub use events::{
+    cuEventCreate, cuEventDestroy_v2, cuEventElapsedTime, cuEventRecord, cuEventSynchronize,
+};
 mod images;
 mod memory;
+pub use host_memory::{cuMemFreeHost, cuMemHostAlloc};
 mod memory_queries;
 pub use memory_queries::{cuMemGetAddressRange_v2, cuPointerGetAttribute};
 mod modules;
 pub use memory::{cuMemcpyDtoD_v2, cuMemsetD16_v2, cuMemsetD32_v2, cuMemsetD8_v2};
+pub use modules::cuModuleGetGlobal_v2;
 mod primary;
+#[cfg(test)]
+mod primary_callback_tests;
 mod primary_state;
+mod total_memory;
+pub use total_memory::cuDeviceTotalMem_v2;
+mod virtual_policy;
+#[cfg(test)]
+#[path = "virtual_policy_tests.rs"]
+mod virtual_policy_tests;
 pub use entrypoints::{cuGetProcAddress, cuGetProcAddress_v2};
 pub use primary::{
     cuCtxGetFlags, cuDevicePrimaryCtxGetState, cuDevicePrimaryCtxRelease_v2,
     cuDevicePrimaryCtxReset_v2, cuDevicePrimaryCtxRetain, cuDevicePrimaryCtxSetFlags_v2,
+    cudart_primary_context,
 };
 #[derive(Default)]
 struct Runtime {
@@ -101,6 +123,8 @@ fn create_owned_context(
         OwnedContext {
             native,
             allocations: AllocationRanges::default(),
+            host: host_memory::HostAllocations::default(),
+            events: events::Events::default(),
             modules: BTreeMap::new(),
             functions: BTreeMap::new(),
         },
@@ -122,7 +146,10 @@ fn cleanup_context(b: &Backend, c: &mut OwnedContext) -> CudaResult {
         b.unload_module(&mut c.native, &mut module.native)
             .map_err(native_error)?;
     }
-    b.destroy_context(&mut c.native, &c.allocations.bases())
+    let mut pointers = c.allocations.bases();
+    pointers.try_reserve_exact(c.host.len()).map_err(|_| 2)?;
+    pointers.extend(c.host.bases());
+    b.destroy_context(&mut c.native, &pointers)
         .map_err(native_error)
 }
 
@@ -156,17 +183,16 @@ fn invoke(f: impl FnOnce(&mut Runtime) -> CudaResult) -> i32 {
 #[no_mangle]
 pub extern "system" fn cuInit(flags: u32) -> i32 {
     invoke(|r| {
-        if flags != 0 {
-            return Err(INVALID);
-        }
-        if r.backend.is_none() {
-            let b = Backend::open().map_err(native_error)?;
-            if b.devices.is_empty() {
-                return Err(100);
+        virtual_policy::initialize_process(flags, || {
+            if r.backend.is_none() {
+                let b = Backend::open().map_err(native_error)?;
+                if b.devices.is_empty() {
+                    return Err(100);
+                }
+                r.backend = Some(b);
             }
-            r.backend = Some(b);
-        }
-        Ok(())
+            Ok(())
+        })
     })
 }
 
@@ -226,8 +252,32 @@ pub unsafe extern "system" fn cuDeviceGetName(name: *mut c_char, length: i32, de
         Ok(())
     })
 }
+#[repr(C)]
+pub struct CUuuid {
+    bytes: [u8; 16],
+}
+
 /// # Safety
-/// value must be writable for one C int. Group/grid limits and compute mode exist.
+/// A non-null output must point to writable storage for one CUuuid.
+#[no_mangle]
+pub unsafe extern "system" fn cuDeviceGetUuid(output: *mut CUuuid, device: i32) -> i32 {
+    invoke(|r| {
+        if output.is_null() {
+            return Err(INVALID);
+        }
+        let b = backend(r)?;
+        let selected = b.devices.get(device as usize).ok_or(INVALID_DEVICE)?;
+        let bytes = selected.uuid;
+        if bytes == [0; 16] || b.devices.iter().filter(|d| d.uuid == bytes).count() != 1 {
+            return Err(UNSUPPORTED);
+        }
+        output.write(CUuuid { bytes });
+        Ok(())
+    })
+}
+
+/// # Safety
+/// value must be writable for one C int. Bounded limits and compute mode exist.
 #[no_mangle]
 pub unsafe extern "system" fn cuDeviceGetAttribute(
     value: *mut i32,
@@ -241,14 +291,39 @@ pub unsafe extern "system" fn cuDeviceGetAttribute(
         }
         value.write(0);
         let d = b.devices.get(device as usize).ok_or(INVALID_DEVICE)?;
+        // CT serializes Driver submissions and uses synchronous Level Zero
+        // immediate lists. Report the exposed CT profile, not Intel engine counts.
+        // GPU_OVERLAP (15) and ASYNC_ENGINE_COUNT (40) are supported zero values.
+        if matches!(attribute, 15 | 40) {
+            return Ok(());
+        }
         // CT has no exclusive/prohibited compute-mode mechanism. Its contexts
         // use ordinary shared device access (CUDA CU_COMPUTEMODE_DEFAULT).
         if attribute == 20 {
             return Ok(());
         }
+        if attribute == 16 {
+            let count = virtual_policy::topology_count(
+                virtual_policy::current()?,
+                d.max_slices,
+                d.max_subslices_per_slice,
+            )?;
+            value.write(count);
+            return Ok(());
+        }
+        if matches!(attribute, 75 | 76) {
+            return match virtual_policy::current()? {
+                virtual_policy::Mode::Strict => Err(UNSUPPORTED),
+                virtual_policy::Mode::Sm52 => {
+                    value.write(if attribute == 75 { 5 } else { 2 });
+                    Ok(())
+                }
+            };
+        }
         let x = match attribute {
             1..=4 => d.max_group[attribute as usize - 1],
             5..=7 => d.max_groups[attribute as usize - 5],
+            8 => capacity::shared_limit(d.shared_mem),
             _ => return Err(UNSUPPORTED),
         };
         if x > i32::MAX as u32 {
@@ -409,6 +484,26 @@ pub unsafe extern "system" fn cuMemAlloc_v2(output: *mut u64, size: usize) -> i3
         Ok(())
     })
 }
+#[repr(C)]
+pub struct CUipcMemHandle {
+    reserved: [u8; 64],
+}
+
+/// # Safety
+/// A non-null output must point to writable storage for one CUdeviceptr.
+#[no_mangle]
+pub unsafe extern "system" fn cuIpcOpenMemHandle_v2(
+    output: *mut u64,
+    _handle: CUipcMemHandle,
+    _flags: u32,
+) -> i32 {
+    if output.is_null() {
+        return INVALID;
+    }
+    output.write(0);
+    UNSUPPORTED
+}
+
 #[no_mangle]
 pub extern "system" fn cuMemFree_v2(pointer: u64) -> i32 {
     invoke(|r| {
@@ -431,7 +526,7 @@ unsafe fn transfer(device: u64, host: *mut c_void, size: usize, to_device: bool)
         }
         let b = r.backend.as_ref().ok_or(NOT_INITIALIZED)?;
         let c = r.contexts.get_mut(&id).ok_or(INVALID_CONTEXT)?;
-        if !c.allocations.contains(device, size) {
+        if !c.contains_device(device, size) {
             return Err(INVALID);
         }
         b.copy(&mut c.native, device, host, size, to_device)
@@ -530,6 +625,8 @@ pub unsafe extern "system" fn cuGetErrorString(code: i32, output: *mut *const c_
 }
 
 #[cfg(test)]
+mod capacity_tests;
+#[cfg(test)]
 mod failure_mapping_tests {
     use super::*;
     #[test]
@@ -579,3 +676,6 @@ mod failure_mapping_tests {
         }
     }
 }
+
+#[cfg(feature = "m3-device-check")]
+mod m3_device_check;

@@ -56,16 +56,28 @@ pub unsafe fn copy_device<D: DriverCalls>(
     if let Some(code) = unsafe { copy_preflight(dst, src, size, kind) } {
         return code;
     }
-    if let Err(code) = rt.ensure_current() {
-        return from_driver(code);
-    }
-    from_driver(match kind {
-        1 => unsafe { rt.driver.copy_htod(dst as u64, src.cast(), size) },
-        2 => unsafe { rt.driver.copy_dtoh(dst.cast(), src as u64, size) },
-        3 => rt.driver.copy_dtod(dst as u64, src as u64, size),
-        _ => unreachable!(),
-    })
+    let context = match rt.ensure_current() {
+        Ok(c) => c,
+        Err(code) => return from_driver(code),
+    };
+    crate::submission::scheduler()
+        .barrier(context, false, || {
+            let code = from_driver(match kind {
+                1 => unsafe { rt.driver.copy_htod(dst as u64, src.cast(), size) },
+                2 => unsafe { rt.driver.copy_dtoh(dst.cast(), src as u64, size) },
+                3 => rt.driver.copy_dtod(dst as u64, src as u64, size),
+                _ => unreachable!(),
+            });
+            if code == 0 {
+                Ok(())
+            } else {
+                Err(code)
+            }
+        })
+        .err()
+        .unwrap_or(0)
 }
+
 pub unsafe fn allocate<D: DriverCalls>(rt: &Runtime<D>, out: *mut *mut c_void, size: usize) -> i32 {
     if out.is_null() {
         return 1;
@@ -76,29 +88,45 @@ pub unsafe fn allocate<D: DriverCalls>(rt: &Runtime<D>, out: *mut *mut c_void, s
     if size == 0 {
         return 801;
     }
-    if let Err(code) = rt.ensure_current() {
-        return from_driver(code);
-    }
-    match rt.driver.allocate(size) {
+    let context = match rt.ensure_current() {
+        Ok(c) => c,
+        Err(code) => return from_driver(code),
+    };
+    match crate::submission::scheduler().barrier(context, false, || {
+        rt.driver.allocate(size).map_err(from_driver)
+    }) {
         Ok(pointer) => {
             unsafe {
                 *out = pointer as *mut c_void;
             }
             0
         }
-        Err(code) => from_driver(code),
+        Err(code) => code,
     }
 }
+
 pub fn free<D: DriverCalls>(rt: &Runtime<D>, ptr: *mut c_void) -> i32 {
-    if let Err(code) = rt.ensure_current() {
-        return from_driver(code);
-    }
-    if ptr.is_null() {
-        0
-    } else {
-        from_driver(rt.driver.free(ptr as u64))
-    }
+    let context = match rt.ensure_current() {
+        Ok(c) => c,
+        Err(code) => return from_driver(code),
+    };
+    crate::submission::scheduler()
+        .barrier(context, true, || {
+            let code = if ptr.is_null() {
+                0
+            } else {
+                from_driver(rt.driver.free(ptr as u64))
+            };
+            if code == 0 {
+                Ok(())
+            } else {
+                Err(code)
+            }
+        })
+        .err()
+        .unwrap_or(0)
 }
+
 pub fn fill<D: DriverCalls>(rt: &Runtime<D>, ptr: *mut c_void, value: i32, size: usize) -> i32 {
     if size == 0 {
         return 0;
@@ -106,8 +134,17 @@ pub fn fill<D: DriverCalls>(rt: &Runtime<D>, ptr: *mut c_void, value: i32, size:
     if ptr.is_null() {
         return 1;
     }
-    if let Err(code) = rt.ensure_current() {
-        return from_driver(code);
-    }
-    from_driver(rt.driver.fill8(ptr as u64, value as u8, size))
+    let context = match rt.ensure_current() {
+        Ok(c) => c,
+        Err(code) => return from_driver(code),
+    };
+    crate::submission::scheduler()
+        .barrier(context, false, || {
+            match from_driver(rt.driver.fill8(ptr as u64, value as u8, size)) {
+                0 => Ok(()),
+                code => Err(code),
+            }
+        })
+        .err()
+        .unwrap_or(0)
 }

@@ -11,6 +11,24 @@ from check_compatibility_profile import validate_profile, expected_exports
 
 
 class ProfileTests(unittest.TestCase):
+    def test_only_audited_bootstrap_names_extend_lookup_ceiling(self):
+        expected=expected_exports(ROOT)
+        for name in ('cuInit','cuDriverGetVersion','cuDeviceGetCount','cuGetProcAddress_v2'):
+            self.assertEqual(expected[name]['lookup_ranges'][0]['maximum'],12090)
+        self.assertEqual(expected['cuGetProcAddress']['lookup_ranges'][0]['maximum'],11999)
+        self.assertEqual(expected['cuMemcpyHtoD_v2']['lookup_ranges'][0]['maximum'],12000)
+        self.assertEqual(validate_profile(self.data,ROOT),[])
+    def test_runtime_and_streams_declare_only_implemented_bounded_scope(self):
+        features={f['id']:f for f in self.data['features']}
+        for name in ('runtime','streams'):
+            self.assertEqual(features[name]['state'],'experimental')
+            self.assertEqual(features[name]['limits']['implementation'],'partial')
+        self.assertEqual(features['streams']['limits']['scope'],'Runtime-owned logical streams only; no native queue overlap')
+        self.assertFalse(features['streams']['limits']['driver_streams'])
+        self.assertEqual(features['driver.streams']['state'],'unsupported')
+        self.assertFalse(features['runtime']['limits']['general_cuda_compatibility'])
+        self.assertEqual(features['product.virtual_target']['limits']['target'],'ct-sm52-subset-v1')
+
     def test_multiline_resolver_entries_preserve_primary_version_ranges(self):
         expected = expected_exports(ROOT)
         for name, canonical, minimum in (
@@ -38,7 +56,7 @@ class ProfileTests(unittest.TestCase):
 
     def test_current_profile_is_explicitly_bounded(self):
         self.assertEqual(validate_profile(self.data, ROOT), [])
-        self.assertEqual(len(self.data['exports']), 38)
+        self.assertEqual(len(self.data['exports']), 50)
         self.assertEqual(next(e for e in self.data['exports'] if e['symbol']=='cuDriverGetVersion')['behavior'], 'NOT_SUPPORTED')
         self.assertTrue(all(f['state'] in ('experimental','unsupported') for f in self.data['features']))
 

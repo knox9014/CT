@@ -15,6 +15,46 @@ pub const SYMBOLS: [&[u8]; 15] = [
     b"cuMemcpyDtoD_v2\0",
     b"cuMemsetD8_v2\0",
 ];
+pub const KERNEL_SYMBOLS: [&[u8]; 5] = [
+    b"cuModuleLoadData\0",
+    b"cuModuleGetFunction\0",
+    b"cuLaunchKernel\0",
+    b"cuModuleUnload\0",
+    b"cuDeviceGetAttribute\0",
+];
+pub fn resolve_kernel<P: Platform>(platform: &P, owned: &P::Owned) -> Result<[usize; 5], i32> {
+    let mut table = [0; 5];
+    for (out, name) in table.iter_mut().zip(KERNEL_SYMBOLS) {
+        *out = platform.resolve(owned, name)?;
+    }
+    Ok(table)
+}
+pub const EVENT_SYMBOLS: [&[u8]; 5] = [
+    b"cuEventCreate\0",
+    b"cuEventRecord\0",
+    b"cuEventSynchronize\0",
+    b"cuEventDestroy_v2\0",
+    b"cuEventElapsedTime\0",
+];
+pub fn resolve_events<P: Platform>(platform: &P, owned: &P::Owned) -> Result<[usize; 5], i32> {
+    let mut table = [0; 5];
+    for (out, name) in table.iter_mut().zip(EVENT_SYMBOLS) {
+        *out = platform.resolve(owned, name)?;
+    }
+    Ok(table)
+}
+pub fn resolve_host<P: Platform>(platform: &P, owned: &P::Owned) -> Result<[usize; 2], i32> {
+    Ok([
+        platform.resolve(owned, b"cuMemHostAlloc\0")?,
+        platform.resolve(owned, b"cuMemFreeHost\0")?,
+    ])
+}
+pub fn resolve_device_attribute<P: Platform>(platform: &P, owned: &P::Owned) -> Result<usize, i32> {
+    platform.resolve(owned, b"cuDeviceGetAttribute\0")
+}
+pub fn resolve_global<P: Platform>(platform: &P, owned: &P::Owned) -> Result<usize, i32> {
+    platform.resolve(owned, b"cuModuleGetGlobal_v2\0")
+}
 pub trait Platform {
     type Owned;
     fn load_owned(&self) -> Result<Self::Owned, i32>;

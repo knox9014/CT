@@ -134,7 +134,7 @@ def main(build=None,application_only=False):
             if device.dll.cuModuleUnload(owner)!=400:raise RuntimeError('foreign unload accepted module')
         finally:device.call('cuCtxDestroy_v2',foreign)
         negatives=[(text+text[text.index('.visible'):],218),(text[:-2],218),
-                   (text.replace('ld.param.f32 %f0, [value];','bar.sync 0; ld.param.f32 %f0, [value];'),801)]
+                   (text.replace('ld.param.f32 %f0, [value];','bar.sync 1; ld.param.f32 %f0, [value];'),801)]
         for invalid,expected_code in negatives:
             code,out=load_code(device,invalid.encode())
             if code!=expected_code or out.value is not None:raise RuntimeError('invalid later entry accepted')

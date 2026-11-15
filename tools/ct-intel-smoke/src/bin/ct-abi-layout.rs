@@ -43,6 +43,17 @@ fn main() {
         name
     );
     layout!(
+        "DeviceMemoryProperties",
+        DeviceMemoryProperties,
+        stype,
+        next,
+        flags,
+        max_clock_rate,
+        max_bus_width,
+        total_size,
+        name
+    );
+    layout!(
         "ComputeProperties",
         ComputeProperties,
         stype,
@@ -101,5 +112,23 @@ fn main() {
         constants
     );
     layout!("KernelDesc", KernelDesc, stype, next, flags, name);
+    layout!(
+        "KernelProperties",
+        KernelProperties,
+        stype,
+        next,
+        num_kernel_args,
+        required_group_size_x,
+        required_group_size_y,
+        required_group_size_z,
+        required_num_subgroups,
+        required_subgroup_size,
+        max_subgroup_size,
+        max_num_subgroups,
+        local_mem_size,
+        private_mem_size,
+        spill_mem_size,
+        uuid
+    );
     layout!("GroupCount", GroupCount, x, y, z);
 }

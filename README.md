@@ -1,66 +1,94 @@
 # CT (Cuda Translater)
 
-CUDA 기반 프로그램을 Intel 및 AMD GPU에서도 실행할 수 있도록 하는 범용 변환·호환 계층을 목표로 하는 프로젝트입니다.
+**한국어** · [English](README.en.md)
 
-CT aims to develop a general-purpose translation and compatibility layer for running CUDA-based programs on Intel and AMD GPUs.
+**이미 가진 Intel GPU에서 기존 CUDA 프로그램을 실행할 수 있게 만드는 프로젝트입니다.**
 
-## Project status / 현재 상태
+CUDA를 사용하는 프로그램은 GPU에 계산을 맡길 때 CUDA 드라이버를 호출합니다. CT는 그 호출을 받아 지원 범위 안의 GPU 코드(PTX)를 Intel에서 실행할 수 있는 형태(SPIR-V)로 변환하고, Intel Level Zero를 통해 실행합니다.
 
-**M3l / P03d: modular32/64-bit integer arithmetic passed exact-bit checks on Intel Arc B390.**
+```text
+CUDA 프로그램 → CT의 CUDA 드라이버 인터페이스 → PTX를 SPIR-V로 변환 → Intel GPU
+```
 
-현재는 초기 개발 단계입니다. Windows의 Intel Arc B390에서 제한된 PTX를 SPIR-V로 번역해 실제 GPU에서 실행합니다. 벡터 덧셈·SAXPY·ReLU·행렬 곱셈 4개 커널의 53개 조합에서 출력 606,660개와 가드 값 4,992개를 검증했습니다. API는 26개 심볼이며, M1 메모리·컨텍스트 검사 210개도 통과했습니다. 외부 CUDA 앱의 일반적인 호환성, CUDA 라이브러리 및 AMD 지원은 아직 확보하지 못했습니다.
+**현재 집중하는 환경은 Windows x64와 Intel Arc B390입니다.** AMD 백엔드는 Intel에서 실사용 앱을 검증한 뒤의 목표입니다.
 
-[M0 실행 결과와 재현 방법](docs/M0-RESULTS.md) · [검증 환경](docs/environment-matrix.md) · [실행 경로 결정](docs/decisions/0001-intel-execution-path.md)
+## 지금까지 확인한 것
 
-[M1 실행 결과와 재현 방법](docs/M1-RESULTS.md) · [Driver API 지원 범위](docs/compatibility/driver-api.md) · [공개 자료 보호 규칙](docs/PUBLICATION.md)
+| 항목 | 결과 |
+| --- | --- |
+| GPU 계산 | Arc B390에서 벡터 덧셈, ReLU, 행렬 곱셈 등 일부 CUDA 커널을 실행하고 결과를 확인했습니다. [커널 검증](https://github.com/knox9014/CT/blob/d57659f6a64d7fb211130de45a896654cce40738/docs/M2-RESULTS.md) |
+| NVIDIA 공식 샘플 | `vectorAddDrv`의 원본 호스트·커널 소스로 실험용 빌드를 만들었습니다. 압축 PTX가 들어 있는 CUDA 컨테이너(fatbin)를 CT로 실행해 50,000개 결과를 검증했습니다. [빌드 방식과 결과](https://github.com/knox9014/CT/blob/d57659f6a64d7fb211130de45a896654cce40738/docs/M3e-RESULTS.md) |
+| CUDA 앱 호환성 | CUDA Runtime 초기화를 진단 중입니다. CuPy 배포본의 실제 배열 연산과 범용 앱 실행은 아직 검증 전입니다. |
+| 다른 GPU | Intel Arc B390에서 검증했습니다. 다른 Intel 모델과 AMD는 이후 검증 대상입니다. |
 
-[M2 실행 결과와 재현 방법](docs/M2-RESULTS.md) · [지원하는 PTX 문법과 제한](docs/compatibility/ptx-profile.md)
+## 사용 설명서
 
-M3a에서는 일반 `nvcuda.dll` import 및 동적 로딩을 쓰는 독립 합성 프로그램 두 개를, 실행 파일 수정 없이 CT에 연결해 GPU 계산을 검증했습니다. 아직 외부 앱·NVIDIA 원본 실행 비교를 통과한 것은 아닙니다. [M3a 실행 결과](docs/M3a-RESULTS.md) · [CUDA 프로그램 연결 목표](docs/CUDA-CONNECTION.md)
+로컬 개발에서는 자체 CT Runtime을 사용하는 조정 빌드의 vectorAdd·matrixMul 샘플과 제한된 수치·자원 수명 시험도 진행했습니다. Numba 생성 PTX의 직접 실행은 확인했지만, Numba JIT 실험에는 시험용 메모리·링크 DLL과 프로세스 메타데이터 어댑터가 필요합니다. 원본 Numba/CuPy 지원 완료를 뜻하지 않습니다. [2026-11-13 현황 분석](docs/CT-STATUS-ANALYSIS-2026-11-13.md) · [후속 실행 계획](docs/superpowers/plans/2026-11-13-numba-kernel-resources.md)
 
-M3b에서는 NVIDIA 공식 헤더로 컴파일한 독립 프로그램이 구형·신형 `cuGetProcAddress`를 통해 함수 주소를 얻어 GPU 계산을 수행했습니다. 조회 80회, 출력 514개·가드 128개 검증을 통과했습니다. [M3b 실행 결과](docs/M3b-RESULTS.md) · [버전별 조회 지원 범위](docs/compatibility/driver-entrypoints.md)
+Windows x64와 Intel Arc B390에서 소스를 빌드해 검증용 예제를 실행할 수 있습니다. 아래 명령은 공개 개발 커밋을 기준으로 작성했습니다. GitHub 기본 브랜치에는 프로젝트 문서가 있고, 실행 코드는 아래 체크아웃 단계에서 가져옵니다.
 
-M3c에서는 NVIDIA 공식 `vectorAddDrv`의 호스트·커널 소스를 수정하지 않고 빌드해 50,000개 원소 검사를 통과했습니다. 원본 커널을 NVRTC로 컴파일한 PTX를 예상 `.fatbin` 파일명에 제공한 조정 시험이며, 실제 바이너리 fatbin 지원은 아닙니다. 독립 GPU 검사 14개 조합에서 출력 50,970개·가드 896개도 검증했습니다. [공식 샘플 시험·조정 내역](docs/M3c-RESULTS.md)
+### 1. 준비하기
 
-M3d에서는 같은 공식 호스트에 NVIDIA `nvFatbin`이 만든 실제 바이너리 fatbin을 제공해 50,000개 검사를 통과했습니다. fatbin을 통한 독립 검사 6개 크기에서 결과 50,450개·가드 384개도 검증했습니다. 당시에는 압축하지 않은 PTX 모듈 하나를 지원하고 압축·복수 PTX·추가 JIT 옵션은 거부했습니다. [실제 fatbin 검증 결과](docs/M3d-RESULTS.md) · [지원 형식](docs/compatibility/fatbin-profile.md)
+- Intel 그래픽 드라이버를 설치합니다. CT는 이 드라이버의 Level Zero를 사용합니다.
+- Git과 Python 3을 설치하고, PowerShell 7에서 `git --version`과 `python --version`이 실행되는지 확인합니다. [Python 다운로드](https://www.python.org/downloads/windows/)
+- Visual Studio Build Tools에서 **C++를 사용한 데스크톱 개발** 워크로드를 설치합니다. MSVC x64 도구와 Windows SDK를 포함하세요. [Visual Studio 다운로드](https://visualstudio.microsoft.com/downloads/)
+- rustup으로 Windows MSVC용 Rust를 설치한 뒤 새 PowerShell에서 `cargo --version`을 확인합니다. [Rust 설치](https://rustup.rs/)
 
-M3e에서는 CT 내부의 크기 제한을 둔 압축 해제기로 실제 압축 PTX fatbin도 처리합니다. 공식 샘플 50,000개 검사, 압축 입력의 독립 출력 50,450개·가드 384개와 이름·연산을 바꾼 커널 검사를 통과했습니다. M3d의 압축 거부 제한은 해제됐으며, 복수 PTX·JIT 옵션·CUDA Runtime·AMD 지원은 아직 확보하지 못했습니다. [압축 fatbin 검증 결과](docs/M3e-RESULTS.md)
+```powershell
+git clone https://github.com/knox9014/CT.git
+cd CT
+git checkout --detach d57659f6a64d7fb211130de45a896654cce40738
+```
 
-M3f에서는 알려진 두 프로파일의 대체 PTX를 검증하고 순서에 관계없이 선택합니다. 실제 Arc의48개 조합에서 출력403,600개·가드3,072개, 오류6종 거부·복구와 모듈 생성/해제1,000회를 통과했습니다. 같은 entry와 인자 종류를 가진 서로 다른 프로파일만 허용하며, 알 수 없는 프로파일·복수 entry·링킹은 아직 지원하지 않습니다. 기능 추적표 검증과 실제 실행 결과도 분리했습니다. [M3f 결과](docs/M3f-RESULTS.md)
+### 2. Intel GPU가 동작하는지 확인하기
 
-M3g에서는 하나의 모듈에 최대32개 kernel entry를 담고 각각 조회·실행합니다. 덧셈·뺄셈·다른 인자 ABI의 채우기 커널을 실제 Arc144개 조합에서 실행해 출력1,210,800개·가드9,216개를 검증했습니다. 모듈·컨텍스트별 핸들 수명, 부분 생성/해제 실패 시험, 독립 CUDA C 소비자와 공개 CLI도 통과했습니다. 아직 제한된 문법·동기1D 실행이며 저장된 전역 변수·device 함수·Runtime·AMD는 지원하지 않습니다. [M3g 결과](docs/M3g-RESULTS.md)
+```powershell
+cargo run --quiet --bin ct-intel-smoke
+```
 
-## Development plan / 개발 계획
+CT가 Level Zero에서 찾은 첫 Intel GPU를 사용합니다. 마지막 JSON에서 `"status":"pass"`와 `device`에 표시된 실제 GPU 이름을 확인하세요. 이 단계는 저장소에 포함된 SPIR-V 예제로 Intel 실행 환경을 확인합니다. [Intel 기본 테스트](https://github.com/knox9014/CT/blob/d57659f6a64d7fb211130de45a896654cce40738/docs/M0-RESULTS.md)
 
-M3l에서는 `add/sub/mul.lo/mad.lo`의 signed/unsigned32·64비트 형식16종을 지원합니다. 실제 Arc384개 사례에서 정수 출력3,228,800개와 가드49,152개를 검증했습니다. 넘침·최상위 비트·입력 보존을 확인했으며 CUDA ABI는 유지합니다. [M3l 결과](docs/M3l-RESULTS.md)
+여러 Intel GPU 중 특정 모델을 시험하려면 예제 파일 경로 뒤에 모델명의 일부를 넣으세요. 예를 들어 `cargo run --quiet --bin ct-intel-smoke -- tests/fixtures/vector_add.spv B390`은 B390을 찾습니다.
 
-M3k에서는32/64비트 정수 배열 읽기·쓰기와 명시적64비트 정수 인자를 추가했습니다. 실제 Arc288개 조합에서 정수 출력2,421,600개·가드37,152개, 포인터 정렬·소유권 거부와 복구, 독립 CUDA C/CLI 연결을 검증했습니다. 주석 없는 `.u64` 정수 인자와 혼합 정렬·작은 정수·구조체 ABI는 아직 제한됩니다. [M3k 결과](docs/M3k-RESULTS.md)
+### 3. CUDA 호출이 CT를 거쳐 실행되는지 확인하기
 
-M3j에서는32·64비트 정수 변환과 비트/시프트 연산32개 표기를 추가했습니다. CPU 정답504종을 두 seed·두 프로파일·raw/압축 형식으로 검사해4,032개 비교와 가드10,752개가 통과했습니다. 별도 CUDA C/CLI 연결, 기존 다차원 실행과 오류 차단 검사도 통과했습니다. P03의 정수·인자 형식 전체를 완성한 것은 아닙니다. [M3j 결과](docs/M3j-RESULTS.md)
+```powershell
+pwsh -NoProfile -File scripts/run_m3_smoke.ps1
+```
 
-M3i에서는 실제 GPU를 중단시키지 않고 native 오류를 주입해 실패 보고·후속 연산 차단·자원 보존을 검사했습니다. 설정/할당 단계의 치명적 오류와 해제·빌드 로그 정리 실패 처리를 보완했고 Rust64개·Python19개 및 실제 Arc 정상 경로가 통과했습니다. 오류 주입은 테스트 빌드에만 포함되며 실제 드라이버 재시작·자동 복구는 검증하지 않았습니다. [M3i 결과](docs/M3i-RESULTS.md)
+스크립트가 CT와 검증용 CUDA 프로그램 두 개를 빌드하고 Intel GPU에서 실행합니다. 마지막 JSON에서 `"status": "pass"`와 `"results": 514`를 확인하세요. [CUDA Driver 연결 검증](https://github.com/knox9014/CT/blob/d57659f6a64d7fb211130de45a896654cce40738/docs/M3a-RESULTS.md)
 
-M3h에서는 CUDA grid/block의 세 축과12개 좌표 레지스터를 연결했습니다. 실제 Arc26개 사례에서 출력37,394개·가드4,856개, 잘못된 크기 거부·복구, 별도 C 소비자의2D/3D 실행과 CLI 연결을 통과했습니다. P03의 첫 하위 작업이며 정수 연산·인자 형식 확장은 남아 있습니다. [M3h 결과](docs/M3h-RESULTS.md)
+### 4. 내가 가진 프로그램 확인하기
 
-[범용 CUDA 번역기의 전체 구현 목표와 완료 기준](docs/CT-COMPLETION-GOALS.md)에 현재 위치, 남은 기능, 개발 순서와 출시 조건을 정리했습니다.
+아래 경로를 신뢰할 수 있는 Windows x64 실행 파일과 그 프로그램이 읽는 PTX 파일로 바꾸세요. 먼저 `inspect`로 실행 파일이 가져오는 CUDA 함수를 확인합니다. 동적으로 찾는 함수나 실제 계산의 호환성은 실행 파일 검사만으로 확인할 수 없습니다.
 
-[작업별 의존성과 검증 문턱](docs/CT-EXECUTION-ROADMAP.md) · [첫 구현 상세 계획](docs/superpowers/plans/2026-10-19-m3f-selection.md) · [계획 검토](docs/CT-PLAN-REVIEW.md)
+```powershell
+python scripts/ct.py inspect "C:\path\to\app.exe"
+cargo build -p ct-cuda
+python scripts/ct.py run --ct-dll target/debug/ct_cuda.dll --ptx "C:\path\to\kernel.ptx" "C:\path\to\app.exe" -- kernel.ptx
+```
 
-[CT CUDA 호환 드라이버 설계 및 개발 계획](docs/CT-DRIVER-DESIGN.md)에 따라 CT 자체의 CUDA API/ABI, PTX 변환, 런타임과 백엔드를 개발하며 Arc B390에서 시작해 AMD와 실제 AI 프로그램으로 확장합니다. 제조사 드라이버 위에서 동작하는 사용자 공간 호환 계층을 목표로 합니다. 현재 M0 네이티브 실행, M1 메모리·컨텍스트 ABI와 M2의 제한된 PTX 번역·커널 실행을 검증했습니다.
+`--` 뒤에는 프로그램 자체의 인자를 넣습니다. 여기서는 프로그램이 `kernel.ptx`를 인자로 받는다고 가정했습니다. CT는 실행 파일과 지정한 GPU 코드 파일을 `.cache/runs/` 아래의 실행 폴더에 복사하고, 그 폴더에서 CT를 `nvcuda.dll`로 사용합니다. 이 예제는 외부 PTX를 사용하는 독립 프로그램을 대상으로 합니다. [Driver API 지원 범위](https://github.com/knox9014/CT/blob/d57659f6a64d7fb211130de45a896654cce40738/docs/compatibility/driver-api.md) · [공식 샘플 재현](https://github.com/knox9014/CT/blob/d57659f6a64d7fb211130de45a896654cce40738/docs/M3e-RESULTS.md)
 
-## Goals / 목표
+### 문제가 생기면
 
-- Reduce the work needed to adapt CUDA-based software for Intel and AMD GPUs.
-- Serve multiple CUDA applications, including AI workloads, rather than a single model.
-- Publish supported operations, hardware, correctness results, and performance measurements as implementation progresses.
+| 증상 | 확인할 것 |
+| --- | --- |
+| `link.exe`를 찾지 못하거나 MSVC 관련 오류가 발생함 | C++ 워크로드와 Windows SDK가 설치됐는지 확인하고 새 PowerShell을 엽니다. |
+| GPU를 찾지 못함 | 장치 관리자에서 Arc B390이 표시되는지 확인하고 Intel 그래픽 드라이버를 확인합니다. |
+| `unsupported static CUDA symbol` 또는 `CUDA Runtime imports are unsupported` | 위 Driver 실행 경로의 지원 범위를 벗어난 프로그램입니다. 오류 문구와 필요한 CUDA 함수를 확인하세요. |
 
-## Next priorities / 다음 과제
+문제를 공유할 때는 GPU 모델, Windows 버전, 재현 단계와 오류 문구를 적고 로그에서 개인 경로를 지워 주세요. [공개 자료 보호 규칙](https://github.com/knox9014/CT/blob/d57659f6a64d7fb211130de45a896654cce40738/docs/PUBLICATION.md)
 
-- Expand process-local CUDA application loading and versioned Driver entry points.
-- Validate an external unchanged application and compare against NVIDIA execution.
-- Extend PTX, CUDA Runtime and library coverage with reproducible checks.
-- Implement and verify an AMD backend on physical hardware.
+## 다음 목표
 
-Full CUDA compatibility and performance parity are long-term research questions, not current capabilities or guarantees.
+1. 실제로 필요한 CUDA 앱 하나를 Intel에서 배포본 그대로 실행해 작업을 끝냅니다.
+2. 같은 입력으로 NVIDIA 공식 드라이버에서 실행한 결과와 비교합니다.
+3. 다른 Intel PC에서도 설치와 실행을 재현하고, 성능과 제한을 기록합니다.
+4. Intel 검증을 바탕으로 AMD 백엔드를 추가합니다.
 
-구현 범위와 기술 선택은 조사·설계·실험을 통해 결정합니다. 현재 모든 CUDA 프로그램의 실행이나 동등한 성능을 보장하지 않습니다.
+[개발 순서와 출시 기준](https://github.com/knox9014/CT/blob/d57659f6a64d7fb211130de45a896654cce40738/docs/CT-EXECUTION-ROADMAP.md) · [Driver API 지원 범위](https://github.com/knox9014/CT/blob/d57659f6a64d7fb211130de45a896654cce40738/docs/compatibility/driver-api.md) · [PTX 지원 범위](https://github.com/knox9014/CT/blob/d57659f6a64d7fb211130de45a896654cce40738/docs/compatibility/ptx-profile.md)
+
+## 라이선스
+
+CT는 [MIT 라이선스](LICENSE)로 배포합니다. 개인용·상업용으로 사용, 수정 및 재배포할 수 있습니다. 복사본이나 소프트웨어의 상당 부분을 배포할 때는 저작권 표시와 라이선스 문구를 포함해야 합니다. 제3자 자료에는 각자의 라이선스가 적용됩니다.

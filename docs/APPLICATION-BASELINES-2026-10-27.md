@@ -1,0 +1,11 @@
+# Bounded application inventory
+
+The application registry records provenance, not an automatic execution verdict. `vectorAdd.runtime` and `matrixMul.virtual` pin historical executable, capture-manifest and replay-report SHA256 values from product source fingerprint `5a513f17ae2aa3453996535e9d5e0a64180ad8c15702190d86c906a129305359`. Their upstream source revision is `2b689228b746248b7bb7d2778d5ea0701669f7d3`. Build recipes adjust the upstream build for CT's bounded dynamic Runtime path; these are not arbitrary downloaded CUDA binaries.
+
+The artifact-role hashes are in `docs/compatibility/applications.json`. `local_only` means the files remain in ignored local evidence storage and are not bundled with a source checkpoint. Rebuilding may change a timestamp-bearing executable hash. A new capture is a separate observation; it must not replace the historical baseline or borrow that baseline's source identity. Adding capture hashes to fingerprinted registries after capture would invalidate the captured source fingerprint.
+
+Runtime support is partial: the current contract lists40 exports and bounded semantics. Logical Runtime-owned streams do not imply native overlap or Driver stream support. The optional `ct-sm52-subset-v1` virtual target is experimental, strict by default and does not claim NVIDIA compute-capability conformance. Physical Intel identity remains unchanged. Broader library/JIT candidates remain candidates.
+
+For matrixMul, nominal execution uses the original sample EXE with CT's two provider DLLs and no metadata injection or observation shim. Separate traced runs validate copied numerical output; noop launch/copy controls demonstrate that the sample's own success text is insufficient evidence. The kernel-only diagnostic and application-level evidence have separate scopes. Performance, another Intel machine and general CUDA compatibility remain unqualified.
+
+Current source qualification is recorded separately in `docs/R0-INVENTORY-SOURCE-RESULTS.md`. Source checkpoints include reviewed current bytes and a private Git identity, but exclude local SDKs and native evidence. Reproducing native runs also requires the pinned tools and supported Intel environment; passing CPU checks on a clean local checkpoint does not establish hosted CI or another-machine reproduction.

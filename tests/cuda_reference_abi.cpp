@@ -10,6 +10,8 @@ int main() {
     PROBE(cuDeviceGetCount, cuDeviceGetCount_v2000);
     PROBE(cuDeviceGet, cuDeviceGet_v2000);
     PROBE(cuDeviceGetName, cuDeviceGetName_v2000);
+    PROBE(cuDeviceGetUuid, cuDeviceGetUuid_v9020);
+    PROBE(cuDeviceTotalMem_v2, cuDeviceTotalMem_v3020);
     PROBE(cuDeviceGetAttribute, cuDeviceGetAttribute_v2000);
     PROBE(cuDevicePrimaryCtxRetain, cuDevicePrimaryCtxRetain_v7000);
     PROBE(cuDevicePrimaryCtxSetFlags_v2, cuDevicePrimaryCtxSetFlags_v11000);
@@ -27,6 +29,14 @@ int main() {
     PROBE(cuCtxSynchronize, cuCtxSynchronize_v2000);
     PROBE(cuMemAlloc_v2, cuMemAlloc_v3020);
     PROBE(cuMemFree_v2, cuMemFree_v3020);
+    PROBE(cuIpcOpenMemHandle_v2, cuIpcOpenMemHandle_v11000);
+    PROBE(cuEventCreate, cuEventCreate_v2000);
+    PROBE(cuEventRecord, cuEventRecord_v2000);
+    PROBE(cuEventSynchronize, cuEventSynchronize_v2000);
+    PROBE(cuEventDestroy_v2, cuEventDestroy_v4000);
+    PROBE(cuEventElapsedTime, cuEventElapsedTime_v2000);
+    PROBE(cuMemHostAlloc, cuMemHostAlloc_v2020);
+    PROBE(cuMemFreeHost, cuMemFreeHost_v2000);
     PROBE(cuMemGetAddressRange_v2, cuMemGetAddressRange_v3020);
     PROBE(cuPointerGetAttribute, cuPointerGetAttribute_v4000);
     PROBE(cuMemcpyHtoD_v2, cuMemcpyHtoD_v3020);
@@ -38,6 +48,7 @@ int main() {
     PROBE(cuGetErrorName, cuGetErrorName_v6000);
     PROBE(cuGetErrorString, cuGetErrorString_v6000);
     PROBE(cuModuleLoadData, cuModuleLoadData_v2000);
+    PROBE(cuModuleGetGlobal_v2, cuModuleGetGlobal_v3020);
     PROBE(cuModuleGetFunction, cuModuleGetFunction_v2000);
     PROBE(cuModuleUnload, cuModuleUnload_v2000);
     PROBE(cuLaunchKernel, cuLaunchKernel_v4000);

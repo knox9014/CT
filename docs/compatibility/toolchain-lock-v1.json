@@ -80,6 +80,66 @@
         "host_defines.h": "b5c6230db0d261b24a9121b37d2ed9af6e208ab7da63b41a9261ac20fdc6c33c"
       },
       "validation_target": null
+    },
+    {
+      "id": "cuda-nvcc-producer",
+      "pin_state": "pinned",
+      "version": "12.0.76",
+      "source_url": "https://developer.download.nvidia.com/compute/cuda/redist/redistrib_12.0.0.json",
+      "source_revision": null,
+      "artifact_sha256": "f67406f44263f0e4a110a8cf0200bff1d3d0e32917db8a7c9e417a87eb7ca372",
+      "platform": "windows-x64",
+      "recipe_ref": "docs/compatibility/nvcc-producer.md",
+      "files": {
+        "nvcc.exe": "6f0418e46a3f530d964bb6fb944e5dd43d3ab2046e4a2212991d0cf7bfcecbd7",
+        "fatbinary.exe": "09dbfc3b55a4527d6a710622fadd7c0b013cac4596d134cdfab8b7d5e7b3abf1",
+        "host_runtime.h": "0eee347bf357fdd3c2ef5f712bde9211b75bd5acaddeaf2b365b0da53c3ca5e4",
+        "fatbinary_section.h": "4ebcd4d30c74ee5c5798ee8a8856a7cf709e940e6beea73364b47792035bd0a8"
+      },
+      "validation_target": null
+    },
+    {
+      "id": "cuda-cudart-producer",
+      "pin_state": "pinned",
+      "version": "12.0.107",
+      "source_url": "https://developer.download.nvidia.com/compute/cuda/redist/redistrib_12.0.0.json",
+      "source_revision": null,
+      "artifact_sha256": "1cd8516feee068c6d718453e76b0dfcbee27844a35d4f3aa608a3d316190309c",
+      "platform": "windows-x64",
+      "recipe_ref": "docs/compatibility/nvcc-producer.md",
+      "files": {
+        "cuda_runtime.h": "57d53b44cc38782586de0cf73e0ce93d35d839bc68c9ca557736125a437998b4",
+        "cudart.lib": "21bd7177bed4f3b19874e70202518ba1e1851f5e9fa0cac83f049c36c0e21bd7"
+      },
+      "validation_target": null
+    },
+    {
+      "id": "cuda-cccl-producer",
+      "pin_state": "pinned",
+      "version": "12.0.90",
+      "source_url": "https://developer.download.nvidia.com/compute/cuda/redist/redistrib_12.0.0.json",
+      "source_revision": null,
+      "artifact_sha256": "dd422d4cc8462d112411659a56cc78cb6010d704f83db3e48c55a3f66eed5ec2",
+      "platform": "windows-x64",
+      "recipe_ref": "docs/compatibility/nvcc-producer.md",
+      "files": {
+        "cuda.std.type_traits": "175687908a9a62f7109848de5a8de45729c9f3f96fd75054bbc81a66b4fb8690"
+      },
+      "validation_target": null
+    },
+    {
+      "id": "ms-stl-diagnostic",
+      "pin_state": "pinned",
+      "version": "vs-2022-17.8",
+      "source_url": "https://github.com/microsoft/STL",
+      "source_revision": "ab600751924207014ab02f7422ee00a6843e2f0f",
+      "artifact_sha256": "ad92513bf0d77d544dad3a1a9f1b94152c4bdc9f7338475ece01657495b977c6",
+      "platform": "windows-x64",
+      "recipe_ref": "docs/compatibility/nvcc-producer.md",
+      "files": {
+        "yvals_core.h": "35af115ca04909367d964a9589fd132d1f779ada724abb5c19161707f279e9b5"
+      },
+      "validation_target": null
     }
   ]
 }

@@ -3,6 +3,10 @@ name = "ct-intel-smoke"
 version = "0.1.0"
 edition = "2021"
 publish = false
+license.workspace = true
+
+[features]
+m3-device-check = []
 
 [dependencies]
 ct-level-zero = { path = "../../crates/ct-level-zero" }

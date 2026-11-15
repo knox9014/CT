@@ -38,6 +38,144 @@ fn image(records: &[Vec<u8>]) -> Vec<u8> {
 }
 const TEXT: &[u8] = b".version 8.0\n.target sm_52\n.address_size 64\n";
 
+fn nvcc_record(text: &[u8], compressed: bool) -> Vec<u8> {
+    let mut r = record(1, text);
+    let payload = r.split_off(88);
+    r.truncate(72);
+    put32(&mut r, 4, 72);
+    put32(&mut r, 20, 64);
+    r[64..72].fill(0);
+    put32(&mut r, 40, if compressed { 0x2041 } else { 0x41 });
+    if compressed {
+        let size = text.len() + 1;
+        let mut block = vec![((size.min(15) as u8) << 4)];
+        if size >= 15 {
+            let mut rest = size - 15;
+            while rest >= 255 {
+                block.push(255);
+                rest -= 255;
+            }
+            block.push(rest as u8);
+        }
+        block.extend(text);
+        block.push(0);
+        put32(&mut r, 16, block.len() as u32);
+        put64(&mut r, 56, size as u64);
+        r.extend(block);
+        while !r.len().is_multiple_of(8) {
+            r.push(0);
+        }
+        let payload_size = r.len() - 72;
+        put64(&mut r, 8, payload_size as u64);
+    } else {
+        r.extend(payload);
+    }
+    r
+}
+
+#[test]
+fn nvcc_plain_and_compressed_match() {
+    for compressed in [false, true] {
+        let b = image(&[nvcc_record(TEXT, compressed)]);
+        assert_eq!(extract_ptx(&b).unwrap().as_ref(), TEXT);
+        for size in 0..b.len() {
+            assert!(extract_ptx(&b[..size]).is_err());
+        }
+    }
+}
+
+#[test]
+fn nvcc_profile_cannot_hide_options() {
+    for compressed in [false, true] {
+        for (offset, value) in [
+            (20, 72),
+            (24, 7 << 16),
+            (28, 50),
+            (32, 64),
+            (36, 1),
+            (40, 0x4041),
+            (44, 1),
+            (48, 1),
+            (52, 1),
+            (64, 1),
+            (68, 1),
+        ] {
+            let mut r = nvcc_record(TEXT, compressed);
+            put32(&mut r, offset, value);
+            assert!(extract_ptx(&image(&[r])).is_err(), "{compressed}/{offset}");
+        }
+        let mut r = nvcc_record(TEXT, compressed);
+        r.splice(72..72, [0; 8]);
+        put32(&mut r, 4, 80);
+        assert!(extract_ptx(&image(&[r])).is_err());
+    }
+    // New flags may not be used to bypass old nvFatbin option descriptors.
+    let mut r = record(1, TEXT);
+    put32(&mut r, 40, 0x41);
+    assert!(extract_ptx(&image(&[r])).is_err());
+}
+
+#[test]
+fn mixed_profiles_share_limits() {
+    let b = image(&[record(1, TEXT), nvcc_record(TEXT, true)]);
+    assert_eq!(ct_fatbin::extract_candidates(&b).unwrap().len(), 2);
+    let mut records = vec![record(1, TEXT); 7];
+    records.push(nvcc_record(TEXT, true));
+    assert_eq!(
+        ct_fatbin::extract_candidates(&image(&records))
+            .unwrap()
+            .len(),
+        8
+    );
+    records.push(nvcc_record(TEXT, false));
+    assert!(matches!(
+        ct_fatbin::extract_candidates(&image(&records)),
+        Err(Error::Unsupported)
+    ));
+    let text = vec![b'x'; 262143];
+    let mut records = vec![record(1, &text); 3];
+    records.push(nvcc_record(&text, true));
+    assert!(ct_fatbin::extract_candidates(&image(&records)).is_ok());
+    records.push(nvcc_record(TEXT, true));
+    assert!(matches!(
+        ct_fatbin::extract_candidates(&image(&records)),
+        Err(Error::Unsupported)
+    ));
+}
+
+#[test]
+fn nvcc_lengths_padding_and_expansion_are_checked() {
+    for (offset, value) in [(16, 1), (56, 1)] {
+        let mut r = nvcc_record(TEXT, false);
+        put32(&mut r, offset, value);
+        assert_eq!(extract_ptx(&image(&[r])), Err(Error::Invalid));
+    }
+    for value in [0, 1, u32::MAX] {
+        let mut r = nvcc_record(TEXT, true);
+        put32(&mut r, 16, value);
+        assert!(extract_ptx(&image(&[r])).is_err());
+    }
+    for size in [0, 1, 262153, u64::MAX] {
+        let mut r = nvcc_record(TEXT, true);
+        put64(&mut r, 56, size);
+        assert!(extract_ptx(&image(&[r])).is_err());
+    }
+    let mut r = nvcc_record(TEXT, true);
+    *r.last_mut().unwrap() = 1;
+    assert_eq!(extract_ptx(&image(&[r])), Err(Error::Invalid));
+}
+
+#[test]
+#[ignore = "requires authenticated local nvcc producer artifacts"]
+fn genuine_nvcc_compressed_and_plain_match() {
+    let compressed = std::fs::read(std::env::var_os("CT_NVCC_COMPRESSED").unwrap()).unwrap();
+    let plain = std::fs::read(std::env::var_os("CT_NVCC_PLAIN").unwrap()).unwrap();
+    assert_eq!(
+        extract_ptx(&compressed).unwrap(),
+        extract_ptx(&plain).unwrap()
+    );
+}
+
 #[test]
 fn extracts_mixed_plain_compressed_candidates_with_profiles() {
     let mut plain = record(1, TEXT);
@@ -303,4 +441,63 @@ fn bounded_mutations_do_not_panic_and_record_count_is_limited() {
         put32(&mut r, offset, value);
         assert!(extract_ptx(&image(&[r])).is_err());
     }
+}
+
+#[test]
+fn structural_inspection_is_not_executable_acceptance() {
+    use ct_fatbin::inspect_container;
+    let empty = image(&[]);
+    assert_eq!(inspect_container(&empty).unwrap().record_count, 0);
+    assert!(ct_fatbin::extract_candidates(&empty).is_err());
+    let machine = image(&vec![record(2, b"opaque"); 9]);
+    let info = inspect_container(&machine).unwrap();
+    assert_eq!(
+        (info.record_count, info.ptx_records, info.machine_records),
+        (9, 0, 9)
+    );
+    assert!(ct_fatbin::extract_candidates(&machine).is_err());
+    let ptx = image(&[nvcc_record(TEXT, false)]);
+    assert_eq!(inspect_container(&ptx).unwrap().ptx_records, 1);
+    assert_eq!(extract_ptx(&ptx).unwrap(), TEXT);
+}
+#[test]
+fn structural_limits_and_extents() {
+    use ct_fatbin::inspect_container;
+    let r = record(2, b"opaque");
+    assert_eq!(
+        inspect_container(&image(&vec![r.clone(); 256]))
+            .unwrap()
+            .record_count,
+        256
+    );
+    assert_eq!(
+        inspect_container(&image(&vec![r.clone(); 257])),
+        Err(Error::Unsupported)
+    );
+    for (offset, value, error) in [
+        (4, 63, Error::Invalid),
+        (4, 4104, Error::Invalid),
+        (8, 0, Error::Invalid),
+        (8, 7, Error::Invalid),
+        (8, u32::MAX, Error::Invalid),
+    ] {
+        let mut v = r.clone();
+        put32(&mut v, offset, value);
+        assert_eq!(inspect_container(&image(&[v])), Err(error));
+    }
+    let mut v = r.clone();
+    v[0] = 3;
+    assert_eq!(inspect_container(&image(&[v])), Err(Error::Unsupported));
+    let mut v = r.clone();
+    v[2] = 2;
+    assert_eq!(inspect_container(&image(&[v])), Err(Error::Unsupported));
+    let mut v = r.clone();
+    put64(&mut v, 8, u64::MAX - 7);
+    assert_eq!(inspect_container(&image(&[v])), Err(Error::Invalid));
+    let mut v = image(&[r]);
+    v.pop();
+    assert_eq!(inspect_container(&v), Err(Error::Invalid));
+    let mut v = image(&[]);
+    put64(&mut v, 8, MAX_IMAGE_SIZE as u64);
+    assert_eq!(inspect_container(&v), Err(Error::Unsupported));
 }
