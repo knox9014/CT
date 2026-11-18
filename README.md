@@ -12,13 +12,29 @@ CUDA 프로그램 → CT의 CUDA 드라이버 인터페이스 → PTX를 SPIR-V�
 
 **현재 집중하는 환경은 Windows x64와 Intel Arc B390입니다.** AMD 백엔드는 Intel에서 실사용 앱을 검증한 뒤의 목표입니다.
 
+## 실제 GPU 계산 결과 · 2026-11-18
+
+원본 Fractal Studio의 **GPU-only API**를 소스 변경 없이 CT로 실행했습니다. 현재 Arc B390에서 첫 프리셋 `z**2+c`의 **f32 Mandelbrot·Julia**를 확인했습니다.
+
+![Intel Arc에서 CT로 계산한 Mandelbrot와 Julia](docs/images/fractal-arc-preview.png)
+
+*GPU에서 계산해 다운로드한 값을 색상으로 표시했습니다. 왼쪽은 Mandelbrot 96×64, 오른쪽은 Julia 65×33입니다.*
+
+- 새 프로세스 두 개에서 각각 두 번 검증: **20회 실행·다운로드, 43,984개 값 검사**.
+- 독립 기준 계산과 내부/탈출 판정이 전부 일치했습니다. smooth 값 최대 절대 차이는 **0.00000190735**였습니다(사전 허용 한도 0.0002).
+- GUI 전체·다른 프리셋·f64 렌더·다른 GPU·NVIDIA 기준·성능 비교는 이후 검증 대상입니다.
+
+[검증 조건·수치·남은 제한](docs/RENDER-DEMO-2026-11-18.md)
+
+**배포 상태:** 이 결과는 준비된 Numba 0.65.1 실행 환경과 CT의 명시적 메모리·메타데이터 어댑터를 사용하는 로컬 개발 스냅샷에서 확인했습니다. 최신 프랙털 실행 코드·환경 배포는 준비 중입니다. 아래 사용 설명서는 기존 공개 예제용입니다.
+
 ## 지금까지 확인한 것
 
 | 항목 | 결과 |
 | --- | --- |
 | GPU 계산 | Arc B390에서 벡터 덧셈, ReLU, 행렬 곱셈 등 일부 CUDA 커널을 실행하고 결과를 확인했습니다. [커널 검증](https://github.com/knox9014/CT/blob/d57659f6a64d7fb211130de45a896654cce40738/docs/M2-RESULTS.md) |
 | NVIDIA 공식 샘플 | `vectorAddDrv`의 원본 호스트·커널 소스로 실험용 빌드를 만들었습니다. 압축 PTX가 들어 있는 CUDA 컨테이너(fatbin)를 CT로 실행해 50,000개 결과를 검증했습니다. [빌드 방식과 결과](https://github.com/knox9014/CT/blob/d57659f6a64d7fb211130de45a896654cce40738/docs/M3e-RESULTS.md) |
-| CUDA 앱 호환성 | CUDA Runtime 초기화를 진단 중입니다. CuPy 배포본의 실제 배열 연산과 범용 앱 실행은 아직 검증 전입니다. |
+| CUDA 앱 호환성 | 로컬 개발 스냅샷에서 Fractal Studio의 제한된 f32 GPU API 실행·수치 검사를 통과했습니다. CuPy 배포본의 실제 배열 연산과 범용 앱 실행은 아직 검증 전입니다. |
 | 다른 GPU | Intel Arc B390에서 검증했습니다. 다른 Intel 모델과 AMD는 이후 검증 대상입니다. |
 
 ## 사용 설명서
@@ -80,7 +96,7 @@ python scripts/ct.py run --ct-dll target/debug/ct_cuda.dll --ptx "C:\path\to\ker
 
 ## 다음 목표
 
-1. 실제로 필요한 CUDA 앱 하나를 Intel에서 배포본 그대로 실행해 작업을 끝냅니다.
+1. 확인한 GPU API 경로를 재현 가능한 실행 묶음으로 정리하고, 앱 전체·프리셋·해상도 검증을 넓힙니다.
 2. 같은 입력으로 NVIDIA 공식 드라이버에서 실행한 결과와 비교합니다.
 3. 다른 Intel PC에서도 설치와 실행을 재현하고, 성능과 제한을 기록합니다.
 4. Intel 검증을 바탕으로 AMD 백엔드를 추가합니다.

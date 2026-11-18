@@ -12,13 +12,29 @@ CUDA program → CT's CUDA driver interface → PTX translated to SPIR-V → Int
 
 **The current focus is Windows x64 and Intel Arc B390.** An AMD backend is a later goal, after validating real applications on Intel.
 
+## Actual GPU output · 2026-11-18
+
+CT ran the original Fractal Studio **GPU-only API without changing its source**. The verified scope is the first `z**2+c` preset in **f32 Mandelbrot and Julia mode** on the current Arc B390.
+
+![Mandelbrot and Julia computed through CT on Intel Arc](docs/images/fractal-arc-preview.png)
+
+*Colorized values calculated on the GPU and downloaded to the host. Left: Mandelbrot 96×64. Right: Julia 65×33.*
+
+- Two fresh processes, two validation sessions each: **20 launches and downloads; 43,984 values checked**.
+- Every interior/escape classification agreed with an independent reference. Maximum absolute smooth-field difference: **0.00000190735** (predeclared limit: 0.0002).
+- The full GUI, other presets, f64 rendering, other GPUs, NVIDIA reference results, and performance comparisons remain future validation work.
+
+[Conditions, measurements, and remaining limits](docs/RENDER-DEMO-2026-11-18.md)
+
+**Availability:** This result was measured in a local development snapshot using a prepared Numba 0.65.1 environment and explicit CT memory/metadata adapters. Publication of the latest fractal execution code and environment is still being prepared. The user guide below covers the existing public examples.
+
 ## What we've verified
 
 | Area | Result |
 | --- | --- |
 | GPU computation | Selected CUDA kernels, including vector addition, ReLU, and matrix multiplication, ran on Arc B390 and passed numerical checks. [Kernel validation](https://github.com/knox9014/CT/blob/d57659f6a64d7fb211130de45a896654cce40738/docs/M2-RESULTS.md) |
 | Official NVIDIA sample | We made an experimental build from the original host and kernel sources of `vectorAddDrv`. CT ran a CUDA container (fatbin) with compressed PTX, and we verified 50,000 results. [Build and results](https://github.com/knox9014/CT/blob/d57659f6a64d7fb211130de45a896654cce40738/docs/M3e-RESULTS.md) |
-| CUDA application compatibility | CUDA Runtime initialization is still under investigation. Real array operations with the distributed CuPy package and general CUDA application execution have yet to be verified. |
+| CUDA application compatibility | The local development snapshot passed a bounded f32 Fractal Studio GPU API workload and numerical checks. Real array operations with the distributed CuPy package and general CUDA application execution remain unverified. |
 | Other GPUs | Testing was performed on Intel Arc B390. Other Intel models and AMD GPUs are future validation targets. |
 
 ## User guide
@@ -80,7 +96,7 @@ When reporting a problem, include your GPU model, Windows version, steps to repr
 
 ## Next goals
 
-1. Run one real CUDA application as distributed on Intel and complete its workload.
+1. Package the verified GPU API path for reproducible execution, then expand application, preset, and frame-size coverage.
 2. Compare the results with a run on NVIDIA's official driver using the same input.
 3. Reproduce setup and execution on another Intel PC, and document performance and limitations.
 4. Add an AMD backend based on what we learn from Intel validation.
